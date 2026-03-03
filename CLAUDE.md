@@ -23,5 +23,6 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 - Rules: @.claude/rules/
 - Decisions: @docs/decisions/
 - Env template: @.env.example
+- Business ops: @business/README.md
 
 @import .claude/rules/workflow.md
