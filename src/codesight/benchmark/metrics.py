@@ -124,9 +124,15 @@ def compute_answer_metrics(
 ) -> dict[str, float]:
     """Compute answer quality metrics.
 
-    DeepEval and RAGAS are optional extras. This function keeps deterministic
-    behavior for local/offline test runs by falling back to lexical heuristics.
+    Tries DeepEval/RAGAS first (pip install codesight[benchmark]).
+    Falls back to lexical Jaccard heuristics if not installed.
     """
+    try:
+        return _compute_with_deepeval_ragas(question, answer_text, list(contexts))
+    except ImportError:
+        pass
+
+    # Fallback: lexical heuristics (deterministic, no external deps)
     context_text = "\n".join(contexts)
     faithfulness = _jaccard(answer_text, context_text)
     answer_relevancy = _jaccard(question, answer_text)
@@ -135,4 +141,50 @@ def compute_answer_metrics(
         "faithfulness": round(faithfulness, 6),
         "hallucination_rate": round(hallucination_rate, 6),
         "answer_relevancy": round(answer_relevancy, 6),
+    }
+
+
+def _compute_with_deepeval_ragas(
+    question: str,
+    answer_text: str,
+    contexts: list[str],
+) -> dict[str, float]:
+    """Use DeepEval + RAGAS for real answer quality metrics. Raises ImportError if unavailable."""
+    from deepeval.metrics import FaithfulnessMetric, HallucinationMetric
+    from deepeval.test_case import LLMTestCase
+
+    test_case = LLMTestCase(
+        input=question,
+        actual_output=answer_text,
+        retrieval_context=contexts,
+    )
+
+    faith_metric = FaithfulnessMetric(threshold=0.5)
+    faith_metric.measure(test_case)
+    faithfulness = faith_metric.score or 0.0
+
+    halluc_metric = HallucinationMetric(threshold=0.5)
+    halluc_metric.measure(test_case)
+    hallucination_rate = halluc_metric.score or 0.0
+
+    # Answer relevancy via RAGAS
+    try:
+        from datasets import Dataset
+        from ragas import evaluate as ragas_evaluate
+        from ragas.metrics import answer_relevancy as ragas_relevancy
+
+        ds = Dataset.from_dict({
+            "question": [question],
+            "answer": [answer_text],
+            "contexts": [contexts],
+        })
+        result = ragas_evaluate(ds, metrics=[ragas_relevancy])
+        relevancy = result["answer_relevancy"] or 0.0
+    except Exception:
+        relevancy = _jaccard(question, answer_text)
+
+    return {
+        "faithfulness": round(float(faithfulness), 6),
+        "hallucination_rate": round(float(hallucination_rate), 6),
+        "answer_relevancy": round(float(relevancy), 6),
     }

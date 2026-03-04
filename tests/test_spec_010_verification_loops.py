@@ -241,7 +241,8 @@ def test_edge_010_002_non_claude_uses_higher_high_threshold(
     engine._llm = StubLLM(responses=[LLMResponse(text="answer", citations=[])])
     engine._verifier = StubScorer([0.75])
     answer = engine.ask("q")
-    assert answer.confidence_level == "low"
+    # 0.75 is below non-Claude high threshold (0.8) but above low (0.5) → medium
+    assert answer.confidence_level == "medium"
 
 
 def test_edge_010_003_retries_exhausted_returns_refusal(

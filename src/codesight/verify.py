@@ -38,6 +38,8 @@ def _bool_env(name: str, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class VerificationConfig:
+    # NOTE: Field defaults are evaluated at import time, not instantiation.
+    # api.py always overrides all fields from ServerConfig, so this is fine.
     verify_enabled: bool = _bool_env("CODESIGHT_VERIFY", True)
     high_threshold_claude: float = float(os.environ.get("CODESIGHT_VERIFY_HIGH_CLAUDE", "0.7"))
     high_threshold_other: float = float(os.environ.get("CODESIGHT_VERIFY_HIGH_OTHER", "0.8"))
@@ -163,7 +165,7 @@ def confidence_decision(
     if grounding_score >= high_threshold and (has_citations or not is_claude_backend):
         return "pass", "high"
     if grounding_score < high_threshold:
-        return "pass", "low"
+        return "pass", "medium"
     return "retry", "low"
 
 

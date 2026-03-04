@@ -183,7 +183,7 @@ class CodeSight:
             )
 
             if decision == "pass":
-                if confidence_level == "low":
+                if confidence_level in ("low", "medium"):
                     answer_text = (
                         f"{answer_text}\n\n"
                         "[Low confidence: verify against cited sources "
