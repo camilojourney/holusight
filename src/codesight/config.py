@@ -80,6 +80,15 @@ DEFAULT_RERANKER_MODEL = os.environ.get(
 DEFAULT_RERANKER_TOP_N = int(os.environ.get("CODESIGHT_RERANKER_TOP_N", "20"))
 DEFAULT_LLM_BACKEND = os.environ.get("CODESIGHT_LLM_BACKEND", "claude")
 
+# Verification loop (ask() only)
+DEFAULT_VERIFY_ENABLED = os.environ.get("CODESIGHT_VERIFY", "true").lower() == "true"
+DEFAULT_VERIFY_HIGH_CLAUDE = float(os.environ.get("CODESIGHT_VERIFY_HIGH_CLAUDE", "0.7"))
+DEFAULT_VERIFY_HIGH_OTHER = float(os.environ.get("CODESIGHT_VERIFY_HIGH_OTHER", "0.8"))
+DEFAULT_VERIFY_LOW = float(os.environ.get("CODESIGHT_VERIFY_LOW", "0.5"))
+DEFAULT_VERIFY_MAX_RETRIES = int(os.environ.get("CODESIGHT_VERIFY_MAX_RETRIES", "2"))
+DEFAULT_VERIFY_TIMEOUT_SECONDS = float(os.environ.get("CODESIGHT_VERIFY_TIMEOUT_SECONDS", "5"))
+DEFAULT_VERIFY_SHORT_TEXT_CHARS = int(os.environ.get("CODESIGHT_VERIFY_SHORT_TEXT_CHARS", "20"))
+
 
 # ---------------------------------------------------------------------------
 # File walking
@@ -148,3 +157,11 @@ class ServerConfig(BaseModel):
     reranker: bool = Field(default=DEFAULT_RERANKER_ENABLED)
     reranker_model: str = Field(default=DEFAULT_RERANKER_MODEL)
     reranker_top_n: int = Field(default=DEFAULT_RERANKER_TOP_N)
+    # SPEC-010-006: Global verification toggle and thresholds for ask() responses.
+    verify: bool = Field(default=DEFAULT_VERIFY_ENABLED)
+    verify_high_claude: float = Field(default=DEFAULT_VERIFY_HIGH_CLAUDE)
+    verify_high_other: float = Field(default=DEFAULT_VERIFY_HIGH_OTHER)
+    verify_low: float = Field(default=DEFAULT_VERIFY_LOW)
+    verify_max_retries: int = Field(default=DEFAULT_VERIFY_MAX_RETRIES)
+    verify_timeout_seconds: float = Field(default=DEFAULT_VERIFY_TIMEOUT_SECONDS)
+    verify_short_text_chars: int = Field(default=DEFAULT_VERIFY_SHORT_TEXT_CHARS)

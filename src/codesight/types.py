@@ -31,6 +31,14 @@ class SearchResult(BaseModel):
     chunk_id: str
 
 
+class Citation(BaseModel):
+    """Claim-level citation attached to an answer."""
+
+    chunk_id: str
+    cited_text: str
+    claim: str
+
+
 class IndexStats(BaseModel):
     """Summary returned after indexing."""
 
@@ -61,3 +69,8 @@ class Answer(BaseModel):
     text: str
     sources: list[SearchResult]
     model: str
+    # SPEC-010-005: Verification fields are additive and backward-compatible.
+    grounding_score: float | None = None
+    citations: list[Citation] = []
+    confidence_level: str = "high"
+    retries: int = 0

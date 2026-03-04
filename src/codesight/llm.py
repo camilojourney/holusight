@@ -13,7 +13,14 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Protocol
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol
+
+from .types import Citation
+from .verify import parse_source_tag_citations
+
+if TYPE_CHECKING:
+    from .types import SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +34,12 @@ SYSTEM_PROMPT = (
 REQUEST_TIMEOUT = 30  # seconds
 
 
+@dataclass
+class LLMResponse:
+    text: str
+    citations: list[Citation]
+
+
 class LLMBackend(Protocol):
     """Protocol for LLM backends. Each backend implements generate()."""
 
@@ -37,6 +50,14 @@ class LLMBackend(Protocol):
     @property
     def model_id(self) -> str:
         """Return identifier like 'claude:claude-sonnet-4-20250514'."""
+        ...
+
+    def generate_with_citations(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        sources: list["SearchResult"] | None = None,
+    ) -> LLMResponse:
         ...
 
 
@@ -72,6 +93,56 @@ class ClaudeBackend:
             messages=[{"role": "user", "content": user_prompt}],
         )
         return message.content[0].text
+
+    # SPEC-010-002: Claude responses return best-effort citation objects.
+    def generate_with_citations(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        sources: list["SearchResult"] | None = None,
+    ) -> LLMResponse:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=self._api_key, timeout=REQUEST_TIMEOUT)
+        message = client.messages.create(
+            model=self._model,
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+
+        text_parts: list[str] = []
+        citations: list[Citation] = []
+        for block in getattr(message, "content", []):
+            block_text = getattr(block, "text", None)
+            if block_text:
+                text_parts.append(block_text)
+            raw_citations = getattr(block, "citations", None)
+            if not raw_citations or not sources:
+                continue
+            for raw in raw_citations:
+                source_idx = getattr(raw, "source_index", None)
+                if source_idx is None:
+                    source_idx = raw.get("source_index") if isinstance(raw, dict) else None
+                cited_text = getattr(raw, "cited_text", None)
+                if cited_text is None and isinstance(raw, dict):
+                    cited_text = raw.get("cited_text", "")
+                if source_idx is None or source_idx >= len(sources):
+                    continue
+                citations.append(
+                    Citation(
+                        chunk_id=sources[source_idx].chunk_id,
+                        cited_text=str(cited_text or ""),
+                        claim=str(block_text or "")[:200] or "Claim from response",
+                    )
+                )
+
+        text = "".join(text_parts).strip()
+        if not text:
+            text = message.content[0].text
+        if not citations and sources:
+            citations = parse_source_tag_citations(text, sources)
+        return LLMResponse(text=text, citations=citations)
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +191,14 @@ class AzureOpenAIBackend:
         )
         return response.choices[0].message.content
 
+    def generate_with_citations(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        sources: list["SearchResult"] | None = None,
+    ) -> LLMResponse:
+        return LLMResponse(text=self.generate(system_prompt, user_prompt), citations=[])
+
 
 # ---------------------------------------------------------------------------
 # OpenAI
@@ -154,6 +233,14 @@ class OpenAIBackend:
             max_tokens=1024,
         )
         return response.choices[0].message.content
+
+    def generate_with_citations(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        sources: list["SearchResult"] | None = None,
+    ) -> LLMResponse:
+        return LLMResponse(text=self.generate(system_prompt, user_prompt), citations=[])
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +291,14 @@ class OllamaBackend:
 
         resp.raise_for_status()
         return resp.json()["message"]["content"]
+
+    def generate_with_citations(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        sources: list["SearchResult"] | None = None,
+    ) -> LLMResponse:
+        return LLMResponse(text=self.generate(system_prompt, user_prompt), citations=[])
 
 
 # ---------------------------------------------------------------------------

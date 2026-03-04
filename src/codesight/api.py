@@ -16,6 +16,13 @@ from .llm import SYSTEM_PROMPT, LLMBackend, get_backend
 from .search import hybrid_search
 from .store import ChunkStore
 from .types import Answer, IndexStats, RepoStatus, SearchResult
+from .verify import (
+    REFUSAL_TEXT,
+    GroundingScorer,
+    VerificationConfig,
+    confidence_decision,
+    rewrite_query,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +50,7 @@ class CodeSight:
         self._store: ChunkStore | None = None
         self._embedder = None
         self._llm: LLMBackend | None = None
+        self._verifier: GroundingScorer | None = None
 
     @property
     def store(self) -> ChunkStore:
@@ -66,6 +74,12 @@ class CodeSight:
         if self._llm is None:
             self._llm = get_backend(self.config.llm_backend, model=self.config.llm_model)
         return self._llm
+
+    @property
+    def verifier(self) -> GroundingScorer:
+        if self._verifier is None:
+            self._verifier = GroundingScorer()
+        return self._verifier
 
     def index(self, force_rebuild: bool = False) -> IndexStats:
         """Index all documents in the folder.
@@ -98,36 +112,120 @@ class CodeSight:
 
         Backend is selected via CODESIGHT_LLM_BACKEND env var (default: claude).
         """
-        results = self.search(question, top_k=top_k, file_glob=file_glob)
+        verify_cfg = VerificationConfig(
+            verify_enabled=self.config.verify,
+            high_threshold_claude=self.config.verify_high_claude,
+            high_threshold_other=self.config.verify_high_other,
+            low_threshold=self.config.verify_low,
+            max_retries=self.config.verify_max_retries,
+            timeout_seconds=self.config.verify_timeout_seconds,
+            short_text_chars=self.config.verify_short_text_chars,
+        )
 
-        if not results:
+        retries = 0
+        current_question = question
+
+        while True:
+            results = self.search(current_question, top_k=top_k, file_glob=file_glob)
+            if not results:
+                # EDGE-010-006: Empty retrieved context skips verification.
+                return Answer(
+                    text="No relevant documents found. Try indexing first.",
+                    sources=[],
+                    model=self.llm.model_id,
+                    grounding_score=None,
+                    citations=[],
+                    confidence_level="low",
+                    retries=retries,
+                )
+
+            context = self._build_context(results)
+            user_prompt = (
+                "Based on the following documents, answer this question:\n\n"
+                f"**Question:** {current_question}\n\n"
+                f"**Documents:**\n\n{context}"
+            )
+
+            llm_response = self.llm.generate_with_citations(
+                SYSTEM_PROMPT,
+                user_prompt,
+                sources=results,
+            )
+            answer_text = llm_response.text
+            citations = llm_response.citations
+
+            # SPEC-010-006: Verification can be disabled globally via config/env.
+            if not verify_cfg.verify_enabled:
+                return Answer(
+                    text=answer_text,
+                    sources=results,
+                    model=self.llm.model_id,
+                    grounding_score=None,
+                    citations=[],
+                    confidence_level="high",
+                    retries=retries,
+                )
+
+            # SPEC-010-001: Grounding score is computed for verified ask() responses.
+            grounding_score = self.verifier.score(
+                answer_text,
+                results,
+                timeout_seconds=verify_cfg.timeout_seconds,
+                short_text_chars=verify_cfg.short_text_chars,
+            )
+
+            decision, confidence_level = confidence_decision(
+                grounding_score=grounding_score,
+                citations=citations,
+                answer_text=answer_text,
+                is_claude_backend=self.config.llm_backend == "claude",
+                config=verify_cfg,
+            )
+
+            if decision == "pass":
+                if confidence_level == "low":
+                    answer_text = (
+                        f"{answer_text}\n\n"
+                        "[Low confidence: verify against cited sources "
+                        "before relying on this answer.]"
+                    )
+                return Answer(
+                    text=answer_text,
+                    sources=results,
+                    model=self.llm.model_id,
+                    grounding_score=grounding_score,
+                    citations=citations,
+                    confidence_level=confidence_level,
+                    retries=retries,
+                )
+
+            # SPEC-010-003: Retry low-confidence responses with bounded attempts.
+            if decision == "retry" and retries < verify_cfg.max_retries:
+                retries += 1
+                current_question = rewrite_query(
+                    self.llm,
+                    original_question=question,
+                    low_confidence_answer=answer_text,
+                    sources=results,
+                )
+                continue
+
+            # EDGE-010-003: Retries exhausted -> transparent refusal + raw sources.
             return Answer(
-                text="No relevant documents found. Try indexing first.",
-                sources=[],
+                text=REFUSAL_TEXT,
+                sources=results,
                 model=self.llm.model_id,
+                grounding_score=grounding_score,
+                citations=citations,
+                confidence_level="refused",
+                retries=retries,
             )
 
-        # Build context from search results
+    def _build_context(self, results: list[SearchResult]) -> str:
         context_parts = []
-        for i, r in enumerate(results, 1):
-            context_parts.append(
-                f"[Source {i}: {r.file_path}, {r.scope}]\n{r.snippet}"
-            )
-        context = "\n\n---\n\n".join(context_parts)
-
-        user_prompt = (
-            f"Based on the following documents, answer this question:\n\n"
-            f"**Question:** {question}\n\n"
-            f"**Documents:**\n\n{context}"
-        )
-
-        answer_text = self.llm.generate(SYSTEM_PROMPT, user_prompt)
-
-        return Answer(
-            text=answer_text,
-            sources=results,
-            model=self.llm.model_id,
-        )
+        for idx, item in enumerate(results, 1):
+            context_parts.append(f"[Source {idx}: {item.file_path}, {item.scope}]\n{item.snippet}")
+        return "\n\n---\n\n".join(context_parts)
 
     def status(self) -> RepoStatus:
         """Check index status for this folder."""
@@ -175,5 +273,3 @@ class CodeSight:
             return age > self.config.stale_threshold_seconds
         except Exception:
             return True
-
-
