@@ -46,6 +46,52 @@ def main():
     # demo
     sub.add_parser("demo", help="Launch Streamlit web chat UI")
 
+    # SPEC-009-007: Benchmark harness CLI subcommands.
+    # benchmark
+    p_benchmark = sub.add_parser("benchmark", help="Run benchmark harness")
+    benchmark_sub = p_benchmark.add_subparsers(dest="benchmark_command")
+
+    p_benchmark_run = benchmark_sub.add_parser("run", help="Run benchmark query bank")
+    p_benchmark_run.add_argument("--config", default="B", help="Benchmark config profile (A-H)")
+    p_benchmark_run.add_argument("--corpus", required=True, help="Corpus folder path")
+    p_benchmark_run.add_argument(
+        "--question-bank",
+        default="tests/benchmarks/questions.json",
+        help="Question bank JSON path",
+    )
+    p_benchmark_run.add_argument(
+        "--results-db",
+        default="tests/benchmarks/results.db",
+        help="SQLite results database path",
+    )
+    p_benchmark_run.add_argument(
+        "--include-llm",
+        action="store_true",
+        help="Enable ask() + answer quality metrics",
+    )
+    p_benchmark_run.add_argument(
+        "--config-file",
+        default=None,
+        help="Optional custom benchmark config JSON file",
+    )
+
+    p_benchmark_compare = benchmark_sub.add_parser("compare", help="Compare two benchmark runs")
+    p_benchmark_compare.add_argument("--run-a", required=True, help="Run ID A")
+    p_benchmark_compare.add_argument("--run-b", required=True, help="Run ID B")
+    p_benchmark_compare.add_argument(
+        "--results-db",
+        default="tests/benchmarks/results.db",
+        help="SQLite results database path",
+    )
+
+    p_benchmark_report = benchmark_sub.add_parser("report", help="Report a benchmark run")
+    p_benchmark_report.add_argument("--run", required=True, help="Run ID")
+    p_benchmark_report.add_argument(
+        "--results-db",
+        default="tests/benchmarks/results.db",
+        help="SQLite results database path",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -54,6 +100,13 @@ def main():
 
     if args.command == "demo":
         _launch_demo()
+        return
+
+    if args.command == "benchmark":
+        if not args.benchmark_command:
+            p_benchmark.print_help()
+            sys.exit(1)
+        _run_benchmark_cli(args)
         return
 
     # Lazy import to avoid loading heavy deps for --help
@@ -96,6 +149,42 @@ def _launch_demo():
         print(f"Demo app not found at {app_path}")
         sys.exit(1)
     subprocess.run(["streamlit", "run", str(app_path)], check=True)
+
+
+def _run_benchmark_cli(args):
+    from .benchmark import BenchmarkStore, build_report, compare_runs, run_benchmark
+
+    if args.benchmark_command == "run":
+        result = run_benchmark(
+            config_name=args.config,
+            corpus_path=args.corpus,
+            include_llm=args.include_llm,
+            question_bank_path=args.question_bank,
+            results_db_path=args.results_db,
+            config_file=args.config_file,
+        )
+        print(json.dumps(result, indent=2))
+        return
+
+    store = BenchmarkStore(args.results_db)
+    if args.benchmark_command == "compare":
+        result = compare_runs(store, args.run_a, args.run_b)
+        for warning in result["warnings"]:
+            print(warning)
+        print("metric\trun_a_mean\trun_b_mean\tdiff\tp_value\tsignificant\tn")
+        for row in result["rows"]:
+            print(
+                f"{row['metric']}\t{row['run_a_mean']}\t{row['run_b_mean']}\t"
+                f"{row['difference']}\t{row['p_value']}\t{row['significant']}\t{row['n']}"
+            )
+        return
+
+    if args.benchmark_command == "report":
+        rows = build_report(store, args.run)
+        print("metric\tmean\tmedian\tp5\tp95")
+        for row in rows:
+            print(f"{row['metric']}\t{row['mean']}\t{row['median']}\t{row['p5']}\t{row['p95']}")
+        return
 
 
 if __name__ == "__main__":

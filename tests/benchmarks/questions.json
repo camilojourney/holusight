@@ -1,0 +1,982 @@
+[
+  {
+    "id": "factoid-001",
+    "question": "factoid benchmark question 1",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 2,
+        "end_line": 4
+      }
+    ]
+  },
+  {
+    "id": "factoid-002",
+    "question": "factoid benchmark question 2",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 3,
+        "end_line": 5
+      }
+    ]
+  },
+  {
+    "id": "factoid-003",
+    "question": "factoid benchmark question 3",
+    "category": "factoid",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 4,
+        "end_line": 6
+      }
+    ]
+  },
+  {
+    "id": "factoid-004",
+    "question": "factoid benchmark question 4",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 5,
+        "end_line": 7
+      }
+    ]
+  },
+  {
+    "id": "factoid-005",
+    "question": "factoid benchmark question 5",
+    "category": "factoid",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 6,
+        "end_line": 8
+      }
+    ]
+  },
+  {
+    "id": "factoid-006",
+    "question": "factoid benchmark question 6",
+    "category": "factoid",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 7,
+        "end_line": 9
+      }
+    ]
+  },
+  {
+    "id": "factoid-007",
+    "question": "factoid benchmark question 7",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 8,
+        "end_line": 10
+      }
+    ]
+  },
+  {
+    "id": "factoid-008",
+    "question": "factoid benchmark question 8",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 9,
+        "end_line": 11
+      }
+    ]
+  },
+  {
+    "id": "factoid-009",
+    "question": "factoid benchmark question 9",
+    "category": "factoid",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 10,
+        "end_line": 12
+      }
+    ]
+  },
+  {
+    "id": "factoid-010",
+    "question": "factoid benchmark question 10",
+    "category": "factoid",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 11,
+        "end_line": 13
+      }
+    ]
+  },
+  {
+    "id": "factoid-011",
+    "question": "factoid benchmark question 11",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 12,
+        "end_line": 14
+      }
+    ]
+  },
+  {
+    "id": "factoid-012",
+    "question": "factoid benchmark question 12",
+    "category": "factoid",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 13,
+        "end_line": 15
+      }
+    ]
+  },
+  {
+    "id": "factoid-013",
+    "question": "factoid benchmark question 13",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 14,
+        "end_line": 16
+      }
+    ]
+  },
+  {
+    "id": "factoid-014",
+    "question": "factoid benchmark question 14",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 15,
+        "end_line": 17
+      }
+    ]
+  },
+  {
+    "id": "factoid-015",
+    "question": "factoid benchmark question 15",
+    "category": "factoid",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 16,
+        "end_line": 18
+      }
+    ]
+  },
+  {
+    "id": "factoid-016",
+    "question": "factoid benchmark question 16",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 17,
+        "end_line": 19
+      }
+    ]
+  },
+  {
+    "id": "factoid-017",
+    "question": "factoid benchmark question 17",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 18,
+        "end_line": 20
+      }
+    ]
+  },
+  {
+    "id": "factoid-018",
+    "question": "factoid benchmark question 18",
+    "category": "factoid",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 19,
+        "end_line": 21
+      }
+    ]
+  },
+  {
+    "id": "factoid-019",
+    "question": "factoid benchmark question 19",
+    "category": "factoid",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 20,
+        "end_line": 22
+      }
+    ]
+  },
+  {
+    "id": "factoid-020",
+    "question": "factoid benchmark question 20",
+    "category": "factoid",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 21,
+        "end_line": 23
+      }
+    ]
+  },
+  {
+    "id": "code-001",
+    "question": "code benchmark question 1",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 2,
+        "end_line": 4
+      }
+    ]
+  },
+  {
+    "id": "code-002",
+    "question": "code benchmark question 2",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 3,
+        "end_line": 5
+      }
+    ]
+  },
+  {
+    "id": "code-003",
+    "question": "code benchmark question 3",
+    "category": "code",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 4,
+        "end_line": 6
+      }
+    ]
+  },
+  {
+    "id": "code-004",
+    "question": "code benchmark question 4",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 5,
+        "end_line": 7
+      }
+    ]
+  },
+  {
+    "id": "code-005",
+    "question": "code benchmark question 5",
+    "category": "code",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 6,
+        "end_line": 8
+      }
+    ]
+  },
+  {
+    "id": "code-006",
+    "question": "code benchmark question 6",
+    "category": "code",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 7,
+        "end_line": 9
+      }
+    ]
+  },
+  {
+    "id": "code-007",
+    "question": "code benchmark question 7",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 8,
+        "end_line": 10
+      }
+    ]
+  },
+  {
+    "id": "code-008",
+    "question": "code benchmark question 8",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 9,
+        "end_line": 11
+      }
+    ]
+  },
+  {
+    "id": "code-009",
+    "question": "code benchmark question 9",
+    "category": "code",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 10,
+        "end_line": 12
+      }
+    ]
+  },
+  {
+    "id": "code-010",
+    "question": "code benchmark question 10",
+    "category": "code",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 11,
+        "end_line": 13
+      }
+    ]
+  },
+  {
+    "id": "code-011",
+    "question": "code benchmark question 11",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 12,
+        "end_line": 14
+      }
+    ]
+  },
+  {
+    "id": "code-012",
+    "question": "code benchmark question 12",
+    "category": "code",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 13,
+        "end_line": 15
+      }
+    ]
+  },
+  {
+    "id": "code-013",
+    "question": "code benchmark question 13",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 14,
+        "end_line": 16
+      }
+    ]
+  },
+  {
+    "id": "code-014",
+    "question": "code benchmark question 14",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 15,
+        "end_line": 17
+      }
+    ]
+  },
+  {
+    "id": "code-015",
+    "question": "code benchmark question 15",
+    "category": "code",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 16,
+        "end_line": 18
+      }
+    ]
+  },
+  {
+    "id": "code-016",
+    "question": "code benchmark question 16",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 17,
+        "end_line": 19
+      }
+    ]
+  },
+  {
+    "id": "code-017",
+    "question": "code benchmark question 17",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 18,
+        "end_line": 20
+      }
+    ]
+  },
+  {
+    "id": "code-018",
+    "question": "code benchmark question 18",
+    "category": "code",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 19,
+        "end_line": 21
+      }
+    ]
+  },
+  {
+    "id": "code-019",
+    "question": "code benchmark question 19",
+    "category": "code",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 20,
+        "end_line": 22
+      }
+    ]
+  },
+  {
+    "id": "code-020",
+    "question": "code benchmark question 20",
+    "category": "code",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 21,
+        "end_line": 23
+      }
+    ]
+  },
+  {
+    "id": "multihop-001",
+    "question": "multi-hop benchmark question 1",
+    "category": "multi-hop",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 2,
+        "end_line": 4
+      }
+    ]
+  },
+  {
+    "id": "multihop-002",
+    "question": "multi-hop benchmark question 2",
+    "category": "multi-hop",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 3,
+        "end_line": 5
+      }
+    ]
+  },
+  {
+    "id": "multihop-003",
+    "question": "multi-hop benchmark question 3",
+    "category": "multi-hop",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 4,
+        "end_line": 6
+      }
+    ]
+  },
+  {
+    "id": "multihop-004",
+    "question": "multi-hop benchmark question 4",
+    "category": "multi-hop",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 5,
+        "end_line": 7
+      }
+    ]
+  },
+  {
+    "id": "multihop-005",
+    "question": "multi-hop benchmark question 5",
+    "category": "multi-hop",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 6,
+        "end_line": 8
+      }
+    ]
+  },
+  {
+    "id": "multihop-006",
+    "question": "multi-hop benchmark question 6",
+    "category": "multi-hop",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 7,
+        "end_line": 9
+      }
+    ]
+  },
+  {
+    "id": "multihop-007",
+    "question": "multi-hop benchmark question 7",
+    "category": "multi-hop",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 8,
+        "end_line": 10
+      }
+    ]
+  },
+  {
+    "id": "multihop-008",
+    "question": "multi-hop benchmark question 8",
+    "category": "multi-hop",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 9,
+        "end_line": 11
+      }
+    ]
+  },
+  {
+    "id": "multihop-009",
+    "question": "multi-hop benchmark question 9",
+    "category": "multi-hop",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 10,
+        "end_line": 12
+      }
+    ]
+  },
+  {
+    "id": "multihop-010",
+    "question": "multi-hop benchmark question 10",
+    "category": "multi-hop",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 11,
+        "end_line": 13
+      }
+    ]
+  },
+  {
+    "id": "multihop-011",
+    "question": "multi-hop benchmark question 11",
+    "category": "multi-hop",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 12,
+        "end_line": 14
+      }
+    ]
+  },
+  {
+    "id": "multihop-012",
+    "question": "multi-hop benchmark question 12",
+    "category": "multi-hop",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 13,
+        "end_line": 15
+      }
+    ]
+  },
+  {
+    "id": "multihop-013",
+    "question": "multi-hop benchmark question 13",
+    "category": "multi-hop",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 14,
+        "end_line": 16
+      }
+    ]
+  },
+  {
+    "id": "multihop-014",
+    "question": "multi-hop benchmark question 14",
+    "category": "multi-hop",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 15,
+        "end_line": 17
+      }
+    ]
+  },
+  {
+    "id": "multihop-015",
+    "question": "multi-hop benchmark question 15",
+    "category": "multi-hop",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 16,
+        "end_line": 18
+      }
+    ]
+  },
+  {
+    "id": "jit-001",
+    "question": "jit benchmark question 1",
+    "category": "jit",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 2,
+        "end_line": 4
+      }
+    ]
+  },
+  {
+    "id": "jit-002",
+    "question": "jit benchmark question 2",
+    "category": "jit",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 3,
+        "end_line": 5
+      }
+    ]
+  },
+  {
+    "id": "jit-003",
+    "question": "jit benchmark question 3",
+    "category": "jit",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 4,
+        "end_line": 6
+      }
+    ]
+  },
+  {
+    "id": "jit-004",
+    "question": "jit benchmark question 4",
+    "category": "jit",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 5,
+        "end_line": 7
+      }
+    ]
+  },
+  {
+    "id": "jit-005",
+    "question": "jit benchmark question 5",
+    "category": "jit",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 6,
+        "end_line": 8
+      }
+    ]
+  },
+  {
+    "id": "jit-006",
+    "question": "jit benchmark question 6",
+    "category": "jit",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 7,
+        "end_line": 9
+      }
+    ]
+  },
+  {
+    "id": "jit-007",
+    "question": "jit benchmark question 7",
+    "category": "jit",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 8,
+        "end_line": 10
+      }
+    ]
+  },
+  {
+    "id": "jit-008",
+    "question": "jit benchmark question 8",
+    "category": "jit",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 9,
+        "end_line": 11
+      }
+    ]
+  },
+  {
+    "id": "jit-009",
+    "question": "jit benchmark question 9",
+    "category": "jit",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 10,
+        "end_line": 12
+      }
+    ]
+  },
+  {
+    "id": "jit-010",
+    "question": "jit benchmark question 10",
+    "category": "jit",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 11,
+        "end_line": 13
+      }
+    ]
+  },
+  {
+    "id": "negative-001",
+    "question": "negative benchmark question 1",
+    "category": "negative",
+    "difficulty": "medium",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-002",
+    "question": "negative benchmark question 2",
+    "category": "negative",
+    "difficulty": "medium",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-003",
+    "question": "negative benchmark question 3",
+    "category": "negative",
+    "difficulty": "easy",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-004",
+    "question": "negative benchmark question 4",
+    "category": "negative",
+    "difficulty": "medium",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-005",
+    "question": "negative benchmark question 5",
+    "category": "negative",
+    "difficulty": "hard",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-006",
+    "question": "negative benchmark question 6",
+    "category": "negative",
+    "difficulty": "easy",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-007",
+    "question": "negative benchmark question 7",
+    "category": "negative",
+    "difficulty": "medium",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-008",
+    "question": "negative benchmark question 8",
+    "category": "negative",
+    "difficulty": "medium",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-009",
+    "question": "negative benchmark question 9",
+    "category": "negative",
+    "difficulty": "easy",
+    "ground_truth": []
+  },
+  {
+    "id": "negative-010",
+    "question": "negative benchmark question 10",
+    "category": "negative",
+    "difficulty": "hard",
+    "ground_truth": []
+  },
+  {
+    "id": "adversarial-001",
+    "question": "adversarial benchmark question 1",
+    "category": "adversarial",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 2,
+        "end_line": 4
+      }
+    ]
+  },
+  {
+    "id": "adversarial-002",
+    "question": "adversarial benchmark question 2",
+    "category": "adversarial",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 3,
+        "end_line": 5
+      }
+    ]
+  },
+  {
+    "id": "adversarial-003",
+    "question": "adversarial benchmark question 3",
+    "category": "adversarial",
+    "difficulty": "easy",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 4,
+        "end_line": 6
+      }
+    ]
+  },
+  {
+    "id": "adversarial-004",
+    "question": "adversarial benchmark question 4",
+    "category": "adversarial",
+    "difficulty": "medium",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 5,
+        "end_line": 7
+      }
+    ]
+  },
+  {
+    "id": "adversarial-005",
+    "question": "adversarial benchmark question 5",
+    "category": "adversarial",
+    "difficulty": "hard",
+    "ground_truth": [
+      {
+        "file_path": "src/codesight/chunker.py",
+        "start_line": 6,
+        "end_line": 8
+      }
+    ]
+  }
+]

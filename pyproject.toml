@@ -13,6 +13,8 @@ dependencies = [
     "pymupdf>=1.24",
     "python-docx>=1.1",
     "python-pptx>=0.6",
+    "tree-sitter>=0.22",
+    "tree-sitter-languages>=1.10",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +31,10 @@ dev = [
 ]
 demo = [
     "streamlit>=1.40",
+]
+benchmark = [
+    "deepeval>=1.0",
+    "ragas>=0.2",
 ]
 
 [build-system]
