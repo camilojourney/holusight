@@ -67,12 +67,12 @@ class WorkspaceManager:
 
         with self.db.transaction() as conn:
             existing = conn.execute(
-                "SELECT id FROM workspaces WHERE name = ? COLLATE NOCASE",
+                "SELECT id, name FROM workspaces WHERE name = ? COLLATE NOCASE",
                 (name,),
             ).fetchone()
             if existing:
                 # // EDGE-013-001: Duplicate workspace name rejected before filesystem writes.
-                raise ValueError(f"Workspace '{name}' already exists.")
+                raise ValueError(f"Workspace '{existing['name']}' already exists.")
 
             conn.execute(
                 """
@@ -149,11 +149,11 @@ class WorkspaceManager:
 
             if name is not None and name.lower() != str(existing["name"]).lower():
                 duplicate = conn.execute(
-                    "SELECT id FROM workspaces WHERE name = ? COLLATE NOCASE",
+                    "SELECT id, name FROM workspaces WHERE name = ? COLLATE NOCASE",
                     (name,),
                 ).fetchone()
                 if duplicate is not None:
-                    raise ValueError(f"Workspace '{name}' already exists.")
+                    raise ValueError(f"Workspace '{duplicate['name']}' already exists.")
 
             next_name = name if name is not None else str(existing["name"])
             next_description = description if description is not None else existing["description"]

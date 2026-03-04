@@ -14,6 +14,27 @@ import argparse
 import json
 import sys
 
+WORKSPACE_SOURCE_KEYS = {
+    "drive": "path",
+    "mail": "mailbox",
+    "notes": "notebook",
+    "sharepoint": "site_url",
+    "local": "path",
+}
+WORKSPACE_SUBCOMMANDS = (
+    "create",
+    "list",
+    "show",
+    "update",
+    "delete",
+    "sync",
+    "add-source",
+    "remove-source",
+    "allow",
+    "deny",
+    "repair",
+)
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -114,6 +135,75 @@ def main():
         help="SQLite results database path",
     )
 
+    # workspace
+    p_workspace = sub.add_parser("workspace", help="Manage workspaces")
+    workspace_sub = p_workspace.add_subparsers(dest="workspace_command")
+
+    p_workspace_create = workspace_sub.add_parser("create", help="Create a workspace")
+    p_workspace_create.add_argument("name", help="Workspace name")
+    p_workspace_create.add_argument("--description", default=None, help="Workspace description")
+    p_workspace_create.add_argument(
+        "--source",
+        action="append",
+        nargs="+",
+        default=[],
+        metavar="TYPE:VALUE",
+        help="Bind one or more data sources (TYPE:VALUE)",
+    )
+    p_workspace_create.add_argument(
+        "--allow",
+        action="append",
+        nargs="+",
+        default=[],
+        metavar="EMAIL",
+        help="Allow one or more email addresses",
+    )
+
+    workspace_sub.add_parser("list", help="List workspaces")
+
+    p_workspace_show = workspace_sub.add_parser("show", help="Show workspace details")
+    p_workspace_show.add_argument("name_or_id", help="Workspace name or ID")
+
+    p_workspace_update = workspace_sub.add_parser("update", help="Update workspace metadata")
+    p_workspace_update.add_argument("name_or_id", help="Workspace name or ID")
+    p_workspace_update.add_argument("--name", default=None, help="New workspace name")
+    p_workspace_update.add_argument("--description", default=None, help="New workspace description")
+
+    p_workspace_delete = workspace_sub.add_parser("delete", help="Delete a workspace")
+    p_workspace_delete.add_argument("name_or_id", help="Workspace name or ID")
+    p_workspace_delete.add_argument("--yes", action="store_true", help="Skip confirmation prompt")
+
+    p_workspace_sync = workspace_sub.add_parser("sync", help="Sync one workspace")
+    p_workspace_sync.add_argument("name_or_id", help="Workspace name or ID")
+
+    p_workspace_add_source = workspace_sub.add_parser("add-source", help="Add one data source")
+    p_workspace_add_source.add_argument("name_or_id", help="Workspace name or ID")
+    p_workspace_add_source.add_argument(
+        "--source",
+        required=True,
+        metavar="TYPE:VALUE",
+        help="Data source to bind",
+    )
+
+    p_workspace_remove_source = workspace_sub.add_parser(
+        "remove-source", help="Remove a data source"
+    )
+    p_workspace_remove_source.add_argument("name_or_id", help="Workspace name or ID")
+    p_workspace_remove_source.add_argument("--source-id", required=True, help="Source ID")
+
+    p_workspace_allow = workspace_sub.add_parser("allow", help="Allow an email in workspace ACL")
+    p_workspace_allow.add_argument("name_or_id", help="Workspace name or ID")
+    p_workspace_allow.add_argument("email", help="Email to allow")
+
+    p_workspace_deny = workspace_sub.add_parser("deny", help="Deny an email in workspace ACL")
+    p_workspace_deny.add_argument("name_or_id", help="Workspace name or ID")
+    p_workspace_deny.add_argument("email", help="Email to deny")
+
+    workspace_sub.add_parser("repair", help="Run workspaces.db integrity check")
+
+    if _has_unknown_workspace_subcommand(sys.argv):
+        sys.exit(1)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -135,6 +225,9 @@ def main():
         return
     if args.command == "bot":
         _run_bot(args)
+        return
+    if args.command == "workspace":
+        _run_workspace_cli(args, p_workspace)
         return
 
     # Lazy import to avoid loading heavy deps for --help
@@ -230,6 +323,192 @@ def _run_bot(args):
     from .bot.app import run_bot_server
 
     run_bot_server(data_path=args.data_path)
+
+
+def _run_workspace_cli(args, parser):
+    from .workspace import CORRUPTED_DB_MESSAGE, WorkspaceDB, WorkspaceManager
+
+    if not args.workspace_command:
+        parser.print_help()
+        _print_workspace_subcommands()
+        sys.exit(1)
+
+    if args.workspace_command == "repair":
+        try:
+            db = WorkspaceDB()
+            with db.connection() as conn:
+                result = conn.execute("PRAGMA integrity_check").fetchone()
+            if result is None or result[0] != "ok":
+                print(CORRUPTED_DB_MESSAGE)
+                sys.exit(1)
+            print("workspaces.db integrity check passed.")
+            return
+        except Exception as exc:
+            message = str(exc)
+            print(message if message else CORRUPTED_DB_MESSAGE)
+            sys.exit(1)
+
+    try:
+        manager = WorkspaceManager()
+
+        if args.workspace_command == "create":
+            sources = [_parse_source_arg(raw) for raw in _flatten_multi_values(args.source)]
+            allowed_emails = _flatten_multi_values(args.allow)
+            workspace = manager.create(
+                args.name,
+                description=args.description,
+                sources=sources,
+                allowed_emails=allowed_emails,
+            )
+            print(f"Created workspace '{workspace.name}' ({workspace.id})")
+            return
+
+        if args.workspace_command == "list":
+            workspaces = manager.list()
+            _print_workspace_list(workspaces)
+            return
+
+        if args.workspace_command == "show":
+            workspace = manager.get(args.name_or_id)
+            print(f"id: {workspace.id}")
+            print(f"name: {workspace.name}")
+            print(f"description: {workspace.description or ''}")
+            print(f"sync_status: {workspace.sync_status}")
+            print(f"last_synced_at: {workspace.last_synced_at or ''}")
+            print(f"created_at: {workspace.created_at}")
+            print(f"updated_at: {workspace.updated_at}")
+            return
+
+        if args.workspace_command == "update":
+            workspace = manager.get(args.name_or_id)
+            updated = manager.update(
+                workspace.id,
+                name=args.name,
+                description=args.description,
+            )
+            print(f"Updated workspace '{updated.name}' ({updated.id})")
+            return
+
+        if args.workspace_command == "delete":
+            workspace = manager.get(args.name_or_id)
+            if not args.yes:
+                answer = input("Are you sure? [y/N]: ").strip().lower()
+                if answer not in {"y", "yes"}:
+                    print("Aborted.")
+                    sys.exit(1)
+            manager.delete(workspace.id)
+            print(f"Deleted workspace '{workspace.name}' ({workspace.id})")
+            return
+
+        if args.workspace_command == "sync":
+            workspace = manager.get(args.name_or_id)
+            result = manager.sync(workspace.id)
+            print(f"workspace: {workspace.name}")
+            print(f"sync_run_id: {result.id}")
+            print(f"status: {result.status}")
+            print(f"started_at: {result.started_at}")
+            print(f"completed_at: {result.completed_at or ''}")
+            print(f"files_added: {result.files_added}")
+            print(f"files_updated: {result.files_updated}")
+            print(f"files_deleted: {result.files_deleted}")
+            if result.error_message:
+                print(f"error_message: {result.error_message}")
+            return
+
+        if args.workspace_command == "add-source":
+            workspace = manager.get(args.name_or_id)
+            source = manager.add_source(workspace.id, _parse_source_arg(args.source))
+            print(f"Added source '{source.id}' to workspace '{workspace.name}'")
+            print(f"type: {source.source_type}")
+            print(f"config: {json.dumps(source.source_config, sort_keys=True)}")
+            return
+
+        if args.workspace_command == "remove-source":
+            workspace = manager.get(args.name_or_id)
+            manager.remove_source(workspace.id, args.source_id)
+            print(f"Removed source '{args.source_id}' from workspace '{workspace.name}'")
+            return
+
+        if args.workspace_command == "allow":
+            workspace = manager.get(args.name_or_id)
+            manager.allow(workspace.id, args.email)
+            print(f"Allowed '{args.email}' for workspace '{workspace.name}'")
+            return
+
+        if args.workspace_command == "deny":
+            workspace = manager.get(args.name_or_id)
+            manager.deny(workspace.id, args.email)
+            print(f"Denied '{args.email}' for workspace '{workspace.name}'")
+            return
+    except Exception as exc:
+        print(str(exc))
+        sys.exit(1)
+
+    print(f"Unknown workspace subcommand '{args.workspace_command}'.")
+    _print_workspace_subcommands()
+    sys.exit(1)
+
+
+def _parse_source_arg(raw_value: str):
+    from .types import DataSource
+
+    source_type, separator, value = raw_value.partition(":")
+    source_type = source_type.strip().lower()
+    value = value.strip()
+    if not separator or not source_type or not value:
+        raise ValueError(f"Invalid source value '{raw_value}'. Use TYPE:VALUE.")
+
+    required_key = WORKSPACE_SOURCE_KEYS.get(source_type)
+    if required_key is None:
+        valid = ", ".join(WORKSPACE_SOURCE_KEYS.keys())
+        raise ValueError(f"Unsupported source type '{source_type}'. Valid types: {valid}.")
+
+    return DataSource(source_type=source_type, source_config={required_key: value})
+
+
+def _flatten_multi_values(values: list[list[str]]) -> list[str]:
+    flattened: list[str] = []
+    for group in values:
+        flattened.extend(group)
+    return flattened
+
+
+def _has_unknown_workspace_subcommand(argv: list[str]) -> bool:
+    if len(argv) < 3 or argv[1] != "workspace":
+        return False
+    candidate = argv[2]
+    if candidate.startswith("-"):
+        return False
+    if candidate in WORKSPACE_SUBCOMMANDS:
+        return False
+    print(f"Unknown workspace subcommand '{candidate}'.")
+    _print_workspace_subcommands()
+    return True
+
+
+def _print_workspace_subcommands() -> None:
+    print(f"Valid subcommands: {', '.join(WORKSPACE_SUBCOMMANDS)}")
+
+
+def _print_workspace_list(workspaces) -> None:
+    headers = ("id", "name", "sync_status", "last_synced_at")
+    rows = [
+        (
+            workspace.id,
+            workspace.name,
+            workspace.sync_status,
+            workspace.last_synced_at or "",
+        )
+        for workspace in workspaces
+    ]
+    widths = [len(header) for header in headers]
+    for row in rows:
+        for idx, value in enumerate(row):
+            widths[idx] = max(widths[idx], len(str(value)))
+
+    print("  ".join(header.ljust(widths[idx]) for idx, header in enumerate(headers)))
+    for row in rows:
+        print("  ".join(str(value).ljust(widths[idx]) for idx, value in enumerate(row)))
 
 
 if __name__ == "__main__":
