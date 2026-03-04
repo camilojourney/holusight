@@ -10,11 +10,11 @@
 ```
 User (non-technical)
       |
-      |  Web browser / Slack / CLI
+      |  Web browser / Teams / CLI
       v
 +-----------------------------------------+
 |           Interface Layer               |
-|  Streamlit Chat UI  |  CLI  |  (Slack)  |
+|  Streamlit Chat UI  |  CLI  |  Teams Bot |
 +----------+----------+------+-----------+
            |
            v
@@ -50,6 +50,11 @@ User (non-technical)
 Storage: ~/.codesight/data/<folder_hash>/
          |- lance/       (vectors)
          |- metadata.db  (SQLite with FTS5)
+         |
+M365 cache: ~/.codesight/m365-cache/<tenant_hash>/
+           |- drive/     (OneDrive/SharePoint files)
+           |- mail/      (Outlook messages/attachments)
+           |- notes/     (OneNote markdown)
 ```
 
 ### Data Flow: What's Local vs External
@@ -85,6 +90,8 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `git_utils.py`  | .gitignore-aware file walking via `pathspec`.                            |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
+| `connectors/`   | External sync integrations (M365 Graph connector + MSAL auth).            |
+| `bot/`          | Teams bot handler, Adaptive Card builders, and aiohttp app entrypoint.    |
 
 **Do not add modules at the top level** — new capabilities go inside existing modules or as new submodules.
 
@@ -102,7 +109,8 @@ answer = engine.ask("What are the payment terms?") # Search + LLM answer
 status = engine.status()                          # Index freshness check
 ```
 
-The `CodeSight` class is the single entry point. Streamlit, Slack, CLI, and any future interface all call the same methods.
+The `CodeSight` class is the single entry point. Streamlit, Teams bot, CLI, and any future
+interface all call the same methods.
 
 ### The `ask()` Pipeline
 

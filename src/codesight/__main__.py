@@ -43,6 +43,23 @@ def main():
     p_status = sub.add_parser("status", help="Check index status")
     p_status.add_argument("path", nargs="?", default=".", help="Folder path (default: .)")
 
+    # sync
+    p_sync = sub.add_parser("sync", help="Sync external content sources and index them")
+    p_sync.add_argument(
+        "--source",
+        required=True,
+        choices=["m365"],
+        help="External source to sync",
+    )
+
+    # bot
+    p_bot = sub.add_parser("bot", help="Start Teams bot server")
+    p_bot.add_argument(
+        "--data-path",
+        default=None,
+        help="Optional path to indexed content (defaults to CODESIGHT_BOT_DATA_PATH or cwd)",
+    )
+
     # demo
     sub.add_parser("demo", help="Launch Streamlit web chat UI")
 
@@ -107,6 +124,12 @@ def main():
             p_benchmark.print_help()
             sys.exit(1)
         _run_benchmark_cli(args)
+        return
+    if args.command == "sync":
+        _run_sync(args)
+        return
+    if args.command == "bot":
+        _run_bot(args)
         return
 
     # Lazy import to avoid loading heavy deps for --help
@@ -185,6 +208,20 @@ def _run_benchmark_cli(args):
         for row in rows:
             print(f"{row['metric']}\t{row['mean']}\t{row['median']}\t{row['p5']}\t{row['p95']}")
         return
+
+
+def _run_sync(args):
+    from .connectors import GraphConnector
+
+    connector = GraphConnector.from_source(args.source)
+    result = connector.sync()
+    print(json.dumps(result, indent=2))
+
+
+def _run_bot(args):
+    from .bot.app import run_bot_server
+
+    run_bot_server(data_path=args.data_path)
 
 
 if __name__ == "__main__":
