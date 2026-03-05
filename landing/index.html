@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HoluSight — AI Document Intelligence</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #e4e4e7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      max-width: 640px;
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .logo {
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+    .tagline {
+      font-size: 20px;
+      color: #a1a1aa;
+      margin-bottom: 40px;
+      line-height: 1.5;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 40px;
+      text-align: left;
+    }
+    .feature {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .feature h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e4e4e7;
+      margin-bottom: 6px;
+    }
+    .feature p {
+      font-size: 13px;
+      color: #71717a;
+      line-height: 1.5;
+    }
+    .cta {
+      display: inline-block;
+      padding: 14px 32px;
+      background: linear-gradient(135deg, #3b82f6, #7c3aed);
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .cta:hover { opacity: 0.9; }
+    .footer {
+      margin-top: 48px;
+      font-size: 13px;
+      color: #52525b;
+    }
+    @media (max-width: 480px) {
+      .features { grid-template-columns: 1fr; }
+      .logo { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">HoluSight</div>
+    <p class="tagline">
+      Point it at your documents. Ask questions in plain English.<br/>
+      Get precise answers with source citations. 100% private.
+    </p>
+
+    <div class="features">
+      <div class="feature">
+        <h3>Hybrid Search</h3>
+        <p>BM25 + vector + cross-encoder reranking. Catches what vector-only misses.</p>
+      </div>
+      <div class="feature">
+        <h3>Data Stays Local</h3>
+        <p>Search and indexing run on your machine. No data leaves. Ever.</p>
+      </div>
+      <div class="feature">
+        <h3>Any Document</h3>
+        <p>PDF, Word, PowerPoint, code, markdown. One index, instant answers.</p>
+      </div>
+      <div class="feature">
+        <h3>M365 Connected</h3>
+        <p>OneDrive, Outlook, OneNote, SharePoint. Sync and search across all sources.</p>
+      </div>
+    </div>
+
+    <a class="cta" href="mailto:juan@camilomartinez.co">Get in Touch</a>
+
+    <div class="footer">
+      Coming soon. Consulting engagements available now.
+    </div>
+  </div>
+</body>
+</html>
