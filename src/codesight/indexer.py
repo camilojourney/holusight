@@ -103,6 +103,20 @@ def walk_repo_files(repo_path: str | Path) -> list[Path]:
 # ---------------------------------------------------------------------------
 
 
+def _log_progress(current: int, total: int, message: str) -> None:
+    """Print progress feedback to stderr for CLI users."""
+    import sys
+    if total > 0:
+        pct = (current / total) * 100
+        bar_len = 30
+        filled = int(bar_len * current // total)
+        bar = "=" * filled + "-" * (bar_len - filled)
+        msg = f"\r  [{bar}] {pct:5.1f}% ({current}/{total}) {message[:50]:<50}"
+        print(msg, end="", file=sys.stderr, flush=True)
+        if current == total:
+            print(file=sys.stderr)  # newline at completion
+
+
 def index_repo(
     repo_path: str | Path,
     config: ServerConfig | None = None,
@@ -144,7 +158,10 @@ def index_repo(
     batch_chunks: list[Chunk] = []
     BATCH_SIZE = 64
 
-    for fpath in files:
+    total_files = len(files)
+    _log_progress(0, total_files, "Starting indexing...")
+
+    for file_idx, fpath in enumerate(files, 1):
         rel_path = str(fpath.relative_to(repo_path))
 
         # Route: binary documents vs text files
@@ -160,6 +177,10 @@ def index_repo(
         existing_hashes = store.fts.get_chunk_hashes(rel_path)
 
         total_files_indexed += 1
+
+        # Progress feedback every 10 files or at completion
+        if file_idx % 10 == 0 or file_idx == total_files:
+            _log_progress(file_idx, total_files, f"Processing: {rel_path}")
 
         # Determine which chunks need (re-)embedding
         new_chunk_ids = {c.chunk_id for c in chunks}

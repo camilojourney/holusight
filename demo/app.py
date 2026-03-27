@@ -5,8 +5,9 @@ Run with: streamlit run demo/app.py
 
 from __future__ import annotations
 
-import streamlit as st
 from pathlib import Path
+
+import streamlit as st
 
 st.set_page_config(
     page_title="CodeSight",
@@ -78,7 +79,13 @@ with st.sidebar:
         "Document folder path",
         value=st.session_state.get("folder_path", ""),
         placeholder="/path/to/your/documents",
+        help="Enter the absolute path to a folder containing documents to search. "
+             "Example: /Users/you/Documents/contracts or ~/projects/my-repo",
     )
+
+    # Expand ~ in path for user convenience
+    if folder_path and folder_path.startswith("~"):
+        folder_path = str(Path(folder_path).expanduser())
 
     if folder_path:
         st.session_state["folder_path"] = folder_path
@@ -153,6 +160,57 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
         if "sources" in msg:
             _render_sources(msg["sources"])
+
+# Empty state guidance
+if not st.session_state.messages:
+    if not folder_path:
+        st.markdown("---")
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.markdown("**Step 1**")
+            st.markdown(
+                "Enter a folder path in the sidebar pointing to your"
+                " documents (PDFs, code, markdown, etc.)"
+            )
+        with col_b:
+            st.markdown("**Step 2**")
+            st.markdown("Click **Index** to scan and embed your documents. This runs 100% locally.")
+        with col_c:
+            st.markdown("**Step 3**")
+            st.markdown(
+                "Ask questions in natural language. CodeSight searches"
+                " with hybrid BM25 + vector retrieval."
+            )
+        st.markdown("---")
+        st.caption(
+            "Supported formats: .py, .js, .ts, .go, .rs, .java,"
+            " .md, .txt, .pdf, .docx, .pptx, and 40+ more"
+        )
+    elif folder_path and Path(folder_path).is_dir():
+        try:
+            engine = _get_engine(folder_path)
+            s = engine.status()
+            if not s.indexed:
+                st.info(
+                    "**Ready to index.** Click **Index** in the sidebar to scan your documents, "
+                    "then ask questions here."
+                )
+            else:
+                st.markdown("---")
+                st.markdown(
+                    f"**{s.files_indexed} files indexed** with {s.chunk_count} searchable chunks. "
+                    "Try one of these example queries:"
+                )
+                example_queries = [
+                    "What are the main components in this codebase?",
+                    "Find all error handling patterns",
+                    "Summarize the configuration options",
+                ]
+                for q in example_queries:
+                    st.markdown(f"- *{q}*")
+                st.markdown("---")
+        except Exception:
+            pass
 
 # Chat input
 if prompt := st.chat_input("Ask a question about your documents..."):
