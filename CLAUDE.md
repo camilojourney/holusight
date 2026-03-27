@@ -1,4 +1,27 @@
-# codesight
+## Parallelism & Skills
+
+**Always use agents to parallelize work.** Launch multiple Agent() calls for independent tasks.
+
+**Use skills for repo work:**
+
+| Task | Skill |
+|------|-------|
+| Implement, fix bugs, add API | `/code holusight` |
+| Write specs | `/specs holusight` |
+| Research options | `/research holusight` |
+| UX/UI audit + fix | `/ux holusight` |
+| Acceptance testing | `/verify holusight` |
+| Health check, deps, lint | `/maintenance holusight` |
+| Multi-step plans | `/plan holusight` |
+| Technical decision | `/consult-engineering holusight` |
+| Autonomous systems | `/consult-systems holusight` |
+| Business decision | `/consult-business` |
+| Aesthetic quality | `/taste holusight` |
+| ML experiment design | `/consult-experiments holusight` |
+
+**Agent dispatch:** Claude subagents for research/analysis, Codex for implementation, Gemini for cross-model review.
+
+# CodeSight
 
 AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with pluggable LLM answer synthesis.
 

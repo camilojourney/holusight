@@ -1,6 +1,6 @@
-# codesight
+# CodeSight
 
-AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with Claude answer synthesis.
+AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with pluggable LLM answer synthesis.
 
 ## Quick Start
 
@@ -11,11 +11,20 @@ pip install -e ".[dev]"
 # Index a folder of documents
 python -m codesight index /path/to/documents
 
-# Search
+# Search (hybrid BM25 + vector)
 python -m codesight search "payment terms" /path/to/documents
 
-# Ask a question (requires ANTHROPIC_API_KEY)
+# Filter by file type
+python -m codesight search "auth" /path/to/code --glob '*.py'
+
+# Ask a question (requires LLM API key — see Configuration)
 python -m codesight ask "What are the payment terms?" /path/to/documents
+
+# Machine-readable output
+python -m codesight search "query" /path --json
+
+# Check index status
+python -m codesight status /path/to/documents
 
 # Launch the web chat UI
 pip install -e ".[demo]"
@@ -30,7 +39,7 @@ from codesight import CodeSight
 engine = CodeSight("/path/to/documents")
 engine.index()                                     # Index all files
 results = engine.search("payment terms")           # Hybrid search
-answer = engine.ask("What are the payment terms?") # Search + Claude answer
+answer = engine.ask("What are the payment terms?") # Search + LLM answer
 status = engine.status()                           # Index freshness check
 ```
 
@@ -52,7 +61,7 @@ status = engine.status()                           # Index freshness check
 - **Vector Store**: LanceDB (serverless, file-based)
 - **Keyword Search**: SQLite FTS5 sidecar
 - **Retrieval**: Hybrid BM25 + vector with RRF merge
-- **Answer Synthesis**: Claude API generates answers with source citations
+- **Answer Synthesis**: Pluggable LLM backend (Claude, Azure OpenAI, OpenAI, Ollama)
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system tour.
 
@@ -60,25 +69,21 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system tour.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ANTHROPIC_API_KEY` | — | Required for `ask()` / Claude answer synthesis |
+| `ANTHROPIC_API_KEY` | — | Required for Claude backend (`ask()`) |
+| `CODESIGHT_LLM_BACKEND` | `claude` | LLM backend: `claude`, `azure`, `openai`, `ollama` |
 | `CODESIGHT_DATA_DIR` | `~/.codesight/data` | Where indexes are stored |
 | `CODESIGHT_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Embedding model |
-| `CODESIGHT_LLM_MODEL` | `claude-sonnet-4-20250514` | Claude model for answers |
-| `CODESIGHT_STALE_MINUTES` | `60` | Index freshness threshold |
+| `CODESIGHT_LLM_MODEL` | `claude-sonnet-4-20250514` | LLM model for answers |
+| `CODESIGHT_STALE_SECONDS` | `300` | Index freshness threshold (seconds) |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 
 See [.env.example](.env.example) for all options.
-
-
-## Workflow: Explore → Plan → Execute → Review
-
-Opus in VS Code plans and launches autonomous CLI agents in the background — the user never leaves the conversation. Agents run via `env -u CLAUDECODE claude --dangerously-skip-permissions --model [model] -p '...'` with output redirected to files. Multiple cycles ensure quality: Sonnet implements, Opus reviews. See `.claude/rules/workflow.md` for full details.
 
 ## Stack
 
 - Python 3.11+
 - LanceDB + SQLite FTS5
 - sentence-transformers
-- Anthropic Claude API
+- Anthropic Claude API / Azure OpenAI / OpenAI / Ollama
 - Streamlit (web chat UI)
 - pymupdf, python-docx, python-pptx (document parsing)

@@ -1,4 +1,4 @@
-# Architecture — codesight
+# Architecture -- CodeSight
 
 > Guided tour of the codebase. WHY things are built, not just WHAT.
 > **Last Updated:** 2026-02-28

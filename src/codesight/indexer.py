@@ -121,6 +121,7 @@ def index_repo(
     repo_path: str | Path,
     config: ServerConfig | None = None,
     force_rebuild: bool = False,
+    progress_callback: callable | None = None,
 ) -> IndexStats:
     """Full or incremental index of a folder.
 
@@ -181,6 +182,8 @@ def index_repo(
         # Progress feedback every 10 files or at completion
         if file_idx % 10 == 0 or file_idx == total_files:
             _log_progress(file_idx, total_files, f"Processing: {rel_path}")
+            if progress_callback is not None:
+                progress_callback(file_idx, total_files, rel_path)
 
         # Determine which chunks need (re-)embedding
         new_chunk_ids = {c.chunk_id for c in chunks}

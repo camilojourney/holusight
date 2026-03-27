@@ -1,0 +1,15 @@
+# CodeSight — Custom Streamlit Theme
+# Dark background with amber/gold accent (Holus family palette)
+
+[theme]
+primaryColor = "#F5A623"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#1A1D26"
+textColor = "#E8EAED"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

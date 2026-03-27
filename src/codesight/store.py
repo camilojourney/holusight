@@ -126,7 +126,6 @@ class FTSSidecar:
         if not query or not query.strip():
             return '""'  # empty match
         # Remove FTS5 operators and special chars; keep only words and spaces
-        import re
         # Strip characters that have special meaning in FTS5
         sanitized = re.sub(r'[^\w\s]', ' ', query, flags=re.UNICODE)
         # Collapse whitespace

@@ -1,4 +1,4 @@
-"""CodeSight — AI Document Search Chat UI.
+"""CodeSight -- AI Document Search Chat UI.
 
 Run with: streamlit run demo/app.py
 """
@@ -13,6 +13,17 @@ st.set_page_config(
     page_title="CodeSight",
     page_icon="🔍",
     layout="wide",
+)
+
+st.markdown(
+    """
+    <style>
+    .stApp header { background-color: #0E1117; }
+    .stApp [data-testid="stSidebar"] { background-color: #1A1D26; }
+    .stApp [data-testid="stSidebar"] h1 { color: #F5A623; }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -122,28 +133,42 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 
 if index_btn and folder_path:
-    with st.spinner("Indexing documents..."):
-        try:
-            engine = _get_engine(folder_path)
-            stats = engine.index()
-            st.sidebar.success(
-                f"Done! {stats.files_indexed} files, "
-                f"{stats.chunks_created} chunks in {stats.elapsed_seconds}s"
-            )
-        except Exception as e:
-            st.sidebar.error(f"Indexing failed: {e}")
+    progress_bar = st.progress(0, text="Starting indexing...")
+    try:
+        engine = _get_engine(folder_path)
+
+        def _on_progress(current: int, total: int, file_path: str):
+            pct = current / total if total > 0 else 0
+            progress_bar.progress(pct, text=f"Indexing: {current}/{total} files -- {file_path}")
+
+        stats = engine.index(progress_callback=_on_progress)
+        progress_bar.empty()
+        st.sidebar.success(
+            f"Done! {stats.files_indexed} files, "
+            f"{stats.chunks_created} chunks in {stats.elapsed_seconds}s"
+        )
+    except Exception as e:
+        progress_bar.empty()
+        st.sidebar.error(f"Indexing failed: {e}")
 
 if rebuild_btn and folder_path:
-    with st.spinner("Rebuilding index from scratch..."):
-        try:
-            engine = _get_engine(folder_path)
-            stats = engine.index(force_rebuild=True)
-            st.sidebar.success(
-                f"Rebuilt! {stats.files_indexed} files, "
-                f"{stats.chunks_created} chunks in {stats.elapsed_seconds}s"
-            )
-        except Exception as e:
-            st.sidebar.error(f"Rebuild failed: {e}")
+    progress_bar = st.progress(0, text="Rebuilding index from scratch...")
+    try:
+        engine = _get_engine(folder_path)
+
+        def _on_rebuild_progress(current: int, total: int, file_path: str):
+            pct = current / total if total > 0 else 0
+            progress_bar.progress(pct, text=f"Rebuilding: {current}/{total} files -- {file_path}")
+
+        stats = engine.index(force_rebuild=True, progress_callback=_on_rebuild_progress)
+        progress_bar.empty()
+        st.sidebar.success(
+            f"Rebuilt! {stats.files_indexed} files, "
+            f"{stats.chunks_created} chunks in {stats.elapsed_seconds}s"
+        )
+    except Exception as e:
+        progress_bar.empty()
+        st.sidebar.error(f"Rebuild failed: {e}")
 
 
 # ---------------------------------------------------------------------------

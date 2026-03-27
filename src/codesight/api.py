@@ -67,13 +67,22 @@ class CodeSight:
             self._llm = get_backend(self.config.llm_backend, model=self.config.llm_model)
         return self._llm
 
-    def index(self, force_rebuild: bool = False) -> IndexStats:
+    def index(
+        self, force_rebuild: bool = False, progress_callback: callable | None = None,
+    ) -> IndexStats:
         """Index all documents in the folder.
 
         Handles code files, text files, PDFs, DOCX, and PPTX.
         Unchanged files are skipped (content hash dedup).
+
+        Args:
+            force_rebuild: If True, delete existing index and rebuild from scratch.
+            progress_callback: Optional callable(current, total, file_path) for progress updates.
         """
-        stats = index_repo(self.folder_path, self.config, force_rebuild=force_rebuild)
+        stats = index_repo(
+            self.folder_path, self.config,
+            force_rebuild=force_rebuild, progress_callback=progress_callback,
+        )
         # Reset store to pick up new data
         self._store = None
         return stats
