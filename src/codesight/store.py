@@ -7,6 +7,7 @@ querying full-text, and managing repo metadata.
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -115,8 +116,30 @@ class FTSSidecar:
         )
         return dict(cursor.fetchall())
 
+    @staticmethod
+    def _sanitize_fts_query(query: str) -> str:
+        """Sanitize a query for FTS5 MATCH to prevent injection.
+
+        FTS5 MATCH has its own syntax (AND, OR, NOT, NEAR, quotes, etc.).
+        We escape special characters so user input is treated as literal terms.
+        """
+        if not query or not query.strip():
+            return '""'  # empty match
+        # Remove FTS5 operators and special chars; keep only words and spaces
+        import re
+        # Strip characters that have special meaning in FTS5
+        sanitized = re.sub(r'[^\w\s]', ' ', query, flags=re.UNICODE)
+        # Collapse whitespace
+        sanitized = ' '.join(sanitized.split())
+        if not sanitized:
+            return '""'
+        # Quote each term to prevent FTS5 operator interpretation
+        terms = sanitized.split()
+        return ' '.join(f'"{t}"' for t in terms)
+
     def bm25_search(self, query: str, top_k: int = 20, file_glob: str | None = None) -> list[str]:
         """Run BM25 search, returning chunk_ids ranked by relevance."""
+        safe_query = self._sanitize_fts_query(query)
         if file_glob:
             # Convert glob to SQL LIKE pattern
             like_pattern = file_glob.replace("*", "%").replace("?", "_")
@@ -126,7 +149,7 @@ class FTSSidecar:
                    AND chunk_id IN (SELECT chunk_id FROM chunks WHERE file_path LIKE ?)
                    ORDER BY rank
                    LIMIT ?""",
-                (query, like_pattern, top_k),
+                (safe_query, like_pattern, top_k),
             )
         else:
             cursor = self.conn.execute(
@@ -134,7 +157,7 @@ class FTSSidecar:
                    WHERE chunks_fts MATCH ?
                    ORDER BY rank
                    LIMIT ?""",
-                (query, top_k),
+                (safe_query, top_k),
             )
         return [row[0] for row in cursor.fetchall()]
 
@@ -210,6 +233,12 @@ class FTSSidecar:
     def close(self) -> None:
         self.conn.close()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
 
 # ---------------------------------------------------------------------------
 # Combined store (LanceDB + FTS sidecar)
@@ -237,9 +266,12 @@ class ChunkStore:
         if self._lance_table is None:
             try:
                 self._lance_table = self.lance_db.open_table(LANCE_TABLE_NAME)
-            except Exception:
+            except (FileNotFoundError, ValueError) as e:
                 # Table doesn't exist yet — will be created on first insert
-                pass
+                logger.debug("LanceDB table %r not found yet, will create on first insert: %s", LANCE_TABLE_NAME, e)
+            except Exception as e:
+                logger.error("Failed to open LanceDB table %r: %s", LANCE_TABLE_NAME, e)
+                raise
         return self._lance_table
 
     def _ensure_lance_table(self, vectors: np.ndarray, chunk_ids: list[str]) -> None:
@@ -252,8 +284,11 @@ class ChunkStore:
         if self._lance_table is None:
             try:
                 self._lance_table = self.lance_db.open_table(LANCE_TABLE_NAME)
-            except Exception:
-                pass
+            except (FileNotFoundError, ValueError) as e:
+                logger.debug("LanceDB table %r not found, will create: %s", LANCE_TABLE_NAME, e)
+            except Exception as e:
+                logger.error("Failed to open LanceDB table %r: %s", LANCE_TABLE_NAME, e)
+                raise
 
         if self._lance_table is None:
             self._lance_table = self.lance_db.create_table(LANCE_TABLE_NAME, data)
@@ -273,10 +308,12 @@ class ChunkStore:
         # Delete old vectors for these chunk_ids if they exist
         if self.lance_table is not None:
             try:
-                id_filter = " OR ".join(f'chunk_id = "{cid}"' for cid in chunk_ids)
-                self.lance_table.delete(id_filter)
-            except Exception:
-                pass  # table might be empty
+                self._delete_vectors_by_ids(chunk_ids)
+            except ValueError as e:
+                logger.warning("Chunk ID validation failed during upsert: %s", e)
+                raise
+            except Exception as e:
+                logger.warning("Could not delete old vectors (may be expected on first insert): %s", e)
 
         # Insert new vectors
         self._ensure_lance_table(vectors, chunk_ids)
@@ -295,6 +332,39 @@ class ChunkStore:
             )
         self.fts.commit()
 
+    # Strict allowlist for chunk IDs: word chars, colons, hyphens, slashes, dots, spaces
+    _SAFE_CHUNK_ID_RE = re.compile(r'^[\w:./ -]+$', re.UNICODE)
+
+    def _validate_chunk_id(self, cid: str) -> str:
+        """Validate a chunk_id against the allowlist regex.
+
+        Returns the chunk_id if valid, raises ValueError otherwise.
+        This prevents filter injection via LanceDB's SQL-like filter syntax.
+        """
+        if not isinstance(cid, str) or not self._SAFE_CHUNK_ID_RE.match(cid):
+            raise ValueError(f"Invalid chunk_id rejected by allowlist: {cid!r}")
+        return cid
+
+    def _delete_vectors_by_ids(self, chunk_ids: list[str]) -> None:
+        """Delete vectors from LanceDB using validated chunk IDs.
+
+        Each chunk_id is validated against a strict allowlist regex before
+        being interpolated into the filter string. Invalid IDs raise ValueError.
+        """
+        if not chunk_ids or self.lance_table is None:
+            return
+        safe_ids = []
+        for cid in chunk_ids:
+            try:
+                safe_ids.append(self._validate_chunk_id(cid))
+            except ValueError:
+                logger.warning("Skipping chunk_id that failed allowlist validation: %r", cid)
+                continue
+        if not safe_ids:
+            return
+        id_filter = " OR ".join(f'chunk_id = "{cid}"' for cid in safe_ids)
+        self.lance_table.delete(id_filter)
+
     def delete_file_chunks(self, file_path: str) -> int:
         """Remove all chunks for a file from both stores."""
         # Get chunk IDs before deleting from FTS
@@ -304,10 +374,10 @@ class ChunkStore:
         # Delete from LanceDB
         if chunk_ids and self.lance_table is not None:
             try:
-                id_filter = " OR ".join(f'chunk_id = "{cid}"' for cid in chunk_ids)
-                self.lance_table.delete(id_filter)
-            except Exception:
-                pass
+                self._delete_vectors_by_ids(chunk_ids)
+            except Exception as e:
+                logger.warning("Could not delete vectors for %s: %s", file_path, e)
+                raise
 
         # Delete from FTS
         count = self.fts.delete_chunks_for_file(file_path)
@@ -395,3 +465,9 @@ class ChunkStore:
 
     def close(self) -> None:
         self.fts.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
