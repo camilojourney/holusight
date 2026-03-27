@@ -267,7 +267,10 @@ class ChunkStore:
                 self._lance_table = self.lance_db.open_table(LANCE_TABLE_NAME)
             except (FileNotFoundError, ValueError) as e:
                 # Table doesn't exist yet — will be created on first insert
-                logger.debug("LanceDB table %r not found yet, will create on first insert: %s", LANCE_TABLE_NAME, e)
+                logger.debug(
+                    "LanceDB table %r not found yet, will create on first insert: %s",
+                    LANCE_TABLE_NAME, e,
+                )
             except Exception as e:
                 logger.error("Failed to open LanceDB table %r: %s", LANCE_TABLE_NAME, e)
                 raise
@@ -312,7 +315,9 @@ class ChunkStore:
                 logger.warning("Chunk ID validation failed during upsert: %s", e)
                 raise
             except Exception as e:
-                logger.warning("Could not delete old vectors (may be expected on first insert): %s", e)
+                logger.warning(
+                    "Could not delete old vectors (may be expected on first insert): %s", e,
+                )
 
         # Insert new vectors
         self._ensure_lance_table(vectors, chunk_ids)

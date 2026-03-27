@@ -127,7 +127,8 @@ class TestChunkIdSanitization:
             store = ChunkStore(tmpdir)
             # All of these should pass
             assert store._validate_chunk_id("file.py:1-10:abc123") == "file.py:1-10:abc123"
-            assert store._validate_chunk_id("src/deep/path.py:100-200:def456") == "src/deep/path.py:100-200:def456"
+            result = store._validate_chunk_id("src/deep/path.py:100-200:def456")
+            assert result == "src/deep/path.py:100-200:def456"
             assert store._validate_chunk_id("my-file_v2.py:1-5:hash") == "my-file_v2.py:1-5:hash"
             store.close()
 
