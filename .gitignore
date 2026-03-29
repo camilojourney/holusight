@@ -36,3 +36,10 @@ htmlcov/
 # Environment
 .env
 .env.local
+node_modules
+.pipeline-state/
+.self-improvement/reports/
+
+# Fleet structure audit additions
+.next/
+.streamlit/
