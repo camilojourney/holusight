@@ -25,6 +25,17 @@
 
 AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with pluggable LLM answer synthesis.
 
+## Runtime Use as Context Provider
+
+CodeSight serves double duty: it's a product AND the context engine for the OpenClaw skill pipeline.
+
+- **`/code` skill** calls `codesight_context.py "$REPO_PATH" "$TASK"` before every Codex invocation
+- Searches the repo's index, returns top-5 chunks (~1000-2000 tokens) injected into the prompt
+- Index auto-updates on 5-min stale threshold — incremental, content-hash deduped
+- Engine always loaded from `holusight/src/codesight/`; VOYAGE_API_KEY from `holusight/.env`
+- Repos indexed: holusight (230 chunks), pythia (875 chunks) — batch size 8 (Voyage 120K limit)
+- Experiment result: +17 pts on complex tasks vs no-context baseline (3×3 eval, 2026-04-04)
+
 ## Commands
 
 - Run demo: `streamlit run demo/app.py`

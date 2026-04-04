@@ -311,6 +311,33 @@ Measured on the holusight codebase (96 files, 20 representative queries):
 
 ---
 
+## Context Injection Integration (Added 2026-04-04)
+
+CodeSight is used as a runtime context provider inside the OpenClaw skill pipeline. When a developer runs `/code` on any repo, `codesight_context.py` searches that repo's index and injects the top-5 relevant chunks into the Codex prompt.
+
+```
+/code skill invoked
+  → fleet_brain_hook.py "$REPO" "code"     (~150 tokens, project state)
+  → codesight_context.py "$REPO_PATH" "$TASK"  (~1000-2000 tokens, code context)
+  → both injected into RICH_TASK for Codex
+```
+
+**Key design decisions:**
+- Engine lives in `holusight/src/codesight/` — shared across all repos
+- Index is per-repo at `~/.codesight/data/<sha256(repo_path)[:12]>/` — isolated, no cross-repo bleed
+- VOYAGE_API_KEY loaded from `holusight/.env` explicitly in `codesight_context.py` (not from CWD)
+- Batch size capped at 8 chunks/request to stay under Voyage's 120K token/batch limit
+- Stale threshold: 5 min — auto-reindexes changed files on next `/code` invocation
+
+**Experiment results (3×3 eval, 2026-04-04):**
+- No context: avg 76.3 | Fleet Brain only: avg 93.0 | Fleet + CodeSight: avg 93.8
+- Context helps most on architecturally complex tasks (+25 pts on task requiring dual-store knowledge)
+- Easy tasks already near-ceiling without context (99/99/99)
+
+**Repos indexed:** holusight (230 chunks, 28s), pythia (875 chunks, 346s)
+
+---
+
 ## What NOT to Change Without Discussion
 
 1. **RRF k=60 constant** — changing this shifts recall/precision tradeoff. Benchmark before changing.
