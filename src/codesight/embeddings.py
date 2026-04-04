@@ -154,7 +154,7 @@ class APIEmbedder:
 class VoyageEmbedder:
     """Voyage embedding backend for code retrieval."""
 
-    BATCH_SIZE = 64  # 128 is the API max but large code files can exceed 120K token limit
+    BATCH_SIZE = 8  # Voyage max is 120K tokens/batch; large repos need small batches (~15K tokens each)
 
     def __init__(
         self,
