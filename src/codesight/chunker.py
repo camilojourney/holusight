@@ -1,16 +1,22 @@
 """Language-aware code chunking + document chunking.
 
-Code: regex-based splitting on top-level function/class boundaries.
+Code: tree-sitter AST-based splitting (preferred) → regex boundary fallback → sliding window.
 Documents: paragraph-aware splitting with page metadata.
 Both get context headers prepended to improve embedding quality.
+
+AST chunking (cAST approach, EMNLP 2025): extract top-level function/class nodes,
+merge small siblings (< min_lines), sub-split oversized nodes with windows.
 """
 
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from .config import (
     DEFAULT_CHUNK_MAX_LINES,
@@ -192,6 +198,17 @@ def chunk_file(
     language = _detect_language(file_path)
     pattern = _BOUNDARY_PATTERNS.get(language)
 
+    # Prefer AST-based chunking for supported languages — it gives cleaner
+    # function/class boundaries and better recall in retrieval benchmarks.
+    if language in _AST_SCOPE_TYPES:
+        try:
+            return chunk_file_ast(content, file_path, max_lines)
+        except Exception:
+            logger.debug(
+                "AST chunking failed for %s (%s) — falling back to regex",
+                file_path, language, exc_info=True,
+            )
+
     if pattern:
         chunks = _split_by_boundaries(lines, file_path, language, pattern, max_lines, overlap_lines)
     else:
@@ -276,6 +293,198 @@ def _split_by_windows(
         i += max_lines - overlap_lines
         if i >= len(lines):
             break
+
+    return chunks
+
+
+# ---------------------------------------------------------------------------
+# AST-based chunking (tree-sitter — preferred over regex for Python/JS/TS)
+# ---------------------------------------------------------------------------
+
+# Top-level node types that define scope boundaries in each language.
+_AST_SCOPE_TYPES: dict[str, frozenset[str]] = {
+    "python": frozenset({
+        "function_definition",
+        "async_function_definition",
+        "class_definition",
+        "decorated_definition",
+    }),
+    "javascript": frozenset({
+        "function_declaration",
+        "class_declaration",
+        "export_statement",
+        "lexical_declaration",       # const/let arrow functions at module level
+        "variable_declaration",      # var arrow functions
+    }),
+    "typescript": frozenset({
+        "function_declaration",
+        "class_declaration",
+        "export_statement",
+        "lexical_declaration",
+        "variable_declaration",
+        "interface_declaration",
+        "type_alias_declaration",
+    }),
+}
+
+
+def _get_ts_parser(language: str):
+    """Return a tree-sitter (Parser, Language) pair for the given language.
+
+    Raises ImportError if the tree-sitter packages are not installed.
+    Raises ValueError if the language is not supported.
+    """
+    from tree_sitter import Language, Parser  # soft dependency
+
+    if language == "python":
+        import tree_sitter_python as tslang
+    elif language in ("javascript", "typescript"):
+        # tree-sitter-javascript handles both JS and TS well enough for chunking
+        import tree_sitter_javascript as tslang
+    else:
+        raise ValueError(f"No tree-sitter grammar for language: {language!r}")
+
+    ts_language = Language(tslang.language())
+    parser = Parser(ts_language)
+    return parser, ts_language
+
+
+def _build_chunk_from_lines(
+    lines: list[str],
+    file_path: str,
+    language: str,
+    start_line_1idx: int,
+) -> Chunk:
+    """Build a Chunk from a list of lines with correct 1-based line numbers."""
+    content = "\n".join(lines)
+    scope = _detect_scope(lines[0] if lines else "", language)
+    end_line_1idx = start_line_1idx + len(lines) - 1
+    header = _make_context_header(file_path, scope, start_line_1idx, end_line_1idx)
+    return Chunk(
+        file_path=file_path,
+        start_line=start_line_1idx,
+        end_line=end_line_1idx,
+        content=content,
+        scope=scope,
+        language=language,
+        context_header=header,
+    )
+
+
+def chunk_file_ast(
+    content: str,
+    file_path: str,
+    max_lines: int = DEFAULT_CHUNK_MAX_LINES,
+    min_lines: int = 5,
+) -> list[Chunk]:
+    """Split a file using tree-sitter AST nodes (cAST approach).
+
+    Algorithm:
+    1. Parse the file and extract top-level scope nodes (functions, classes).
+    2. Merge consecutive tiny nodes (< min_lines) with their next sibling so
+       the reranker has enough context per chunk.
+    3. Sub-split oversized nodes (> max_lines) using overlapping windows.
+    4. Any leading/trailing code not covered by a scope node becomes its own chunk.
+
+    Falls back to chunk_file() if tree-sitter is unavailable or parsing fails.
+    """
+    if not content.strip():
+        return []
+
+    language = _detect_language(file_path)
+    if language not in _AST_SCOPE_TYPES:
+        # Not a language we have AST support for — caller should use chunk_file()
+        raise ValueError(f"AST chunking not supported for language: {language!r}")
+
+    parser, _ = _get_ts_parser(language)
+    all_lines = content.split("\n")
+
+    tree = parser.parse(content.encode("utf-8", errors="replace"))
+    root = tree.root_node
+
+    scope_types = _AST_SCOPE_TYPES[language]
+
+    # Collect (start_row, end_row) for each top-level scope node (0-indexed rows)
+    raw_segments: list[tuple[int, int]] = []
+    for child in root.children:
+        if child.type in scope_types:
+            raw_segments.append((child.start_point[0], child.end_point[0]))
+        # Unwrap export_statement to check if it wraps a scoped declaration
+        elif child.type == "export_statement":
+            for sub in child.children:
+                if sub.type in scope_types:
+                    raw_segments.append((child.start_point[0], child.end_point[0]))
+                    break
+
+    if not raw_segments:
+        # No top-level scope nodes found — fall back to window chunking
+        return _split_by_windows(all_lines, file_path, language, max_lines, 0)
+
+    # Sort by start line
+    raw_segments.sort(key=lambda s: s[0])
+
+    # --- Merge tiny consecutive segments ---
+    merged: list[tuple[int, int]] = []
+    i = 0
+    while i < len(raw_segments):
+        seg_start, seg_end = raw_segments[i]
+        seg_lines = seg_end - seg_start + 1
+        if seg_lines < min_lines and i + 1 < len(raw_segments):
+            # Merge with next segment
+            next_start, next_end = raw_segments[i + 1]
+            merged.append((seg_start, next_end))
+            i += 2  # skip both
+        else:
+            merged.append((seg_start, seg_end))
+            i += 1
+
+    # --- Build chunks, sub-splitting oversized segments ---
+    chunks: list[Chunk] = []
+
+    # Leading lines before first segment (e.g., imports, module docstring)
+    first_seg_start = merged[0][0] if merged else len(all_lines)
+    if first_seg_start > 0:
+        leading = all_lines[:first_seg_start]
+        if any(l.strip() for l in leading):
+            chunks.extend(
+                _split_by_windows(leading, file_path, language, max_lines, 0)
+            )
+
+    prev_end = first_seg_start
+    for seg_start, seg_end in merged:
+        # Gap between segments (e.g., module-level constants between functions)
+        if seg_start > prev_end:
+            gap = all_lines[prev_end:seg_start]
+            if any(l.strip() for l in gap):
+                chunks.extend(
+                    _split_by_windows(gap, file_path, language, max_lines, 0,
+                                      line_offset=prev_end)
+                )
+
+        seg_line_list = all_lines[seg_start: seg_end + 1]
+        seg_len = len(seg_line_list)
+
+        if seg_len <= max_lines:
+            chunks.append(_build_chunk_from_lines(
+                seg_line_list, file_path, language, seg_start + 1,
+            ))
+        else:
+            # Sub-split oversized node with no overlap (function boundaries are complete)
+            chunks.extend(
+                _split_by_windows(seg_line_list, file_path, language, max_lines, 0,
+                                  line_offset=seg_start)
+            )
+
+        prev_end = seg_end + 1
+
+    # Trailing lines after last segment
+    if prev_end < len(all_lines):
+        trailing = all_lines[prev_end:]
+        if any(l.strip() for l in trailing):
+            chunks.extend(
+                _split_by_windows(trailing, file_path, language, max_lines, 0,
+                                  line_offset=prev_end)
+            )
 
     return chunks
 
