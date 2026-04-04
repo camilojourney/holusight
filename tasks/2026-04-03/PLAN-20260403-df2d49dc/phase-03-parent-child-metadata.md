@@ -1,18 +1,32 @@
-# Phase 3: Parent-Child Chunks + Metadata Boosting
+# Phase 3: Challenge Assumptions + Parent-Child + Metadata Boost
 
-**Goal:** Store small chunks (50 lines) for recall precision, return large parent chunks (200 lines) for LLM context. Add filename/path metadata boosting to BM25. These changes directly reduce tokens-per-answer.
-**Done when:** eval hit_rate ≥ 88%, token-per-correct-answer reduced vs Phase 1 baseline
+**Goal:** Adversarially challenge whether parent-child chunks and metadata boosting are still the right moves in 2026 before building. Then implement what's validated.
+**Done when:** approach validated by research, eval hit_rate ≥ 88%, token-per-correct-answer reduced
 
 ## FOCUS ANCHOR — Read this before every step
 
 ```
 You are executing: PLAN-20260403-df2d49dc / Phase 3
-Read status.json to confirm current step.
-Phase 2 results are in results/phase-02-eval.json.
+Read status.json and results/phase-02-eval.json before starting.
 Current hit rate going into Phase 3 should be ~78%.
 
 SKILL ENFORCEMENT: ALL source changes → /code skill. No direct edits.
 ```
+
+---
+
+## Step 0: Adversarial assumption check (ALWAYS run first)
+
+```
+INVOKE: Skill(skill="research", args="holusight --adversary We are about to implement two changes: (1) parent-child chunk architecture — store small 50-line child chunks for retrieval, return large 200-line parent chunks for LLM context; (2) filename/path BM25 metadata boosting — multiply BM25 score 1.5x when query token matches a filename. Challenge these in 2026: (1) Do modern cross-encoder rerankers (voyage rerank-2) already implicitly solve the parent-child problem by scoring full surrounding context? Does adding parent-child retrieval add meaningful lift when we already have a good reranker, or is it redundant? (2) Does voyage-code-3 already encode file path semantics into the embedding — making explicit BM25 path boosting redundant? Are there better metadata signals than filename (e.g., git blame recency, import frequency, star count)? Give a go/no-go for each change and flag any 2026-superior alternative.")
+```
+
+**What Claude Code does:**
+1. Invoke the skill — if research says either change is redundant given our reranker, skip that step
+2. Write output to results/phase-03-step-00-assumptions.md
+3. Update status.json: step 0 COMPLETED
+
+**Done when:** go/no-go for parent-child and metadata boost recorded
 
 ---
 

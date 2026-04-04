@@ -17,6 +17,7 @@
       "name": "quick-wins-reranker-query-expansion",
       "status": "PENDING",
       "steps": [
+        {"step": 0, "name": "assumption-check-2026", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null, "note": "adversary mode — challenge reranker + query expansion choices against 2026 SOTA"},
         {"step": 1, "name": "swap-reranker", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 2, "name": "add-query-expansion", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 3, "name": "measure-token-baseline", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
@@ -29,9 +30,10 @@
       "name": "research-sota-semantic-chunking",
       "status": "PENDING",
       "steps": [
+        {"step": 0, "name": "assumption-check-2026", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null, "note": "adversary mode — challenge tree-sitter chunking vs late-chunking vs contextual retrieval"},
         {"step": 1, "name": "research-sota", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 2, "name": "consult-chunking-design", "skill": "/consult-experiments", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 3, "name": "implement-semantic-chunking", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 3, "name": "implement-chunking", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 4, "name": "re-index-fleet", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 5, "name": "eval-phase2", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
       ]
@@ -41,6 +43,7 @@
       "name": "parent-child-chunks-metadata-boost",
       "status": "PENDING",
       "steps": [
+        {"step": 0, "name": "assumption-check-2026", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null, "note": "adversary mode — challenge parent-child and metadata boost vs reranker redundancy"},
         {"step": 1, "name": "implement-parent-child", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 2, "name": "implement-metadata-boost", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 3, "name": "re-index-fleet", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
@@ -53,6 +56,7 @@
       "name": "advanced-techniques-final-gate",
       "status": "PENDING",
       "steps": [
+        {"step": 0, "name": "full-pipeline-adversarial-challenge", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null, "note": "adversary mode — challenge entire pipeline, embedding model choice, eval set size, 2026 SOTA"},
         {"step": 1, "name": "research-advanced", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 2, "name": "implement-top-technique", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
         {"step": 3, "name": "fix-failing-queries", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},

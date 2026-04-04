@@ -1,19 +1,35 @@
-# Phase 2: Research SOTA + Semantic Chunking
+# Phase 2: Challenge Assumptions + Semantic Chunking
 
-**Goal:** Research current best practices in code retrieval, then implement tree-sitter semantic chunking. Requires full fleet re-index.
-**Done when:** eval hit_rate ≥ 78%, semantic chunking live, fleet re-indexed with new chunks
+**Goal:** Adversarially challenge whether tree-sitter semantic chunking is the right approach in 2026 before building it. Then implement what research validates. Requires full fleet re-index.
+**Done when:** chunking approach validated by research, eval hit_rate ≥ 78%, fleet re-indexed
 
 ## FOCUS ANCHOR — Read this before every step
 
 ```
 You are executing: PLAN-20260403-df2d49dc / Phase 2
-Read status.json to confirm your current step.
-Phase 1 results are in results/phase-01-eval.json — read them before starting.
+Read status.json and results/phase-01-eval.json before starting.
+Phase 1 hit rate is the new baseline — if it's already ≥ 78%, this phase may be a quick win.
 
 SKILL ENFORCEMENT:
   - EVERY source code change → /code skill only
   - NEVER edit .py files directly
 ```
+
+---
+
+## Step 0: Adversarial assumption check (ALWAYS run first)
+
+```
+INVOKE: Skill(skill="research", args="holusight --adversary We are about to implement tree-sitter scope-based semantic chunking (chunk at function/class boundaries instead of fixed 200-line windows). Challenge this in 2026: Is tree-sitter semantic chunking still the best chunking approach for code retrieval, or has the field moved on? Specifically: (1) Does 'late chunking' (embed the full file with a long-context model, then slice the embedding post-hoc) outperform pre-chunking at function boundaries? (2) Has contextual retrieval (Anthropic's technique of prepending an LLM-generated context summary to each chunk before embedding) made chunk boundaries less critical? (3) For voyage-code-3 specifically, what chunk size and strategy does Voyage AI recommend? (4) Are there any 2025-2026 papers showing that fixed-window chunking with good overlap actually beats semantic chunking for code? Give a go/no-go for tree-sitter chunking and flag any superior 2026 alternative we should implement instead.")
+```
+
+**What Claude Code does:**
+1. Invoke the skill — read output carefully
+2. If research recommends a different chunking strategy (e.g., late-chunking, contextual retrieval), update Steps 1-3 to implement that instead
+3. Write output to results/phase-02-step-00-assumptions.md
+4. Update status.json: step 0 COMPLETED
+
+**Done when:** go/no-go for tree-sitter chunking recorded, any pivot documented
 
 ---
 

@@ -1,7 +1,7 @@
-# Phase 4: Advanced Techniques + Final Gate
+# Phase 4: Challenge Everything + Advanced Techniques + Final Gate
 
-**Goal:** Close the remaining gap to 95%. Research and implement 1-2 advanced techniques (HyDE, contextual retrieval). Fix specific failing query categories. Final architecture decision on local vs API recommendations.
-**Done when:** hit_rate ≥ 95% OR documented decision that 95% requires architectural change beyond current scope
+**Goal:** Full adversarial challenge of the entire pipeline before the final push. What are we still getting wrong? Then implement the highest-ROI remaining technique and close the gap to 95%.
+**Done when:** hit_rate ≥ 95% OR documented decision that 95% requires architecture change beyond scope
 **Gate:** HARD — present final eval to user before committing fleet architecture
 
 ## FOCUS ANCHOR — Read this before every step
@@ -15,6 +15,23 @@ Gap to close: ~7 percentage points.
 SKILL ENFORCEMENT: ALL source changes → /code skill only.
 This is the final phase. After Step 6, set status = COMPLETED.
 ```
+
+---
+
+## Step 0: Full-pipeline adversarial challenge (ALWAYS run first)
+
+```
+INVOKE: Skill(skill="research", args="holusight --adversary We have implemented: voyage rerank-2.5, LLM query expansion, semantic chunking, parent-child chunks, metadata boosting. We are at ~88% hit rate and need to reach 95%. Challenge everything with 2026 knowledge: (1) Is voyage-code-3 still the best code embedding model in 2026, or has a new model (e.g., from Cohere, OpenAI, a new Voyage release) surpassed it on code retrieval benchmarks? (2) Are there 2026 retrieval architectures we haven't tried — sparse+dense fusion (BM25 + voyage + SPLADE), multi-vector ColBERT, neural BM25 (SPLADE), late interaction? (3) Is our 40-query eval set large enough to detect a 5% improvement statistically — or are we chasing noise? (4) Are there known failure modes for voyage-code-3 + BM25 hybrid on Python/TypeScript code that 2026 literature has documented? (5) What does the last 6 months of retrieval research say is the single highest-ROI technique for going from 88% to 95% on code search? Be specific about what to implement.")
+```
+
+**What Claude Code does:**
+1. Invoke the skill — this is the most important research call in the plan
+2. If research reveals we're using a suboptimal embedding model, that's a Phase 5 (flag it)
+3. If research reveals the eval set is too small, add eval set expansion as Step 1.5
+4. Write output to results/phase-04-step-00-assumptions.md
+5. Update status.json: step 0 COMPLETED
+
+**Done when:** full diagnosis written, highest-ROI remaining technique identified
 
 ---
 

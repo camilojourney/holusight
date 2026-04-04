@@ -1,7 +1,7 @@
-# Phase 1: Quick Wins — Reranker + Query Expansion
+# Phase 1: Challenge Assumptions + Quick Wins
 
-**Goal:** 15-20% lift with zero re-indexing. Swap generic reranker for code-specific voyage rerank-2.5, add LLM query expansion with 3 variants.
-**Done when:** eval run shows hit_rate ≥ 65%, token efficiency baseline measured
+**Goal:** First adversarially challenge the plan assumptions against 2026 SOTA, then implement what's validated. Target: ≥65% hit rate with token baseline measured.
+**Done when:** assumptions validated, eval hit_rate ≥ 65%, token efficiency baseline measured
 
 ## FOCUS ANCHOR — Read this before every step
 
@@ -19,6 +19,22 @@ After completing each step:
   2. Update status.json (mark step COMPLETED, advance to next)
   3. Move to the next step immediately — do NOT stop to ask the user
 ```
+
+---
+
+## Step 0: Adversarial assumption check (ALWAYS run first)
+
+```
+INVOKE: Skill(skill="research", args="holusight --adversary We are about to implement two changes to improve code retrieval in 2026: (1) swap the reranker from ms-marco-MiniLM-L-6-v2 to voyage rerank-2.5, and (2) add LLM query expansion (rewrite query into 3 variants via claude-haiku before searching). Challenge these assumptions with 2026 knowledge: Is voyage rerank-2.5 still the best code reranker available in 2026, or has it been superseded by something better (Cohere rerank v4, jina-reranker-v2, etc.)? Is LLM query expansion with a fast model the right approach, or does it add noise and latency — are there better alternatives like PRF (Pseudo Relevance Feedback) or learned sparse expansion? What does the 2026 literature say about reranker choice for code retrieval specifically? Give us a go/no-go for each change and flag any better alternatives we should use instead.")
+```
+
+**What Claude Code does:**
+1. Invoke the skill above
+2. Read the output — if it recommends a different reranker or different expansion strategy, update Steps 1-2 accordingly before executing them
+3. Write output to results/phase-01-step-00-assumptions.md
+4. Update status.json: step 0 COMPLETED
+
+**Done when:** research output covers both assumptions, go/no-go decision recorded
 
 ---
 
