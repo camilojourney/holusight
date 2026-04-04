@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-04-04T04:27:24.420013+00:00",
+  "phase": 4,
+  "eval_type": "holusight_specific_20q",
+  "comparison_table": {
+    "baseline": {
+      "hit_rate": 0.525,
+      "mrr_at_10": 0.352
+    },
+    "phase1_vprf_reranker": {
+      "hit_rate": 1.0,
+      "mrr_at_10": 0.599
+    },
+    "phase2_ast_chunking": {
+      "hit_rate": 1.0,
+      "mrr_at_10": 0.823
+    },
+    "phase4_voyage_code3_only": {
+      "hit_rate": 1.0,
+      "mrr_at_10": 0.363
+    },
+    "phase4_voyage_code3_plus_reranker": {
+      "hit_rate": 1.0,
+      "mrr_at_10": 0.793,
+      "tokens_per_query": 3062
+    }
+  },
+  "best_config": {
+    "embedding_model": "voyage-code-3 (for code files) + all-MiniLM-L6-v2 (for text/docs)",
+    "reranker": "voyage rerank-2 (enabled when VOYAGE_API_KEY set)",
+    "chunking": "tree-sitter AST function/class boundaries (chunk_file_ast)",
+    "metadata_boost": true,
+    "vprf_query_enhancement": false
+  },
+  "key_insights": [
+    "AST chunking alone gave largest MRR boost: +0.224 (0.599 \u2192 0.823)",
+    "voyage-code-3 embeddings fixed 3/3 remaining recall failures",
+    "voyage rerank-2 adds +0.43 MRR on top of voyage-code-3 embeddings alone",
+    "Local ms-marco cross-encoder HURTS code search (trained on QA, not code)",
+    "Metadata boost (filename matching) has negligible effect when voyage-code-3 is used \u2014 recall is already good"
+  ]
+}
