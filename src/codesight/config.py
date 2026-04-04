@@ -82,7 +82,11 @@ BM25_CANDIDATE_MULTIPLIER = 3  # fetch 3x top_k from each retriever before RRF
 DEFAULT_LLM_MODEL = "claude-sonnet-4-20250514"
 
 # Reranker
-DEFAULT_RERANKER_ENABLED = os.environ.get("CODESIGHT_RERANKER", "true").lower() == "true"
+# Default to enabled only when Voyage API key is set (voyage rerank-2 helps code retrieval;
+# local ms-marco cross-encoder is trained on MS-MARCO QA and can hurt code search ranking).
+# Users with VOYAGE_API_KEY get always-on reranking. Local users can opt in via CODESIGHT_RERANKER=true.
+_default_reranker_on = "true" if os.environ.get("VOYAGE_API_KEY") else "false"
+DEFAULT_RERANKER_ENABLED = os.environ.get("CODESIGHT_RERANKER", _default_reranker_on).lower() == "true"
 # Auto-select backend: voyage when VOYAGE_API_KEY is set, local cross-encoder otherwise
 DEFAULT_RERANKER_BACKEND = os.environ.get(
     "CODESIGHT_RERANKER_BACKEND",
