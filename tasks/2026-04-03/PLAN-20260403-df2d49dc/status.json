@@ -2,27 +2,87 @@
   "cid": "PLAN-20260403-df2d49dc",
   "goal": "Push CodeSight from 52.5% hit rate to 95% with token efficiency as co-metric",
   "repo": "holusight",
-  "status": "PENDING",
+  "status": "IN_PROGRESS",
   "current_phase": 1,
-  "current_step": 1,
+  "current_step": 5,
   "total_phases": 4,
   "baseline": {
     "hit_rate": 0.525,
     "mrr_at_10": 0.352,
     "token_efficiency": null
   },
+  "phase1_metrics": {
+    "hit_rate": 1.000,
+    "mrr_at_10": 0.599,
+    "tokens_per_correct_answer": 3043.9,
+    "total_tokens_per_run": 60879,
+    "eval_queries": 20,
+    "note": "Hit rate 100% on holusight codebase. MRR gap shows answers landing at rank 3-10 — semantic chunking + reranker target."
+  },
   "phase_history": [
     {
       "phase": 1,
       "name": "quick-wins-reranker-query-expansion",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "steps": [
-        {"step": 0, "name": "assumption-check-2026", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null, "note": "adversary mode — challenge reranker + query expansion choices against 2026 SOTA"},
-        {"step": 1, "name": "swap-reranker", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 2, "name": "add-query-expansion", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 3, "name": "measure-token-baseline", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 4, "name": "eval-phase1", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 5, "name": "consult-checkpoint", "skill": "/consult-experiments", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
+        {
+          "step": 0,
+          "name": "assumption-check-2026",
+          "skill": "/research",
+          "skill_cid": "holusight-RESEARCH-20260403-36276dbf",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "docs/research/domain/reranker-query-expansion-2026.md",
+          "note": "adversary mode \u2014 challenge reranker + query expansion choices against 2026 SOTA"
+        },
+        {
+          "step": 1,
+          "name": "swap-reranker",
+          "skill": "/code",
+          "skill_cid": "holusight-CODE-20260403-6d6cddb1",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "src/codesight/search.py, src/codesight/config.py"
+        },
+        {
+          "step": 2,
+          "name": "add-query-expansion",
+          "skill": "/code",
+          "skill_cid": "holusight-CODE-20260403-0407f00e",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "src/codesight/search.py, src/codesight/store.py",
+          "note": "VPRF: vprf_enhance_query() + LanceDB predicate pushdown in get_chunk_vectors(). 71/71 tests. Gemini caught OOM bug (full table scan) — fixed."
+        },
+        {
+          "step": 3,
+          "name": "measure-token-baseline",
+          "skill": "/code",
+          "skill_cid": "holusight-CODE-20260403-a6a0c653",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "src/codesight/types.py, src/codesight/search.py, tests/eval_harness.py",
+          "note": "tokens_used field on SearchResult + run_eval() returning hit_rate/mrr/tokens_per_correct_answer/total_tokens. 84/84 tests."
+        },
+        {
+          "step": 4,
+          "name": "eval-phase1",
+          "skill": "bash",
+          "skill_cid": "manual",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "hit_rate=1.0, mrr@10=0.599, tokens/correct=3043.9",
+          "note": "Hit rate 100%, MRR 0.599. Key misses by rank: gitignore=10, cross-encoder=4, voyage=3. Phase 2 target: push MRR above 0.75."
+        },
+        {
+          "step": 5,
+          "name": "consult-checkpoint",
+          "skill": "/consult-experiments",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        }
       ]
     },
     {
@@ -30,12 +90,61 @@
       "name": "research-sota-semantic-chunking",
       "status": "PENDING",
       "steps": [
-        {"step": 0, "name": "assumption-check-2026", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null, "note": "adversary mode — challenge tree-sitter chunking vs late-chunking vs contextual retrieval"},
-        {"step": 1, "name": "research-sota", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 2, "name": "consult-chunking-design", "skill": "/consult-experiments", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 3, "name": "implement-chunking", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 4, "name": "re-index-fleet", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 5, "name": "eval-phase2", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
+        {
+          "step": 0,
+          "name": "assumption-check-2026",
+          "skill": "/research",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null,
+          "note": "adversary mode \u2014 challenge tree-sitter chunking vs late-chunking vs contextual retrieval"
+        },
+        {
+          "step": 1,
+          "name": "research-sota",
+          "skill": "/research",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 2,
+          "name": "consult-chunking-design",
+          "skill": "/consult-experiments",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 3,
+          "name": "implement-chunking",
+          "skill": "/code",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 4,
+          "name": "re-index-fleet",
+          "skill": "bash",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 5,
+          "name": "eval-phase2",
+          "skill": "bash",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        }
       ]
     },
     {
@@ -43,12 +152,61 @@
       "name": "parent-child-chunks-metadata-boost",
       "status": "PENDING",
       "steps": [
-        {"step": 0, "name": "assumption-check-2026", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null, "note": "adversary mode — challenge parent-child and metadata boost vs reranker redundancy"},
-        {"step": 1, "name": "implement-parent-child", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 2, "name": "implement-metadata-boost", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 3, "name": "re-index-fleet", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 4, "name": "eval-phase3", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 5, "name": "consult-gap-analysis", "skill": "/consult-experiments", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
+        {
+          "step": 0,
+          "name": "assumption-check-2026",
+          "skill": "/research",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null,
+          "note": "adversary mode \u2014 challenge parent-child and metadata boost vs reranker redundancy"
+        },
+        {
+          "step": 1,
+          "name": "implement-parent-child",
+          "skill": "/code",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 2,
+          "name": "implement-metadata-boost",
+          "skill": "/code",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 3,
+          "name": "re-index-fleet",
+          "skill": "bash",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 4,
+          "name": "eval-phase3",
+          "skill": "bash",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 5,
+          "name": "consult-gap-analysis",
+          "skill": "/consult-experiments",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        }
       ]
     },
     {
@@ -56,13 +214,70 @@
       "name": "advanced-techniques-final-gate",
       "status": "PENDING",
       "steps": [
-        {"step": 0, "name": "full-pipeline-adversarial-challenge", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null, "note": "adversary mode — challenge entire pipeline, embedding model choice, eval set size, 2026 SOTA"},
-        {"step": 1, "name": "research-advanced", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 2, "name": "implement-top-technique", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 3, "name": "fix-failing-queries", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 4, "name": "eval-final", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 5, "name": "architecture-decision", "skill": "/consult-engineering", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
-        {"step": 6, "name": "update-docs", "skill": "/specs", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
+        {
+          "step": 0,
+          "name": "full-pipeline-adversarial-challenge",
+          "skill": "/research",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null,
+          "note": "adversary mode \u2014 challenge entire pipeline, embedding model choice, eval set size, 2026 SOTA"
+        },
+        {
+          "step": 1,
+          "name": "research-advanced",
+          "skill": "/research",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 2,
+          "name": "implement-top-technique",
+          "skill": "/code",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 3,
+          "name": "fix-failing-queries",
+          "skill": "/code",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 4,
+          "name": "eval-final",
+          "skill": "bash",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 5,
+          "name": "architecture-decision",
+          "skill": "/consult-engineering",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 6,
+          "name": "update-docs",
+          "skill": "/specs",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        }
       ]
     }
   ]
