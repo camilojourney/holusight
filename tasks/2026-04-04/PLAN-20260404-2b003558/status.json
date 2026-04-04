@@ -1,0 +1,98 @@
+{
+  "cid": "PLAN-20260404-2b003558",
+  "goal": "Push CodeSight retrieval quality above MRR 0.85 — research latest 2026 techniques, implement highest-impact levers",
+  "repo": "holusight",
+  "status": "PENDING",
+  "current_phase": 1,
+  "current_step": 1,
+  "total_phases": 2,
+  "baseline": {
+    "hit_rate": 1.0,
+    "mrr_at_10": 0.793,
+    "config": "voyage-code-3 + AST chunking + voyage rerank-2"
+  },
+  "target": {
+    "hit_rate": 1.0,
+    "mrr_at_10": 0.85
+  },
+  "phase_history": [
+    {
+      "phase": 1,
+      "name": "research-and-decide",
+      "status": "PENDING",
+      "steps": [
+        {
+          "step": 1,
+          "name": "research-retrieval-techniques",
+          "skill": "/research",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": "results/phase-01-step-01-research.md"
+        },
+        {
+          "step": 2,
+          "name": "consult-architecture",
+          "skill": "/consult-engineering",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": "results/phase-01-step-02-consult.md"
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "implement-eval-ship",
+      "status": "PENDING",
+      "steps": [
+        {
+          "step": 1,
+          "name": "write-spec",
+          "skill": "/specs",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": "results/phase-02-step-01-spec.md"
+        },
+        {
+          "step": 2,
+          "name": "implement",
+          "skill": "/code",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": "results/phase-02-step-02-impl.md"
+        },
+        {
+          "step": 3,
+          "name": "run-eval",
+          "skill": "bash",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": "results/phase-02-step-03-eval.json"
+        },
+        {
+          "step": 4,
+          "name": "check-gate",
+          "skill": "bash",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": null
+        },
+        {
+          "step": 5,
+          "name": "sync-docs",
+          "skill": "/specs",
+          "skill_cid": null,
+          "status": "PENDING",
+          "verified": false,
+          "output": "results/phase-02-step-05-sync.md"
+        }
+      ],
+      "gate": "hard"
+    }
+  ]
+}
