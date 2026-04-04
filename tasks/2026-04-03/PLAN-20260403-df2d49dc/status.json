@@ -1,0 +1,65 @@
+{
+  "cid": "PLAN-20260403-df2d49dc",
+  "goal": "Push CodeSight from 52.5% hit rate to 95% with token efficiency as co-metric",
+  "repo": "holusight",
+  "status": "PENDING",
+  "current_phase": 1,
+  "current_step": 1,
+  "total_phases": 4,
+  "baseline": {
+    "hit_rate": 0.525,
+    "mrr_at_10": 0.352,
+    "token_efficiency": null
+  },
+  "phase_history": [
+    {
+      "phase": 1,
+      "name": "quick-wins-reranker-query-expansion",
+      "status": "PENDING",
+      "steps": [
+        {"step": 1, "name": "swap-reranker", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 2, "name": "add-query-expansion", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 3, "name": "measure-token-baseline", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 4, "name": "eval-phase1", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 5, "name": "consult-checkpoint", "skill": "/consult-experiments", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "research-sota-semantic-chunking",
+      "status": "PENDING",
+      "steps": [
+        {"step": 1, "name": "research-sota", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 2, "name": "consult-chunking-design", "skill": "/consult-experiments", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 3, "name": "implement-semantic-chunking", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 4, "name": "re-index-fleet", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 5, "name": "eval-phase2", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "parent-child-chunks-metadata-boost",
+      "status": "PENDING",
+      "steps": [
+        {"step": 1, "name": "implement-parent-child", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 2, "name": "implement-metadata-boost", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 3, "name": "re-index-fleet", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 4, "name": "eval-phase3", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 5, "name": "consult-gap-analysis", "skill": "/consult-experiments", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "advanced-techniques-final-gate",
+      "status": "PENDING",
+      "steps": [
+        {"step": 1, "name": "research-advanced", "skill": "/research", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 2, "name": "implement-top-technique", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 3, "name": "fix-failing-queries", "skill": "/code", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 4, "name": "eval-final", "skill": "bash", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 5, "name": "architecture-decision", "skill": "/consult-engineering", "skill_cid": null, "status": "PENDING", "verified": false, "output": null},
+        {"step": 6, "name": "update-docs", "skill": "/specs", "skill_cid": null, "status": "PENDING", "verified": false, "output": null}
+      ]
+    }
+  ]
+}
