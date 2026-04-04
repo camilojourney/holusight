@@ -8,6 +8,13 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+# Auto-load .env from CWD or repo root if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
