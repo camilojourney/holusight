@@ -4,7 +4,7 @@
   "repo": "holusight",
   "status": "IN_PROGRESS",
   "current_phase": 2,
-  "current_step": 1,
+  "current_step": 4,
   "total_phases": 2,
   "baseline": {
     "hit_rate": 1.0,
@@ -15,6 +15,16 @@
     "hit_rate": 1.0,
     "mrr_at_10": 0.85
   },
+  "eval_history": [
+    {
+      "iteration": 1,
+      "technique": "CNFB α=0.5",
+      "mrr_at_10": 0.720,
+      "hit_rate": 0.95,
+      "delta_vs_baseline_local": "+0.103",
+      "gate_passed": false
+    }
+  ],
   "phase_history": [
     {
       "phase": 1,
@@ -45,54 +55,57 @@
       "phase": 2,
       "name": "implement-eval-ship",
       "status": "IN_PROGRESS",
-      "loop_iteration": 1,
+      "loop_iteration": 2,
       "loop_sequence": ["CNFB", "Contextual Retrieval", "voyage-context-3"],
-      "current_technique": "CNFB",
+      "current_technique": "Contextual Retrieval",
       "steps": [
         {
           "step": 1,
-          "name": "write-spec",
+          "name": "write-spec-cnfb",
           "skill": "/specs",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": "results/phase-02-step-01-spec.md"
+          "skill_cid": "holusight-SPECS-inline",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "holusight/specs/009-cnfb-multiplicative-filename-boost.md"
         },
         {
           "step": 2,
-          "name": "implement",
+          "name": "implement-cnfb",
           "skill": "/code",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": "results/phase-02-step-02-impl.md"
+          "skill_cid": "holusight-CODE-inline-7b3e959",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "commit 7b3e959 — 110 tests passing"
         },
         {
           "step": 3,
-          "name": "run-eval",
+          "name": "run-eval-cnfb",
           "skill": "bash",
           "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": "results/phase-02-step-03-eval.json"
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "results/phase-02-step-03-eval.json",
+          "notes": "MRR 0.720 (+0.103 vs local baseline 0.617). Gate not met (target 0.85)."
         },
         {
           "step": 4,
-          "name": "check-gate",
+          "name": "check-gate-cnfb",
           "skill": "bash",
           "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": null
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "results/phase-02-step-03-eval.md",
+          "notes": "GATE NOT MET. Looping to iteration 2: Contextual Retrieval."
         },
         {
           "step": 5,
-          "name": "sync-docs",
-          "skill": "/specs",
+          "name": "implement-contextual-retrieval",
+          "skill": "/code",
           "skill_cid": null,
-          "status": "PENDING",
+          "status": "IN_PROGRESS",
           "verified": false,
-          "output": "results/phase-02-step-05-sync.md"
+          "output": null,
+          "notes": "Re-index holusight with context headers per chunk. One-time cost ~$0.05."
         }
       ],
       "gate": "hard"

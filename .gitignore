@@ -43,3 +43,6 @@ node_modules
 # Fleet structure audit additions
 .next/
 .streamlit/
+
+# Session task files (eval outputs, pipeline state — not source)
+tasks/
