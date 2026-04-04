@@ -44,6 +44,7 @@ DEFAULT_EMBEDDING_MODEL = os.environ.get(
     "CODESIGHT_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
 )
 DEFAULT_EMBEDDING_BACKEND = os.environ.get("CODESIGHT_EMBEDDING_BACKEND", "local")
+VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY")
 
 # Allowlist of tested embedding models with their dimensions.
 EMBEDDING_MODEL_REGISTRY: dict[str, int] = {
@@ -51,6 +52,7 @@ EMBEDDING_MODEL_REGISTRY: dict[str, int] = {
     "nomic-ai/nomic-embed-text-v1.5": 768,
     "mixedbread-ai/mxbai-embed-large-v1": 1024,
     "jinaai/jina-embeddings-v2-base-code": 768,
+    "voyage-code-3": 1024,
     "text-embedding-3-large": 3072,  # OpenAI API model
     "text-embedding-3-small": 1536,  # OpenAI API model
 }
@@ -100,6 +102,12 @@ CODE_EXTENSIONS: set[str] = {
     ".ex", ".exs", ".erl",
     ".zig", ".nim", ".v",
     ".dockerfile",
+}
+
+CODE_EMBEDDING_EXTENSIONS: set[str] = {
+    ".py", ".ts", ".js", ".tsx", ".jsx",
+    ".go", ".rs", ".java", ".kt", ".scala",
+    ".c", ".cpp", ".h", ".swift",
 }
 
 # Plain text files (read as UTF-8, chunked by windows)

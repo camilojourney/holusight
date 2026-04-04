@@ -16,8 +16,10 @@ from .chunker import Chunk, chunk_document, chunk_file
 from .config import (
     ALWAYS_SKIP_DIRS,
     ALWAYS_SKIP_FILES,
+    CODE_EMBEDDING_EXTENSIONS,
     INDEXABLE_EXTENSIONS,
     MAX_FILE_SIZE_BYTES,
+    VOYAGE_API_KEY,
     ServerConfig,
 )
 from .embeddings import Embedder, get_embedder
@@ -139,7 +141,13 @@ def index_repo(
         config.embedding_model, config.embedding_dim,
         backend=config.embedding_backend,
     )
+    code_embedder = (
+        get_embedder("voyage-code-3", 1024, backend="voyage")
+        if VOYAGE_API_KEY
+        else None
+    )
     store = ChunkStore(repo_path, embedding_dim=config.embedding_dim)
+    has_existing_code_index = code_embedder is not None and store.code_lance_table is not None
 
     # Store canonical path
     store.repo_canonical_path = str(repo_path)
@@ -157,7 +165,7 @@ def index_repo(
 
     # Process files in batches for embedding efficiency
     batch_chunks: list[Chunk] = []
-    BATCH_SIZE = 64
+    BATCH_SIZE = 128
 
     total_files = len(files)
     _log_progress(0, total_files, "Starting indexing...")
@@ -193,21 +201,39 @@ def index_repo(
         if new_chunk_ids != old_chunk_ids:
             store.delete_file_chunks(rel_path)
 
+        is_code_file = (
+            code_embedder is not None
+            and fpath.suffix.lower() in CODE_EMBEDDING_EXTENSIONS
+        )
         for chunk in chunks:
-            if chunk.content_hash in existing_hashes.values() and not force_rebuild:
+            if (
+                chunk.content_hash in existing_hashes.values()
+                and not force_rebuild
+                and (not is_code_file or has_existing_code_index)
+            ):
                 total_chunks_skipped += 1
                 continue
             batch_chunks.append(chunk)
 
         # Flush batch when large enough
         if len(batch_chunks) >= BATCH_SIZE:
-            _embed_and_store_batch(batch_chunks, embedder, store)
+            _embed_and_store_batch(
+                batch_chunks,
+                embedder,
+                store,
+                code_embedder=code_embedder,
+            )
             total_chunks_created += len(batch_chunks)
             batch_chunks = []
 
     # Flush remaining
     if batch_chunks:
-        _embed_and_store_batch(batch_chunks, embedder, store)
+        _embed_and_store_batch(
+            batch_chunks,
+            embedder,
+            store,
+            code_embedder=code_embedder,
+        )
         total_chunks_created += len(batch_chunks)
 
     # Update metadata
@@ -271,23 +297,58 @@ def _chunk_document_file(fpath: Path, rel_path: str, config: ServerConfig) -> li
     )
 
 
-def _embed_and_store_batch(chunks: list[Chunk], embedder: Embedder, store: ChunkStore) -> None:
+def _embed_and_store_batch(
+    chunks: list[Chunk],
+    embedder: Embedder,
+    store: ChunkStore,
+    code_embedder: Embedder | None = None,
+) -> None:
     """Embed a batch of chunks and store them."""
-    texts = [c.embedding_text for c in chunks]
-    vectors = embedder.embed(texts)
+    if not chunks:
+        return
 
-    chunk_ids = [c.chunk_id for c in chunks]
-    metadatas = [
-        {
-            "file_path": c.file_path,
-            "start_line": c.start_line,
-            "end_line": c.end_line,
-            "scope": c.scope,
-            "language": c.language,
-            "content_hash": c.content_hash,
-            "content": c.content,
-        }
-        for c in chunks
-    ]
+    def build_metadata(batch: list[Chunk]) -> list[dict]:
+        return [
+            {
+                "file_path": c.file_path,
+                "start_line": c.start_line,
+                "end_line": c.end_line,
+                "scope": c.scope,
+                "language": c.language,
+                "content_hash": c.content_hash,
+                "content": c.content,
+            }
+            for c in batch
+        ]
 
-    store.upsert_chunks(chunk_ids, vectors, metadatas)
+    if code_embedder is None:
+        texts = [c.embedding_text for c in chunks]
+        vectors = embedder.embed(texts)
+        chunk_ids = [c.chunk_id for c in chunks]
+        store.upsert_chunks(chunk_ids, vectors, build_metadata(chunks))
+        return
+
+    code_chunks: list[Chunk] = []
+    doc_chunks: list[Chunk] = []
+    for chunk in chunks:
+        ext = Path(chunk.file_path).suffix.lower()
+        if ext in CODE_EMBEDDING_EXTENSIONS:
+            code_chunks.append(chunk)
+        else:
+            doc_chunks.append(chunk)
+
+    if doc_chunks:
+        doc_vectors = embedder.embed([c.embedding_text for c in doc_chunks])
+        store.upsert_chunks(
+            [c.chunk_id for c in doc_chunks],
+            doc_vectors,
+            build_metadata(doc_chunks),
+        )
+
+    if code_chunks:
+        code_vectors = code_embedder.embed([c.embedding_text for c in code_chunks])
+        store.upsert_code_chunks(
+            [c.chunk_id for c in code_chunks],
+            code_vectors,
+            build_metadata(code_chunks),
+        )

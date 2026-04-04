@@ -16,11 +16,13 @@ import lancedb
 import numpy as np
 import pyarrow as pa
 
-from .config import DEFAULT_EMBEDDING_DIM, repo_data_dir, repo_fts_db_path
+from .config import DEFAULT_EMBEDDING_DIM, repo_data_dir, repo_fts_db_path, resolve_embedding_dim
 
 logger = logging.getLogger(__name__)
 
 LANCE_TABLE_NAME = "chunks"
+CODE_LANCE_TABLE_NAME = "code_chunks"
+CODE_EMBEDDING_DIM = resolve_embedding_dim("voyage-code-3")
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +257,7 @@ class ChunkStore:
         # LanceDB (vectors)
         self.lance_db = lancedb.connect(str(self.data_dir / "lance"))
         self._lance_table = None
+        self._code_lance_table = None
 
         # SQLite FTS5 sidecar
         self.fts = FTSSidecar(repo_fts_db_path(repo_path))
@@ -276,6 +279,23 @@ class ChunkStore:
                 raise
         return self._lance_table
 
+    @property
+    def code_lance_table(self):
+        """Lazy access to the code-specific LanceDB table if it exists."""
+        if self._code_lance_table is None:
+            try:
+                self._code_lance_table = self.lance_db.open_table(CODE_LANCE_TABLE_NAME)
+            except (FileNotFoundError, ValueError) as e:
+                logger.debug(
+                    "LanceDB table %r not found yet, will create on first insert: %s",
+                    CODE_LANCE_TABLE_NAME,
+                    e,
+                )
+            except Exception as e:
+                logger.error("Failed to open LanceDB table %r: %s", CODE_LANCE_TABLE_NAME, e)
+                raise
+        return self._code_lance_table
+
     def _ensure_lance_table(self, vectors: np.ndarray, chunk_ids: list[str]) -> None:
         """Create or append to the LanceDB table."""
         data = pa.table({
@@ -296,6 +316,33 @@ class ChunkStore:
             self._lance_table = self.lance_db.create_table(LANCE_TABLE_NAME, data)
         else:
             self._lance_table.add(data)
+
+    def get_code_table(self):
+        """Open or create the code_chunks LanceDB table with the Voyage vector dimension."""
+        if self._code_lance_table is None:
+            try:
+                self._code_lance_table = self.lance_db.open_table(CODE_LANCE_TABLE_NAME)
+            except (FileNotFoundError, ValueError) as e:
+                logger.debug(
+                    "LanceDB table %r not found, will create: %s",
+                    CODE_LANCE_TABLE_NAME,
+                    e,
+                )
+            except Exception as e:
+                logger.error("Failed to open LanceDB table %r: %s", CODE_LANCE_TABLE_NAME, e)
+                raise
+
+        if self._code_lance_table is None:
+            schema = pa.schema([
+                pa.field("chunk_id", pa.string()),
+                pa.field("vector", pa.list_(pa.float32(), CODE_EMBEDDING_DIM)),
+            ])
+            self._code_lance_table = self.lance_db.create_table(
+                CODE_LANCE_TABLE_NAME,
+                schema=schema,
+            )
+
+        return self._code_lance_table
 
     def upsert_chunks(
         self,
@@ -322,6 +369,35 @@ class ChunkStore:
         # Insert new vectors
         self._ensure_lance_table(vectors, chunk_ids)
 
+        self._upsert_metadata(chunk_ids, metadatas)
+
+    def upsert_code_chunks(
+        self,
+        chunk_ids: list[str],
+        vectors: np.ndarray,
+        metadatas: list[dict],
+    ) -> None:
+        """Upsert code chunks into the code_chunks vector table and shared metadata store."""
+        if not chunk_ids:
+            return
+
+        if self.lance_table is not None:
+            self._delete_vectors_by_ids(chunk_ids, table=self.lance_table)
+
+        if self.code_lance_table is not None:
+            self._delete_vectors_by_ids(chunk_ids, table=self.code_lance_table)
+
+        code_table = self.get_code_table()
+        data = pa.table({
+            "chunk_id": chunk_ids,
+            "vector": [v.tolist() for v in vectors],
+        })
+        code_table.add(data)
+
+        self._upsert_metadata(chunk_ids, metadatas)
+
+    def _upsert_metadata(self, chunk_ids: list[str], metadatas: list[dict]) -> None:
+        """Upsert shared chunk metadata into the FTS sidecar."""
         # Upsert into FTS sidecar
         for cid, meta in zip(chunk_ids, metadatas):
             self.fts.upsert_chunk(
@@ -349,13 +425,14 @@ class ChunkStore:
             raise ValueError(f"Invalid chunk_id rejected by allowlist: {cid!r}")
         return cid
 
-    def _delete_vectors_by_ids(self, chunk_ids: list[str]) -> None:
+    def _delete_vectors_by_ids(self, chunk_ids: list[str], table=None) -> None:
         """Delete vectors from LanceDB using validated chunk IDs.
 
         Each chunk_id is validated against a strict allowlist regex before
         being interpolated into the filter string. Invalid IDs raise ValueError.
         """
-        if not chunk_ids or self.lance_table is None:
+        target_table = self.lance_table if table is None else table
+        if not chunk_ids or target_table is None:
             return
         safe_ids = []
         for cid in chunk_ids:
@@ -367,7 +444,7 @@ class ChunkStore:
         if not safe_ids:
             return
         id_filter = " OR ".join(f'chunk_id = "{cid}"' for cid in safe_ids)
-        self.lance_table.delete(id_filter)
+        target_table.delete(id_filter)
 
     def delete_file_chunks(self, file_path: str) -> int:
         """Remove all chunks for a file from both stores."""
@@ -381,6 +458,13 @@ class ChunkStore:
                 self._delete_vectors_by_ids(chunk_ids)
             except Exception as e:
                 logger.warning("Could not delete vectors for %s: %s", file_path, e)
+                raise
+
+        if chunk_ids and self.code_lance_table is not None:
+            try:
+                self._delete_vectors_by_ids(chunk_ids, table=self.code_lance_table)
+            except Exception as e:
+                logger.warning("Could not delete code vectors for %s: %s", file_path, e)
                 raise
 
         # Delete from FTS
@@ -422,6 +506,37 @@ class ChunkStore:
     def bm25_search(self, query: str, top_k: int = 20, file_glob: str | None = None) -> list[str]:
         """BM25 search via FTS sidecar."""
         return self.fts.bm25_search(query, top_k, file_glob)
+
+    def vector_search_code(
+        self, query_vector: np.ndarray, top_k: int = 20, file_glob: str | None = None
+    ) -> list[str]:
+        """Search the code_chunks table by vector similarity, returning ranked chunk_ids."""
+        if self.code_lance_table is None:
+            return []
+
+        results = (
+            self.code_lance_table
+            .search(query_vector.tolist())
+            .limit(top_k)
+            .to_pandas()
+        )
+
+        if results.empty:
+            return []
+
+        chunk_ids = results["chunk_id"].tolist()
+
+        if file_glob:
+            import fnmatch
+
+            filtered = []
+            for cid in chunk_ids:
+                meta = self.fts.get_chunk_by_id(cid)
+                if meta and fnmatch.fnmatch(meta["file_path"], file_glob):
+                    filtered.append(cid)
+            return filtered
+
+        return chunk_ids
 
     def get_chunk_metadata(self, chunk_ids: list[str]) -> dict[str, dict]:
         """Get full metadata for a batch of chunk IDs."""

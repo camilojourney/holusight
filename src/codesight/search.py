@@ -10,8 +10,13 @@ from __future__ import annotations
 
 import logging
 
-from .config import BM25_CANDIDATE_MULTIPLIER, DEFAULT_TOP_K, ServerConfig
-from .embeddings import Embedder
+from .config import (
+    BM25_CANDIDATE_MULTIPLIER,
+    DEFAULT_TOP_K,
+    VOYAGE_API_KEY,
+    ServerConfig,
+)
+from .embeddings import Embedder, get_embedder
 from .store import ChunkStore
 from .types import SearchResult
 
@@ -88,6 +93,7 @@ def hybrid_search(
     query: str,
     top_k: int = DEFAULT_TOP_K,
     file_glob: str | None = None,
+    code_embedder: Embedder | None = None,
     config: ServerConfig | None = None,
 ) -> list[SearchResult]:
     """Run hybrid BM25 + vector search with RRF merging.
@@ -122,6 +128,19 @@ def hybrid_search(
     )
     logger.debug("Vector search returned %d candidates", len(vec_ids))
 
+    code_vec_ids: list[str] = []
+    if code_embedder is None and VOYAGE_API_KEY and store.code_lance_table is not None:
+        code_embedder = get_embedder("voyage-code-3", 1024, backend="voyage")
+
+    if code_embedder is not None and store.code_lance_table is not None:
+        code_query_vector = code_embedder.embed_query(query)
+        code_vec_ids = store.vector_search_code(
+            code_query_vector,
+            top_k=candidate_count,
+            file_glob=file_glob,
+        )
+        logger.debug("Code vector search returned %d candidates", len(code_vec_ids))
+
     # 3. BM25 search
     bm25_ids = store.bm25_search(
         query, top_k=candidate_count, file_glob=file_glob,
@@ -129,10 +148,11 @@ def hybrid_search(
     logger.debug("BM25 search returned %d candidates", len(bm25_ids))
 
     # 4. RRF merge
-    if not vec_ids and not bm25_ids:
+    ranked_lists = [ranked for ranked in [vec_ids, bm25_ids, code_vec_ids] if ranked]
+    if not ranked_lists:
         return []
 
-    merged = rrf_merge([vec_ids, bm25_ids])
+    merged = rrf_merge(ranked_lists)
     top_chunk_ids = [cid for cid, _ in merged[:rrf_top]]
     score_map = dict(merged[:rrf_top])
 

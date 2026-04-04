@@ -13,6 +13,7 @@ dependencies = [
     "pymupdf>=1.24",
     "python-docx>=1.1",
     "python-pptx>=0.6",
+    "voyageai>=0.3",
 ]
 
 [project.optional-dependencies]

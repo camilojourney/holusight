@@ -56,16 +56,22 @@ class ClaudeBackend:
             )
         self._model = model
         self._api_key = api_key
+        self._client = None
+
+    @property
+    def client(self):
+        """Lazy-loaded Anthropic client (cached for process lifetime)."""
+        if self._client is None:
+            import anthropic
+            self._client = anthropic.Anthropic(api_key=self._api_key, timeout=REQUEST_TIMEOUT)
+        return self._client
 
     @property
     def model_id(self) -> str:
         return f"claude:{self._model}"
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
-        import anthropic
-
-        client = anthropic.Anthropic(api_key=self._api_key, timeout=REQUEST_TIMEOUT)
-        message = client.messages.create(
+        message = self.client.messages.create(
             model=self._model,
             max_tokens=1024,
             system=system_prompt,
@@ -86,6 +92,7 @@ class AzureOpenAIBackend:
         self._api_key = os.environ.get("AZURE_OPENAI_API_KEY")
         self._deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
         self._api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
+        self._client = None
 
         if not self._endpoint:
             raise ValueError(
@@ -98,19 +105,25 @@ class AzureOpenAIBackend:
             )
 
     @property
+    def client(self):
+        """Lazy-loaded Azure OpenAI client (cached for process lifetime)."""
+        if self._client is None:
+            from openai import AzureOpenAI
+
+            self._client = AzureOpenAI(
+                azure_endpoint=self._endpoint,
+                api_key=self._api_key,
+                api_version=self._api_version,
+                timeout=REQUEST_TIMEOUT,
+            )
+        return self._client
+
+    @property
     def model_id(self) -> str:
         return f"azure:{self._deployment}"
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
-        from openai import AzureOpenAI
-
-        client = AzureOpenAI(
-            azure_endpoint=self._endpoint,
-            api_key=self._api_key,
-            api_version=self._api_version,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response = client.chat.completions.create(
+        response = self.client.chat.completions.create(
             model=self._deployment,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -131,6 +144,7 @@ class OpenAIBackend:
     def __init__(self, model: str = "gpt-4o") -> None:
         self._api_key = os.environ.get("OPENAI_API_KEY")
         self._model = model
+        self._client = None
 
         if not self._api_key:
             raise ValueError(
@@ -138,14 +152,19 @@ class OpenAIBackend:
             )
 
     @property
+    def client(self):
+        """Lazy-loaded OpenAI client (cached for process lifetime)."""
+        if self._client is None:
+            from openai import OpenAI
+            self._client = OpenAI(api_key=self._api_key, timeout=REQUEST_TIMEOUT)
+        return self._client
+
+    @property
     def model_id(self) -> str:
         return f"openai:{self._model}"
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
-        from openai import OpenAI
-
-        client = OpenAI(api_key=self._api_key, timeout=REQUEST_TIMEOUT)
-        response = client.chat.completions.create(
+        response = self.client.chat.completions.create(
             model=self._model,
             messages=[
                 {"role": "system", "content": system_prompt},
