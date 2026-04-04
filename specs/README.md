@@ -15,6 +15,7 @@ Feature specifications for codesight.
 | 006 | [Pluggable LLM Backend](006-pluggable-llm-backend.md) | Implemented | v0.3 |
 | 007 | [Cross-Encoder Reranking](007-cross-encoder-reranking.md) | Implemented | v0.3 |
 | 008 | [Docker + FastAPI Deployment](008-docker-deployment-fastapi.md) | Planned | v0.4 |
+| 009 | [CNFB — Multiplicative Filename Boost](009-cnfb-multiplicative-filename-boost.md) | Approved | v0.5 |
 
 ## Implementation History
 

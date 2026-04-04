@@ -2,8 +2,8 @@
   "cid": "PLAN-20260404-2b003558",
   "goal": "Push CodeSight retrieval quality above MRR 0.85 — research latest 2026 techniques, implement highest-impact levers",
   "repo": "holusight",
-  "status": "PENDING",
-  "current_phase": 1,
+  "status": "IN_PROGRESS",
+  "current_phase": 2,
   "current_step": 1,
   "total_phases": 2,
   "baseline": {
@@ -19,24 +19,24 @@
     {
       "phase": 1,
       "name": "research-and-decide",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "steps": [
         {
           "step": 1,
           "name": "research-retrieval-techniques",
           "skill": "/research",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
+          "skill_cid": "holusight-RESEARCH-20260404-65ac8bb1",
+          "status": "COMPLETED",
+          "verified": true,
           "output": "results/phase-01-step-01-research.md"
         },
         {
           "step": 2,
           "name": "consult-architecture",
           "skill": "/consult-engineering",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
+          "skill_cid": "CONSULT-ENG-20260404-3e0dc4f6",
+          "status": "COMPLETED",
+          "verified": true,
           "output": "results/phase-01-step-02-consult.md"
         }
       ]
@@ -44,7 +44,10 @@
     {
       "phase": 2,
       "name": "implement-eval-ship",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
+      "loop_iteration": 1,
+      "loop_sequence": ["CNFB", "Contextual Retrieval", "voyage-context-3"],
+      "current_technique": "CNFB",
       "steps": [
         {
           "step": 1,
