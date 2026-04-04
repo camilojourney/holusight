@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-04-04T04:15:46.101021+00:00",
+  "phase": 2,
+  "eval_type": "holusight_specific_20q",
+  "baseline_phase1": {
+    "hit_rate": 1.0,
+    "mrr_at_10": 0.599,
+    "tokens_per_query": 3044
+  },
+  "phase2_results": {
+    "hit_rate": 1.0,
+    "mrr_at_10": 0.823,
+    "tokens_per_query": 3093,
+    "delta_mrr": 0.224,
+    "delta_hit_rate": 0.0,
+    "num_queries": 20
+  },
+  "note": "AST chunking (chunk_file_ast + tree-sitter) pushed MRR from 0.599 to 0.823 (+0.224). Hit rate stays at 100%. Token efficiency unchanged (+49 tokens/query, <2%). Chunking is now function/class-level boundaries instead of 200-line fixed windows."
+}

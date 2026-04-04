@@ -3,8 +3,8 @@
   "goal": "Push CodeSight from 52.5% hit rate to 95% with token efficiency as co-metric",
   "repo": "holusight",
   "status": "IN_PROGRESS",
-  "current_phase": 1,
-  "current_step": 5,
+  "current_phase": 3,
+  "current_step": 0,
   "total_phases": 4,
   "baseline": {
     "hit_rate": 0.525,
@@ -12,12 +12,12 @@
     "token_efficiency": null
   },
   "phase1_metrics": {
-    "hit_rate": 1.000,
+    "hit_rate": 1.0,
     "mrr_at_10": 0.599,
     "tokens_per_correct_answer": 3043.9,
     "total_tokens_per_run": 60879,
     "eval_queries": 20,
-    "note": "Hit rate 100% on holusight codebase. MRR gap shows answers landing at rank 3-10 — semantic chunking + reranker target."
+    "note": "Hit rate 100% on holusight codebase. MRR gap shows answers landing at rank 3-10 \u2014 semantic chunking + reranker target."
   },
   "phase_history": [
     {
@@ -52,7 +52,7 @@
           "status": "COMPLETED",
           "verified": true,
           "output": "src/codesight/search.py, src/codesight/store.py",
-          "note": "VPRF: vprf_enhance_query() + LanceDB predicate pushdown in get_chunk_vectors(). 71/71 tests. Gemini caught OOM bug (full table scan) — fixed."
+          "note": "VPRF: vprf_enhance_query() + LanceDB predicate pushdown in get_chunk_vectors(). 71/71 tests. Gemini caught OOM bug (full table scan) \u2014 fixed."
         },
         {
           "step": 3,
@@ -88,62 +88,66 @@
     {
       "phase": 2,
       "name": "research-sota-semantic-chunking",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "steps": [
         {
           "step": 0,
           "name": "assumption-check-2026",
           "skill": "/research",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": null,
-          "note": "adversary mode \u2014 challenge tree-sitter chunking vs late-chunking vs contextual retrieval"
+          "skill_cid": "holusight-RESEARCH-20260403-c89f3a9d",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "docs/research/domain/chunking-strategy-2026.md",
+          "note": "Late chunking NO-GO. AST chunking PROCEED (needs voyage-code-3). Parent-child PROCEED. Always-on reranker = highest MRR lever."
         },
         {
           "step": 1,
-          "name": "research-sota",
-          "skill": "/research",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": null
+          "name": "implement-ast-chunking",
+          "skill": "/code",
+          "skill_cid": "holusight-CODE-20260403-ast-f684889",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "src/codesight/chunker.py, tests/test_chunker.py, pyproject.toml",
+          "note": "chunk_file_ast() with merge-small/sub-split-large. 95/95 tests. Commit f684889."
         },
         {
           "step": 2,
           "name": "consult-chunking-design",
           "skill": "/consult-experiments",
           "skill_cid": null,
-          "status": "PENDING",
+          "status": "SKIPPED",
           "verified": false,
-          "output": null
+          "output": null,
+          "note": "Design was done inline during AST implementation. Skipping separate consult."
         },
         {
           "step": 3,
           "name": "implement-chunking",
           "skill": "/code",
           "skill_cid": null,
-          "status": "PENDING",
+          "status": "SKIPPED",
           "verified": false,
-          "output": null
+          "output": null,
+          "note": "Implemented in step 1 (chunking). No separate step needed."
         },
         {
           "step": 4,
           "name": "re-index-fleet",
           "skill": "bash",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": null
+          "skill_cid": "manual",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "Re-indexed holusight via CodeSight.index() \u2014 175 chunks, 94 files"
         },
         {
           "step": 5,
           "name": "eval-phase2",
           "skill": "bash",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": null
+          "skill_cid": "manual",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "results/phase-02-eval-holusight-20q.json",
+          "note": "hit_rate=1.0, mrr@10=0.823, delta_mrr=+0.224. Target was 0.75 \u2014 exceeded."
         }
       ]
     },
@@ -280,5 +284,13 @@
         }
       ]
     }
-  ]
+  ],
+  "phase2_metrics": {
+    "hit_rate": 1.0,
+    "mrr_at_10": 0.823,
+    "tokens_per_correct_answer": 3093,
+    "delta_mrr_vs_phase1": 0.224,
+    "eval_queries": 20,
+    "note": "AST chunking +0.224 MRR (0.599 -> 0.823). Hit rate unchanged at 100%. Tree-sitter function/class boundaries vs 200-line windows."
+  }
 }

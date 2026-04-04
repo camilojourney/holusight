@@ -1,0 +1,902 @@
+{
+  "timestamp": "20260404T040739Z",
+  "backend": "codesight",
+  "queries_file": "/Users/mini/.openclaw/workspace/github/~Projects/system/skills/fleet-brain/data/eval_queries.json",
+  "top_k": 10,
+  "overall": {
+    "p_at_5": 0.085,
+    "mrr_at_10": 0.366,
+    "n": 40,
+    "hit_rate": 0.475
+  },
+  "by_category": {
+    "TASK_CONTEXT": {
+      "p_at_5": 0.0533,
+      "mrr_at_10": 0.2241,
+      "n": 15,
+      "hit_rate": 0.3333
+    },
+    "FAST_LOOKUP": {
+      "p_at_5": 0.12,
+      "mrr_at_10": 0.5741,
+      "n": 15,
+      "hit_rate": 0.6667
+    },
+    "CROSS_REPO": {
+      "p_at_5": 0.08,
+      "mrr_at_10": 0.2667,
+      "n": 10,
+      "hit_rate": 0.4
+    }
+  },
+  "worst_queries": [
+    {
+      "id": "TC-002",
+      "query": "where is eval gate score computed",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/eval_gate.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3086.1,
+      "top5_paths": [
+        "rollout_gate.py",
+        "docs/research/architecture.md",
+        "evals/run_eval.py",
+        "docs/playbooks/5-audit-intent.md",
+        "tests/eval_harness.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-003",
+      "query": "what does invoz intelligibility scoring return",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "invoz/api/services/intelligibility_service.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3210.0,
+      "top5_paths": [
+        "backend/src/genpeli_api/pipeline/hook_scorer.py",
+        "tests/unit/marketing/test_voice_pipeline.py",
+        "search_signal.py",
+        "api/tests/test_intelligibility.py",
+        "tests/test_eval_harness.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-004",
+      "query": "how does holus humanize content before posting",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "holus/src/holus/agents/marketing/content_queue.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3326.4,
+      "top5_paths": [
+        "fleet_brain_hook.py",
+        "ARCHITECTURE.md",
+        "scripts/consolidate_evolve_memory.py",
+        "backend/src/genpeli_api/pipeline/cut_list.py",
+        "update_registry.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-005",
+      "query": "genpeli video pipeline cutting stages",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "genpeli/backend/src/genpeli_api/pipeline/cut.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3094.9,
+      "top5_paths": [
+        "src/codesight/chunker.py",
+        "api/services/pipeline_service.py",
+        "src/lib/video/renderer.ts",
+        "src/holus/agents/marketing/video_workflow.py",
+        "tests/test_video_workflow.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-007",
+      "query": "skill telemetry what gets logged on complete",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/skill_telemetry.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2939.5,
+      "top5_paths": [
+        "registry_schema.py",
+        "search_signal.py",
+        "scripts/consolidate_evolve_memory.py",
+        "fleet_brain_hook.py",
+        "src/holus/self_improvement/learning_loop.py"
+      ],
+      "hit_rank": null
+    }
+  ],
+  "query_results": [
+    {
+      "id": "TC-001",
+      "query": "how does pythia circuit breaker work",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/circuit_breaker.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.1111,
+      "latency_ms": 164846.3,
+      "top5_paths": [
+        "fleet_brain_hook.py",
+        "scripts/pipeline_eval.py",
+        "tests/unit/core/test_watchdog.py",
+        "src/codesight/search.py",
+        "src/codesight/embeddings.py"
+      ],
+      "hit_rank": 9
+    },
+    {
+      "id": "TC-002",
+      "query": "where is eval gate score computed",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/eval_gate.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3086.1,
+      "top5_paths": [
+        "rollout_gate.py",
+        "docs/research/architecture.md",
+        "evals/run_eval.py",
+        "docs/playbooks/5-audit-intent.md",
+        "tests/eval_harness.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-003",
+      "query": "what does invoz intelligibility scoring return",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "invoz/api/services/intelligibility_service.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3210.0,
+      "top5_paths": [
+        "backend/src/genpeli_api/pipeline/hook_scorer.py",
+        "tests/unit/marketing/test_voice_pipeline.py",
+        "search_signal.py",
+        "api/tests/test_intelligibility.py",
+        "tests/test_eval_harness.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-004",
+      "query": "how does holus humanize content before posting",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "holus/src/holus/agents/marketing/content_queue.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3326.4,
+      "top5_paths": [
+        "fleet_brain_hook.py",
+        "ARCHITECTURE.md",
+        "scripts/consolidate_evolve_memory.py",
+        "backend/src/genpeli_api/pipeline/cut_list.py",
+        "update_registry.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-005",
+      "query": "genpeli video pipeline cutting stages",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "genpeli/backend/src/genpeli_api/pipeline/cut.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3094.9,
+      "top5_paths": [
+        "src/codesight/chunker.py",
+        "api/services/pipeline_service.py",
+        "src/lib/video/renderer.ts",
+        "src/holus/agents/marketing/video_workflow.py",
+        "tests/test_video_workflow.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-006",
+      "query": "fleet brain hook how context is passed to skill",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_brain_hook.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 2856.3,
+      "top5_paths": [
+        "fleet_brain_hook.py",
+        "tests/test_build_scout_context.py",
+        "backend/tests/test_intelligence_upgrade.py",
+        "api/tests/test_coaching_context.py",
+        "docs/playbooks/README.md"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "TC-007",
+      "query": "skill telemetry what gets logged on complete",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/skill_telemetry.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2939.5,
+      "top5_paths": [
+        "registry_schema.py",
+        "search_signal.py",
+        "scripts/consolidate_evolve_memory.py",
+        "fleet_brain_hook.py",
+        "src/holus/self_improvement/learning_loop.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-008",
+      "query": "fleet registry card schema what fields are tracked",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/registry_schema.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 3214.6,
+      "top5_paths": [
+        "registry_schema.py",
+        "src/lib/mcp/types.ts",
+        "api/schemas/platform.py",
+        "observatory/frontend/src/components/AgentCard.tsx",
+        "docs/README.md"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "TC-009",
+      "query": "fleet_search BM25 scoring algorithm parameters",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 0.25,
+      "latency_ms": 3041.9,
+      "top5_paths": [
+        "fleet_search_daemon.py",
+        "tests/unit/agents/test_quality_score.py",
+        "src/codesight/search.py",
+        "fleet_search.py",
+        "src/lib/memory/strategies/prompt.ts"
+      ],
+      "hit_rank": 4
+    },
+    {
+      "id": "TC-010",
+      "query": "invoz scoring service audio comparison",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "invoz/api/services/audio_comparison_service.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2975.4,
+      "top5_paths": [
+        "tests/test_search.py",
+        "backend/src/genpeli_api/pipeline/hook_scorer.py",
+        "rollout_gate.py",
+        "src/lib/memory/strategies/prompt.ts",
+        "tests/test_eval_harness.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-011",
+      "query": "holusight CodeSight index function what does it build",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "holusight/src/codesight/api.py",
+        "holusight/src/codesight/indexer.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2985.8,
+      "top5_paths": [
+        "fleet_search_daemon.py",
+        "src/types/index.ts",
+        "fleet_indexer.py",
+        "scripts/consolidate_evolve_memory.py",
+        "tools/analyze_references.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-012",
+      "query": "eval gate PoLL how judges vote and aggregate",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/eval_gate.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3018.8,
+      "top5_paths": [
+        "backend/src/genpeli_api/self_improvement/poll_judge.py",
+        "rollout_gate.py",
+        "src/core/graduation_gate.py",
+        "tests/test_eval_harness.py",
+        "docs/research/architecture.md"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-013",
+      "query": "fleet health sweep what checks it runs",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_health_sweep.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 3236.9,
+      "top5_paths": [
+        "fleet_health_sweep.py",
+        "scripts/safety_auditor.py",
+        "specs/027-pipeline-observability-selfimprovement.md",
+        "scripts/overnight_runner.py",
+        "specs/009-expert-systems.md"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "TC-014",
+      "query": "invoz pipeline service stages flow",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "invoz/api/services/pipeline_service.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3106.6,
+      "top5_paths": [
+        "backend/tests/run_pipeline_test.py",
+        "bootstrap_registry.py",
+        "fleet_brain_hook.py",
+        "specs/027-pipeline-observability-selfimprovement.md",
+        "CLAUDE.md"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "TC-015",
+      "query": "genpeli caption generation word by word",
+      "category": "TASK_CONTEXT",
+      "expected_paths": [
+        "genpeli/backend/src/genpeli_api/pipeline/cut.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2998.7,
+      "top5_paths": [
+        "fleet_search.py",
+        "docs/research/raw/research-caption-engine.md",
+        "fleet_search_daemon.py",
+        "src/codesight/llm.py",
+        "rollout_gate.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "FL-001",
+      "query": "BYPASS_TTL_SECS fleet brain hook",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_brain_hook.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 3327.9,
+      "top5_paths": [
+        "fleet_brain_hook.py",
+        "fleet_health_sweep.py",
+        "backend/tests/test_intelligence_upgrade.py",
+        "src/codesight/llm.py",
+        "tests/unit/core/test_health_preflight.py"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "FL-002",
+      "query": "SOCKET_PATH fleet search daemon",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search_daemon.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 3108.9,
+      "top5_paths": [
+        "fleet_search_daemon.py",
+        "fleet_search_client.py",
+        "src/codesight/search.py",
+        "src/data/market_collector.py",
+        "register_search_daemon.sh"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "FL-003",
+      "query": "BM25_CANDIDATE_MULTIPLIER holusight codesight",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "holusight/src/codesight/config.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3028.3,
+      "top5_paths": [
+        "src/codesight/search.py",
+        "fleet_search_daemon.py",
+        "specs/README.md",
+        "query_router.py",
+        "eval_search.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "FL-004",
+      "query": "DEFAULT_TOP_K fleet search",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 2798.8,
+      "top5_paths": [
+        "fleet_search.py",
+        "src/codesight/search.py",
+        "fleet_search_client.py",
+        "evals/run_eval.py",
+        "fleet_search_daemon.py"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "FL-005",
+      "query": "PID_FILE fleet search daemon path",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search_daemon.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 3040.3,
+      "top5_paths": [
+        "fleet_search_daemon.py",
+        "api/services/storage_service.py",
+        "src/data/market_collector.py",
+        "CLAUDE.md",
+        "AGENTS.md"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "FL-006",
+      "query": "MAX_SNIPPET_CHARS fleet search",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 0.5,
+      "latency_ms": 2944.3,
+      "top5_paths": [
+        "fleet_search_daemon.py",
+        "fleet_search.py",
+        "src/codesight/search.py",
+        "tests/test_build_scout_context.py",
+        "ARCHITECTURE.md"
+      ],
+      "hit_rank": 2
+    },
+    {
+      "id": "FL-007",
+      "query": "SearchResult file_path start_line end_line fields",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "holusight/src/codesight/types.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.1111,
+      "latency_ms": 3119.8,
+      "top5_paths": [
+        "docs/research/README.md",
+        "fleet_search_daemon.py",
+        "evals/fixtures/t003_reading_method.json",
+        "tests/test_eval_harness.py",
+        "eval_search.py"
+      ],
+      "hit_rank": 9
+    },
+    {
+      "id": "FL-008",
+      "query": "fleet SKILL.md CID variable definition",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/SKILL.md"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2951.2,
+      "top5_paths": [
+        "tests/test_build_scout_context.py",
+        "AGENTS.md",
+        "fleet_health_sweep.py",
+        "fleet_brain_hook.py",
+        "fleet_search.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "FL-009",
+      "query": "skill telemetry complete command arguments",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/skill_telemetry.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3036.9,
+      "top5_paths": [
+        "CLAUDE.md",
+        "api/telegram_bot.py",
+        "fleet_brain_hook.py",
+        "src/codesight/types.py",
+        "api/tests/test_telegram_bot.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "FL-010",
+      "query": "fleet indexer LAST_REINDEX_FILE path",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_indexer.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 3082.7,
+      "top5_paths": [
+        "fleet_indexer.py",
+        "api/services/storage_service.py",
+        "fleet_search_daemon.py",
+        "scripts/consolidate_evolve_memory.py",
+        "docs/research/INDEX.md"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "FL-011",
+      "query": "RepoCard registry schema fields definition",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/registry_schema.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 2867.6,
+      "top5_paths": [
+        "registry_schema.py",
+        "specs/README.md",
+        "src/lib/mcp/types.ts",
+        "specs/000-template.md",
+        "backend/src/genpeli_api/schemas/jobs.py"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "FL-012",
+      "query": "eval gate workflow json failure_reason values",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/eval_gate.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3077.0,
+      "top5_paths": [
+        "rollout_gate.py",
+        "tests/test_regime_gate.py",
+        "scripts/pipeline_eval.py",
+        "fleet_brain_hook.py",
+        "specs/050-pipeline-eval-experiment.md"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "FL-013",
+      "query": "fleet brain hook circuit breaker CIRCUIT_OPEN",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_brain_hook.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 2994.6,
+      "top5_paths": [
+        "fleet_brain_hook.py",
+        "docs/playbooks/4-audit-logic.md",
+        "tests/unit/core/test_health_preflight.py",
+        "scripts/pipeline_eval.py",
+        "backend/tests/test_intelligence_upgrade.py"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "FL-014",
+      "query": "holusight embedding model all-MiniLM-L6-v2",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "holusight/src/codesight/config.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3083.6,
+      "top5_paths": [
+        "src/codesight/embeddings.py",
+        "eval_search.py",
+        "fleet_search_daemon.py",
+        "tests/test_regime_detector.py",
+        "src/holus/api/models.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "FL-015",
+      "query": "fleet search log jsonl fields ts cid latency_ms",
+      "category": "FAST_LOOKUP",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search_daemon.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 2943.1,
+      "top5_paths": [
+        "fleet_search_daemon.py",
+        "scripts/pipeline_eval.py",
+        "evals/fixtures/t002_sleep_tutorial.json",
+        "backend/src/genpeli_api/api/v1/review.py",
+        "api/schemas/platform.py"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "CR-001",
+      "query": "how does holusight CodeSight search return results",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "holusight/src/codesight/api.py",
+        "holusight/src/codesight/search.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2940.0,
+      "top5_paths": [
+        "fleet_search_daemon.py",
+        "search_types.py",
+        "tests/unit/agents/test_niche_research.py",
+        "api/services/report_service.py",
+        "src/components/search/SearchCommandPalette.tsx"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "CR-002",
+      "query": "fleet search daemon how BM25 index is loaded from JSONL shards",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search_daemon.py",
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search.py"
+      ],
+      "p_at_5": 0.4,
+      "rr": 1.0,
+      "latency_ms": 2963.8,
+      "top5_paths": [
+        "fleet_search_daemon.py",
+        "fleet_search.py",
+        "scripts/write_evolve_memory.py",
+        "scripts/build_master_index.py",
+        "specs/001-core-search-tools.md"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "CR-003",
+      "query": "eval gate skill telemetry how score flows from code skill to registry",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/eval_gate.py",
+        "~Projects/system/shared/scripts/skill_telemetry.py",
+        "~Projects/system/skills/fleet-brain/scripts/update_registry.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2969.6,
+      "top5_paths": [
+        "rollout_gate.py",
+        "docs/playbooks/4-audit-logic.md",
+        "docs/playbooks/5-audit-intent.md",
+        "specs/030-agent-registry-self-improvement.md",
+        "search_signal.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "CR-004",
+      "query": "holusight hybrid search RRF merge algorithm",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "holusight/src/codesight/search.py",
+        "holusight/src/codesight/config.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 0.5,
+      "latency_ms": 3057.3,
+      "top5_paths": [
+        "eval_search.py",
+        "src/codesight/search.py",
+        "search_types.py",
+        "scripts/consolidate_evolve_memory.py",
+        "src/lib/memory/strategies/comfyui.ts"
+      ],
+      "hit_rank": 2
+    },
+    {
+      "id": "CR-005",
+      "query": "invoz scoring pipeline service intelligibility and audio comparison",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "invoz/api/services/pipeline_service.py",
+        "invoz/api/services/intelligibility_service.py",
+        "invoz/api/services/audio_comparison_service.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2921.2,
+      "top5_paths": [
+        "backend/src/genpeli_api/pipeline/hook_scorer.py",
+        "tests/unit/marketing/test_voice_pipeline.py",
+        "tests/test_search.py",
+        "src/lib/memory/strategies/comfyui.ts",
+        "rollout_gate.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "CR-006",
+      "query": "fleet brain hook JSONL index path and search context format",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_brain_hook.py",
+        "~Projects/system/skills/fleet-brain/scripts/fleet_search_client.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.1667,
+      "latency_ms": 3019.7,
+      "top5_paths": [
+        "tests/test_build_scout_context.py",
+        "tests/unit/api/test_observatory_api.py",
+        "scripts/improve_prompts.py",
+        "fleet_search.py",
+        "fleet_indexer.py"
+      ],
+      "hit_rank": 6
+    },
+    {
+      "id": "CR-007",
+      "query": "holus content queue humanize spec acceptance criteria",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "holus/src/holus/agents/marketing/content_queue.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3150.9,
+      "top5_paths": [
+        "fleet_brain_hook.py",
+        "api/tests/test_reports_023.py",
+        "specs/000-template.md",
+        "docs/playbooks/5-audit-intent.md",
+        "docs/playbooks/2-spec-review.md"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "CR-008",
+      "query": "genpeli cut pipeline and caption output files",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "genpeli/backend/src/genpeli_api/pipeline/cut.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 3021.4,
+      "top5_paths": [
+        "src/holus/agents/marketing/video_workflow.py",
+        "tests/test_video_workflow.py",
+        "scripts/write_evolve_memory.py",
+        "src/codesight/parsers.py",
+        "src/codesight/chunker.py"
+      ],
+      "hit_rank": null
+    },
+    {
+      "id": "CR-009",
+      "query": "fleet indexer codesight flag holusight venv subprocess",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "~Projects/system/skills/fleet-brain/scripts/fleet_indexer.py",
+        "holusight/src/codesight/api.py"
+      ],
+      "p_at_5": 0.2,
+      "rr": 1.0,
+      "latency_ms": 3105.4,
+      "top5_paths": [
+        "fleet_indexer.py",
+        "CLAUDE.md",
+        "tests/test_build_scout_context.py",
+        "fleet_search_daemon.py",
+        "specs/README.md"
+      ],
+      "hit_rank": 1
+    },
+    {
+      "id": "CR-010",
+      "query": "skill runs jsonl CID eval gate score join search log",
+      "category": "CROSS_REPO",
+      "expected_paths": [
+        "~Projects/system/shared/scripts/skill_telemetry.py",
+        "~Projects/system/shared/scripts/eval_gate.py"
+      ],
+      "p_at_5": 0.0,
+      "rr": 0.0,
+      "latency_ms": 2966.3,
+      "top5_paths": [
+        "evals/run_eval.py",
+        "search_signal.py",
+        "backend/src/genpeli_api/agents/runtime.py",
+        "scripts/consolidate_evolve_memory.py",
+        "scripts/write_evolve_memory.py"
+      ],
+      "hit_rank": null
+    }
+  ]
+}
