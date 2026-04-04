@@ -287,6 +287,7 @@ def hybrid_search(
             score=round(score_map.get(cid, 0.0), 6),
             scope=meta["scope"],
             chunk_id=cid,
+            tokens_used=len(snippet) // 4,
         ))
 
     # 6. Rerank (optional)

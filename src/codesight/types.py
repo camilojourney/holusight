@@ -29,6 +29,7 @@ class SearchResult(BaseModel):
     score: float
     scope: str
     chunk_id: str
+    tokens_used: int | None = None  # approximate token count of snippet (len//4)
 
 
 class IndexStats(BaseModel):
