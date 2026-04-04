@@ -542,6 +542,35 @@ class ChunkStore:
         """Get full metadata for a batch of chunk IDs."""
         return self.fts.get_chunks_by_ids(chunk_ids)
 
+    def get_chunk_vectors(self, chunk_ids: list[str]) -> list[np.ndarray]:
+        """Retrieve embedding vectors from LanceDB for the given chunk IDs.
+
+        Used by VPRF to fetch feedback vectors for query enhancement.
+        Returns vectors in the same order as chunk_ids; missing IDs are skipped.
+        """
+        if self.lance_table is None or not chunk_ids:
+            return []
+
+        try:
+            # Use a predicate filter to avoid loading the entire table into RAM.
+            ids_sql = ", ".join(f"'{cid}'" for cid in chunk_ids)
+            df = (
+                self.lance_table.search()
+                .where(f"chunk_id IN ({ids_sql})")
+                .limit(len(chunk_ids))
+                .to_pandas()
+            )
+            if "vector" not in df.columns:
+                return []
+            id_to_vec = {
+                row["chunk_id"]: np.array(row["vector"], dtype=np.float32)
+                for _, row in df.iterrows()
+            }
+            return [id_to_vec[cid] for cid in chunk_ids if cid in id_to_vec]
+        except Exception:
+            logger.debug("get_chunk_vectors failed — returning empty list", exc_info=True)
+            return []
+
     @property
     def chunk_count(self) -> int:
         return self.fts.chunk_count()

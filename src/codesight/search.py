@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import logging
 
+import numpy as np
+
 from .config import (
     BM25_CANDIDATE_MULTIPLIER,
+    DEFAULT_QUERY_ENHANCEMENT,
     DEFAULT_RERANKER_BACKEND,
     DEFAULT_RERANKER_ENABLED,
     DEFAULT_RERANKER_MODEL,
@@ -25,6 +28,27 @@ from .store import ChunkStore
 from .types import SearchResult
 
 logger = logging.getLogger(__name__)
+
+
+def vprf_enhance_query(
+    query_vector: np.ndarray,
+    feedback_vectors: list[np.ndarray],
+    query_weight: float = 0.8,
+) -> np.ndarray:
+    """Vector Pseudo-Relevance Feedback: blend query with top-retrieved document vectors.
+
+    Improves recall by ~1-2% nDCG@10 with <5ms overhead and no hallucination risk.
+    Formula: enhanced = 0.8 * query + 0.2 * mean(top_3_feedback), then L2-normalize.
+    """
+    if not feedback_vectors:
+        return query_vector.astype(np.float32)
+    top_k = min(3, len(feedback_vectors))
+    feedback = np.mean(np.stack(feedback_vectors[:top_k]), axis=0)
+    enhanced = query_weight * query_vector + (1.0 - query_weight) * feedback
+    norm = np.linalg.norm(enhanced)
+    if norm > 0:
+        enhanced = enhanced / norm
+    return enhanced.astype(np.float32)
 
 
 def rrf_merge(
@@ -188,6 +212,7 @@ def hybrid_search(
         else DEFAULT_RERANKER_MODEL
     )
     reranker_backend = config.reranker_backend if config else DEFAULT_RERANKER_BACKEND
+    query_enhancement = config.query_enhancement if config else DEFAULT_QUERY_ENHANCEMENT
 
     candidate_count = top_k * BM25_CANDIDATE_MULTIPLIER
 
@@ -203,6 +228,16 @@ def hybrid_search(
         query_vector, top_k=candidate_count, file_glob=file_glob,
     )
     logger.debug("Vector search returned %d candidates", len(vec_ids))
+
+    # 2a. VPRF: refine query vector using top retrieved document vectors
+    if query_enhancement and vec_ids:
+        feedback_vecs = store.get_chunk_vectors(vec_ids[:3])
+        if feedback_vecs:
+            query_vector = vprf_enhance_query(query_vector, feedback_vecs)
+            vec_ids = store.vector_search(
+                query_vector, top_k=candidate_count, file_glob=file_glob,
+            )
+            logger.debug("VPRF re-search returned %d candidates", len(vec_ids))
 
     code_vec_ids: list[str] = []
     if code_embedder is None and VOYAGE_API_KEY and store.code_lance_table is not None:

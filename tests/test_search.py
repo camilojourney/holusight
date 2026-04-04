@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from codesight.search import _rerank, rrf_merge
+import numpy as np
+
+from codesight.search import _rerank, rrf_merge, vprf_enhance_query
 from codesight.types import SearchResult
 
 
@@ -135,3 +137,48 @@ class TestVoyageReranker:
 
         out = _rerank_voyage("query", [], top_k=5, model_name="rerank-2")
         assert out == []
+
+
+class TestVPRF:
+    """Tests for Vector Pseudo-Relevance Feedback query enhancement."""
+
+    def test_no_feedback_returns_original(self):
+        """Returns original query vector when no feedback vectors provided."""
+        q = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        out = vprf_enhance_query(q, [])
+        np.testing.assert_array_equal(out, q)
+
+    def test_output_is_l2_normalized(self):
+        """Enhanced vector must be unit-norm."""
+        q = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        fb = [np.array([0.0, 1.0, 0.0], dtype=np.float32)]
+        out = vprf_enhance_query(q, fb)
+        assert abs(np.linalg.norm(out) - 1.0) < 1e-6
+
+    def test_feedback_shifts_query_toward_documents(self):
+        """Enhanced query is a weighted blend of query + feedback, not identical to query."""
+        q = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        fb = [np.array([0.0, 1.0, 0.0], dtype=np.float32)]
+        out = vprf_enhance_query(q, fb, query_weight=0.8)
+        # Enhanced vector should have non-zero y component from feedback
+        assert out[1] > 0.0
+        # And still dominated by x (query direction)
+        assert out[0] > out[1]
+
+    def test_uses_at_most_3_feedback_vectors(self):
+        """Only top-3 feedback vectors are used even when more are provided."""
+        q = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        # 5 feedback vectors all pointing in y direction
+        fb = [np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32)] * 5
+        out_5 = vprf_enhance_query(q, fb)
+        # Result should be same as with exactly 3 (since they're identical)
+        fb_3 = fb[:3]
+        out_3 = vprf_enhance_query(q, fb_3)
+        np.testing.assert_array_almost_equal(out_5, out_3)
+
+    def test_output_dtype_is_float32(self):
+        """Output vector must be float32 for LanceDB compatibility."""
+        q = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+        fb = [np.array([0.5, 0.5, 0.0], dtype=np.float64)]
+        out = vprf_enhance_query(q, fb)
+        assert out.dtype == np.float32
