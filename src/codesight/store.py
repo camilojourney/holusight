@@ -247,7 +247,12 @@ class FTSSidecar:
 
 
 class ChunkStore:
-    """Unified store: LanceDB for vectors, SQLite for BM25 + metadata."""
+    """Coordinate vector and keyword storage for indexed chunks.
+
+    `ChunkStore` keeps chunk embeddings in LanceDB and chunk metadata plus BM25
+    search state in the SQLite FTS sidecar. The two backends share chunk IDs so
+    indexing, refresh, and retrieval can treat them as a single logical store.
+    """
 
     def __init__(self, repo_path: str | Path, embedding_dim: int = DEFAULT_EMBEDDING_DIM) -> None:
         self.repo_path = str(repo_path)
