@@ -9,6 +9,7 @@ Pipeline:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import numpy as np
 
@@ -182,6 +183,61 @@ def _rerank(
 
 
 # ---------------------------------------------------------------------------
+# Metadata boosting
+# ---------------------------------------------------------------------------
+
+_METADATA_BOOST_STOPWORDS: frozenset[str] = frozenset({
+    "how", "does", "what", "the", "is", "in", "for", "of", "a", "an", "to",
+    "do", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+    "it", "its", "this", "that", "and", "or", "not", "with", "from", "by",
+    "on", "at", "as", "i", "we", "you", "he", "she", "they", "my", "our",
+    "can", "could", "would", "should", "may", "might", "will", "shall",
+})
+
+
+def _reorder_by_filename_match(
+    chunk_ids: list[str],
+    query: str,
+    metadatas: dict[str, dict],
+) -> list[str]:
+    """Promote chunks from filename-matching files to the top of the list.
+
+    Extracts non-stopword query tokens (>= 3 chars), then checks if any token
+    is a substring of the filename stem or immediate parent directory. Matching
+    chunks are moved to the front; order within each group is preserved.
+
+    This is a stable re-ordering (not a score change), so the cross-encoder
+    reranker can still override it when enabled.
+    """
+    tokens = {
+        t.lower() for t in query.split()
+        if t.lower() not in _METADATA_BOOST_STOPWORDS and len(t) >= 3
+    }
+    if not tokens:
+        return chunk_ids
+
+    boosted: list[str] = []
+    rest: list[str] = []
+
+    for cid in chunk_ids:
+        meta = metadatas.get(cid)
+        if meta is None:
+            rest.append(cid)
+            continue
+        file_path = meta.get("file_path", "")
+        p = Path(file_path)
+        stem = p.stem.lower()
+        parent = p.parent.name.lower()
+
+        if any(token in stem or token in parent for token in tokens):
+            boosted.append(cid)
+        else:
+            rest.append(cid)
+
+    return boosted + rest
+
+
+# ---------------------------------------------------------------------------
 # Main search function
 # ---------------------------------------------------------------------------
 
@@ -213,6 +269,7 @@ def hybrid_search(
     )
     reranker_backend = config.reranker_backend if config else DEFAULT_RERANKER_BACKEND
     query_enhancement = config.query_enhancement if config else DEFAULT_QUERY_ENHANCEMENT
+    metadata_boost = config.metadata_boost if config else True
 
     candidate_count = top_k * BM25_CANDIDATE_MULTIPLIER
 
@@ -269,6 +326,13 @@ def hybrid_search(
 
     # 5. Fetch metadata and build results
     metadatas = store.get_chunk_metadata(top_chunk_ids)
+
+    # 5a. Metadata boost: re-order top_chunk_ids so that chunks from files whose
+    # name matches a query token are promoted to the front of the list. This
+    # affects the final order when the reranker is off, and gives the reranker
+    # better-ranked input when it is on.
+    if metadata_boost:
+        top_chunk_ids = _reorder_by_filename_match(top_chunk_ids, query, metadatas)
 
     results: list[SearchResult] = []
     for cid in top_chunk_ids:
