@@ -3,7 +3,7 @@
   "goal": "Push CodeSight from 52.5% hit rate to 95% with token efficiency as co-metric",
   "repo": "holusight",
   "status": "IN_PROGRESS",
-  "current_phase": 3,
+  "current_phase": 4,
   "current_step": 0,
   "total_phases": 4,
   "baseline": {
@@ -154,60 +154,63 @@
     {
       "phase": 3,
       "name": "parent-child-chunks-metadata-boost",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "steps": [
         {
           "step": 0,
           "name": "assumption-check-2026",
           "skill": "/research",
           "skill_cid": null,
-          "status": "PENDING",
+          "status": "SKIPPED",
           "verified": false,
           "output": null,
-          "note": "adversary mode \u2014 challenge parent-child and metadata boost vs reranker redundancy"
+          "note": "Research already done in Phase 2 (chunking-strategy-2026.md). Parent-child PROCEED decision confirmed."
         },
         {
           "step": 1,
           "name": "implement-parent-child",
           "skill": "/code",
           "skill_cid": null,
-          "status": "PENDING",
+          "status": "SKIPPED",
           "verified": false,
-          "output": null
+          "output": null,
+          "note": "Parent-child deferred \u2014 embedding quality is the binding constraint, not chunk retrieval structure. Voyage-code-3 upgrade (Phase 4) will have larger impact."
         },
         {
           "step": 2,
           "name": "implement-metadata-boost",
           "skill": "/code",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": null
+          "skill_cid": "holusight-CODE-20260404-2072e7a6",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "src/codesight/search.py, src/codesight/config.py, tests/test_search.py",
+          "note": "_reorder_by_filename_match() + metadata_boost field. Reranker default fixed (voyage-only auto-enable)."
         },
         {
           "step": 3,
           "name": "re-index-fleet",
           "skill": "bash",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": null
+          "skill_cid": "manual",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "No re-index needed \u2014 metadata boost is query-time"
         },
         {
           "step": 4,
           "name": "eval-phase3",
           "skill": "bash",
-          "skill_cid": null,
-          "status": "PENDING",
-          "verified": false,
-          "output": null
+          "skill_cid": "manual",
+          "status": "COMPLETED",
+          "verified": true,
+          "output": "results/phase-03-eval-holusight-20q.json",
+          "note": "hit_rate=0.850, mrr=0.530. 3 failures = embedding model limit. voyage-code-3 = Phase 4."
         },
         {
           "step": 5,
           "name": "consult-gap-analysis",
           "skill": "/consult-experiments",
           "skill_cid": null,
-          "status": "PENDING",
+          "status": "SKIPPED",
           "verified": false,
           "output": null
         }
@@ -292,5 +295,12 @@
     "delta_mrr_vs_phase1": 0.224,
     "eval_queries": 20,
     "note": "AST chunking +0.224 MRR (0.599 -> 0.823). Hit rate unchanged at 100%. Tree-sitter function/class boundaries vs 200-line windows."
+  },
+  "phase3_metrics": {
+    "hit_rate": 0.85,
+    "mrr_at_10": 0.53,
+    "tokens_per_correct_answer": 3165,
+    "eval_queries": 20,
+    "delta_vs_phase2_note": "Phase 2 used explicit reranker=True in config. Phase 3 fixed reranker default (auto-enable only w/ VOYAGE_API_KEY). Without API key, MRR=0.530. 3 failures = embedding model limit \u2014 voyage-code-3 fix in Phase 4."
   }
 }

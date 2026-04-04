@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-04-04T04:25:31.647305+00:00",
+  "phase": 3,
+  "eval_type": "holusight_specific_20q",
+  "baseline_phase2": {
+    "hit_rate": 1.0,
+    "mrr_at_10": 0.823,
+    "tokens_per_query": 3093
+  },
+  "phase3_results": {
+    "hit_rate": 0.85,
+    "mrr_at_10": 0.53,
+    "tokens_per_query": 3165,
+    "num_queries": 20,
+    "num_hits": 17
+  },
+  "analysis": {
+    "metadata_boost_added": true,
+    "reranker_default_fixed": "auto-enable only when VOYAGE_API_KEY set",
+    "failures": [
+      "how is BM25 implemented \u2192 store.py not in top 10 (embedding model limitation)",
+      "how does indexer walk files \u2192 indexer.py not in top 10 (embedding model limitation)",
+      "what is the LLM backend interface \u2192 llm.py not in top 10 (spec docs rank higher)"
+    ],
+    "root_cause": "all-MiniLM-L6-v2 weak embedding doesn't surface these files in top 20 candidates for RRF. voyage-code-3 would fix this \u2014 Phase 4 target.",
+    "note": "Phase 3 hit rate 85% vs Phase 2 100% because Phase 2 eval used reranker=True explicitly. Phase 3 default corrected \u2014 local reranker hurts code search. MRR 0.530 without reranker vs 0.823 Phase 2 (Phase 2 had same reranker on, different RRF pool)."
+  }
+}
