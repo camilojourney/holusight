@@ -6,7 +6,7 @@ import hashlib
 import os
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # Auto-load .env from CWD or repo root if present
 try:
@@ -84,9 +84,12 @@ DEFAULT_LLM_MODEL = "claude-sonnet-4-20250514"
 # Reranker
 # Default to enabled only when Voyage API key is set (voyage rerank-2 helps code retrieval;
 # local ms-marco cross-encoder is trained on MS-MARCO QA and can hurt code search ranking).
-# Users with VOYAGE_API_KEY get always-on reranking. Local users can opt in via CODESIGHT_RERANKER=true.
+# Users with VOYAGE_API_KEY get always-on reranking. Local users can opt in
+# via CODESIGHT_RERANKER=true.
 _default_reranker_on = "true" if os.environ.get("VOYAGE_API_KEY") else "false"
-DEFAULT_RERANKER_ENABLED = os.environ.get("CODESIGHT_RERANKER", _default_reranker_on).lower() == "true"
+DEFAULT_RERANKER_ENABLED = (
+    os.environ.get("CODESIGHT_RERANKER", _default_reranker_on).lower() == "true"
+)
 # Auto-select backend: voyage when VOYAGE_API_KEY is set, local cross-encoder otherwise
 DEFAULT_RERANKER_BACKEND = os.environ.get(
     "CODESIGHT_RERANKER_BACKEND",
@@ -99,6 +102,7 @@ DEFAULT_RERANKER_MODEL = os.environ.get(
 DEFAULT_RERANKER_TOP_N = int(os.environ.get("CODESIGHT_RERANKER_TOP_N", "20"))
 DEFAULT_QUERY_ENHANCEMENT = os.environ.get("CODESIGHT_QUERY_ENHANCEMENT", "false").lower() == "true"
 DEFAULT_LLM_BACKEND = os.environ.get("CODESIGHT_LLM_BACKEND", "claude")
+DEFAULT_CNFB_ALPHA = float(os.environ.get("CODESIGHT_CNFB_ALPHA", "0.0"))
 
 
 # ---------------------------------------------------------------------------
@@ -177,3 +181,16 @@ class ServerConfig(BaseModel):
     reranker_top_n: int = Field(default=DEFAULT_RERANKER_TOP_N)
     query_enhancement: bool = Field(default=DEFAULT_QUERY_ENHANCEMENT)
     metadata_boost: bool = Field(default=True)
+    cnfb_alpha: float = Field(default=DEFAULT_CNFB_ALPHA)
+
+    @field_validator("cnfb_alpha")
+    @classmethod
+    def clamp_cnfb_alpha(cls, v: float) -> float:
+        """Clamp CNFB alpha to [0.0, 2.0]. Logs a warning if clamping occurred."""
+        import logging  # noqa: PLC0415 — local import to avoid circular at module load
+        clamped = max(0.0, min(2.0, v))
+        if clamped != v:
+            logging.getLogger(__name__).warning(
+                "CODESIGHT_CNFB_ALPHA=%s is outside [0.0, 2.0]; clamped to %s", v, clamped
+            )
+        return clamped

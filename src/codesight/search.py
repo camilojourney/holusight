@@ -9,6 +9,8 @@ Pipeline:
 from __future__ import annotations
 
 import logging
+import re as _re
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -202,6 +204,9 @@ def _reorder_by_filename_match(
 ) -> list[str]:
     """Promote chunks from filename-matching files to the top of the list.
 
+    DEPRECATED: Use _cnfb_boost instead (SPEC-009). This binary boost
+    is kept for backwards compatibility but will be removed in v0.6.
+
     Extracts non-stopword query tokens (>= 3 chars), then checks if any token
     is a substring of the filename stem or immediate parent directory. Matching
     chunks are moved to the front; order within each group is preserved.
@@ -209,6 +214,11 @@ def _reorder_by_filename_match(
     This is a stable re-ordering (not a score change), so the cross-encoder
     reranker can still override it when enabled.
     """
+    warnings.warn(
+        "_reorder_by_filename_match is deprecated. Use _cnfb_boost instead (SPEC-009).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     tokens = {
         t.lower() for t in query.split()
         if t.lower() not in _METADATA_BOOST_STOPWORDS and len(t) >= 3
@@ -237,6 +247,44 @@ def _reorder_by_filename_match(
     return boosted + rest
 
 
+def _cnfb_boost(
+    results: list["SearchResult"],
+    query: str,
+    cnfb_alpha: float,
+) -> list["SearchResult"]:
+    """Apply Query-Aware Multiplicative Filename Boost (CNFB, SPEC-009).
+
+    Precomputes query tokens ONCE, then for each result multiplies its score
+    by (1 + alpha * overlap) where overlap = |query_tokens ∩
+    filename_tokens| / max(|filename_tokens|, 1).
+    Returns results sorted descending by new score.
+    """
+    if cnfb_alpha <= 0.0 or not results:
+        return results
+
+    query_tokens = {
+        t for t in _re.split(r"[^a-z0-9]", query.lower())
+        if len(t) >= 3 and t not in _METADATA_BOOST_STOPWORDS
+    }
+    if not query_tokens:
+        return results
+
+    boosted: list["SearchResult"] = []
+    for result in results:
+        filename_tokens = {
+            t for t in _re.split(r"[^a-z0-9]", Path(result.file_path).stem.lower())
+            if len(t) >= 2
+        }
+        if filename_tokens:
+            overlap = len(query_tokens & filename_tokens) / len(filename_tokens)
+        else:
+            overlap = 0.0
+        new_score = result.score * (1.0 + cnfb_alpha * overlap)
+        boosted.append(result.model_copy(update={"score": round(new_score, 6)}))
+
+    return sorted(boosted, key=lambda r: r.score, reverse=True)
+
+
 # ---------------------------------------------------------------------------
 # Main search function
 # ---------------------------------------------------------------------------
@@ -258,8 +306,9 @@ def hybrid_search(
     2. Run vector search (top candidates)
     3. Run BM25 search (top candidates)
     4. Merge with RRF
-    5. (Optional) Rerank with cross-encoder
-    6. Fetch metadata and build SearchResult objects
+    5. Fetch metadata and build SearchResult objects
+    6. Apply CNFB (optional)
+    7. (Optional) Rerank with cross-encoder
     """
     reranker_enabled = config.reranker if config else DEFAULT_RERANKER_ENABLED
     reranker_top_n = config.reranker_top_n if config else DEFAULT_RERANKER_TOP_N
@@ -270,6 +319,7 @@ def hybrid_search(
     reranker_backend = config.reranker_backend if config else DEFAULT_RERANKER_BACKEND
     query_enhancement = config.query_enhancement if config else DEFAULT_QUERY_ENHANCEMENT
     metadata_boost = config.metadata_boost if config else True
+    cnfb_alpha = config.cnfb_alpha if config else 0.0
 
     candidate_count = top_k * BM25_CANDIDATE_MULTIPLIER
 
@@ -327,13 +377,6 @@ def hybrid_search(
     # 5. Fetch metadata and build results
     metadatas = store.get_chunk_metadata(top_chunk_ids)
 
-    # 5a. Metadata boost: re-order top_chunk_ids so that chunks from files whose
-    # name matches a query token are promoted to the front of the list. This
-    # affects the final order when the reranker is off, and gives the reranker
-    # better-ranked input when it is on.
-    if metadata_boost:
-        top_chunk_ids = _reorder_by_filename_match(top_chunk_ids, query, metadatas)
-
     results: list[SearchResult] = []
     for cid in top_chunk_ids:
         meta = metadatas.get(cid)
@@ -354,6 +397,10 @@ def hybrid_search(
             tokens_used=len(snippet) // 4,
         ))
 
+    # 5.5 CNFB: multiplicative filename boost (pre-reranker so reranker can correct)
+    if cnfb_alpha > 0.0 and len(results) > 1:
+        results = _cnfb_boost(results, query, cnfb_alpha)
+
     # 6. Rerank (optional)
     if reranker_enabled and len(results) > 1:
         logger.debug(
@@ -363,5 +410,14 @@ def hybrid_search(
         results = _rerank(query, results, top_k, reranker_model, backend=reranker_backend)
     else:
         results = results[:top_k]
+
+    # 7. Metadata boost: re-order results so that chunks from files whose
+    # name matches a query token are promoted to the front of the list.
+    # Applied AFTER the reranker so that the boost is not overwritten.
+    if metadata_boost and cnfb_alpha <= 0.0 and len(results) > 1:
+        chunk_ids = [r.chunk_id for r in results]
+        boosted_ids = _reorder_by_filename_match(chunk_ids, query, metadatas)
+        id_to_result = {r.chunk_id: r for r in results}
+        results = [id_to_result[cid] for cid in boosted_ids]
 
     return results

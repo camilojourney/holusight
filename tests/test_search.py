@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from codesight.search import _reorder_by_filename_match, _rerank, rrf_merge, vprf_enhance_query
+from codesight.search import _cnfb_boost, _reorder_by_filename_match, _rerank, rrf_merge, vprf_enhance_query
 from codesight.types import SearchResult
 
 
@@ -276,3 +276,101 @@ class TestMetadataBoost:
         )
         assert result[0] == "chunk_a"   # embeddings.py match → front
         assert result[1] == "chunk_b"   # no metadata → rest
+
+
+def _make_cnfb_result(
+    file_path: str,
+    score: float = 1.0,
+    start_line: int = 1,
+) -> SearchResult:
+    return SearchResult(
+        file_path=file_path,
+        start_line=start_line,
+        end_line=start_line + 10,
+        snippet="def foo(): pass",
+        score=score,
+        scope="function",
+        chunk_id=f"{file_path}:{start_line}",
+    )
+
+
+class TestCNFBBoost:
+    """Tests for _cnfb_boost() — SPEC-009."""
+
+    def test_SPEC009_AC001_alpha_zero_is_noop(self):
+        """AC-001: alpha=0.0 returns results unchanged (identity)."""
+        results = [
+            _make_cnfb_result("src/codesight/chunker.py", score=0.9),
+            _make_cnfb_result("src/codesight/store.py", score=0.8),
+        ]
+        boosted = _cnfb_boost(results, "chunker logic", cnfb_alpha=0.0)
+        assert boosted is results  # exact same object returned
+
+    def test_SPEC009_AC002_full_match_boosts_score(self):
+        """AC-002: full filename token match → score * (1 + alpha * 1.0)."""
+        result = _make_cnfb_result("src/codesight/chunker.py", score=1.0)
+        boosted = _cnfb_boost([result], "chunker", cnfb_alpha=0.5)
+        # filename_tokens = {"chunker"}, query_tokens = {"chunker"}, overlap = 1.0
+        # new_score = 1.0 * (1 + 0.5 * 1.0) = 1.5
+        assert abs(boosted[0].score - 1.5) < 1e-5
+
+    def test_SPEC009_AC003_no_match_score_unchanged(self):
+        """AC-003: no filename overlap → score unchanged (overlap=0)."""
+        result = _make_cnfb_result("src/codesight/store.py", score=1.0)
+        boosted = _cnfb_boost([result], "chunker", cnfb_alpha=0.5)
+        # filename_tokens = {"store"}, query_tokens = {"chunker"} → overlap = 0
+        assert abs(boosted[0].score - 1.0) < 1e-5
+
+    def test_SPEC009_AC004_partial_match_partial_boost(self):
+        """AC-004: partial overlap → proportional boost."""
+        # filename = "vector_store_impl" → tokens = {"vector", "store", "impl"}
+        # query = "vector search store" → query_tokens = {"vector", "search", "store"}
+        # overlap = |{vector, store} ∩ {vector, store, impl}| / 3 = 2/3
+        result = _make_cnfb_result("src/codesight/vector_store_impl.py", score=1.0)
+        boosted = _cnfb_boost([result], "vector search store", cnfb_alpha=0.5)
+        expected = 1.0 * (1.0 + 0.5 * (2 / 3))
+        assert abs(boosted[0].score - expected) < 1e-4
+
+    def test_SPEC009_AC005_sort_order_by_boosted_score(self):
+        """Higher overlap result should rank above lower overlap after boost."""
+        # chunker.py matches "chunker" query → boosted
+        # store.py does not match → unboosted
+        chunker = _make_cnfb_result("src/codesight/chunker.py", score=0.8)
+        store = _make_cnfb_result("src/codesight/store.py", score=0.9)
+        # Without CNFB: store ranks first (0.9 > 0.8)
+        # With CNFB alpha=1.0: chunker score = 0.8 * 2.0 = 1.6 > 0.9
+        boosted = _cnfb_boost([store, chunker], "chunker", cnfb_alpha=1.0)
+        assert boosted[0].file_path == "src/codesight/chunker.py"
+
+    def test_SPEC009_AC006_query_tokens_not_recomputed_per_chunk(self):
+        """AC-006: function processes multiple results correctly (shared tokenization)."""
+        results = [
+            _make_cnfb_result("src/codesight/chunker.py", score=1.0),
+            _make_cnfb_result("src/codesight/embeddings.py", score=1.0),
+            _make_cnfb_result("src/codesight/store.py", score=1.0),
+        ]
+        boosted = _cnfb_boost(results, "chunker", cnfb_alpha=0.5)
+        # Only chunker.py matches — verify others are 1.0
+        by_path = {r.file_path: r.score for r in boosted}
+        assert abs(by_path["src/codesight/chunker.py"] - 1.5) < 1e-5
+        assert abs(by_path["src/codesight/embeddings.py"] - 1.0) < 1e-5
+        assert abs(by_path["src/codesight/store.py"] - 1.0) < 1e-5
+
+    def test_SPEC009_AC007_empty_results_returns_empty(self):
+        """Empty input → empty output, no crash."""
+        assert _cnfb_boost([], "chunker", cnfb_alpha=0.5) == []
+
+    def test_SPEC009_EDGE001_empty_filename_stem(self):
+        """EDGE-001: file with unusual stem → no crash, correct math."""
+        result = _make_cnfb_result("/foo/.hidden", score=1.0)
+        boosted = _cnfb_boost([result], "hidden file", cnfb_alpha=0.5)
+        # stem=".hidden" → token="hidden" (len>=2), query_tokens={"hidden","file"}
+        assert len(boosted) == 1
+        assert boosted[0].score >= 1.0  # either boosted or unchanged, no crash
+
+    def test_SPEC009_EDGE003_stopword_only_query_no_boost(self):
+        """EDGE-003: query with only stopwords → no query_tokens → results unchanged."""
+        result = _make_cnfb_result("src/codesight/chunker.py", score=1.0)
+        # "how does the" are all stopwords (len>=3 but in stopword list)
+        boosted = _cnfb_boost([result], "how does the", cnfb_alpha=0.5)
+        assert abs(boosted[0].score - 1.0) < 1e-5
