@@ -12,6 +12,10 @@ import logging
 
 from .config import (
     BM25_CANDIDATE_MULTIPLIER,
+    DEFAULT_RERANKER_BACKEND,
+    DEFAULT_RERANKER_ENABLED,
+    DEFAULT_RERANKER_MODEL,
+    DEFAULT_RERANKER_TOP_N,
     DEFAULT_TOP_K,
     VOYAGE_API_KEY,
     ServerConfig,
@@ -41,7 +45,63 @@ def rrf_merge(
 
 
 # ---------------------------------------------------------------------------
-# Cross-encoder reranker (optional)
+# Voyage reranker (API — preferred when VOYAGE_API_KEY is set)
+# ---------------------------------------------------------------------------
+
+_voyage_reranker_client = None
+
+
+def _get_voyage_client():
+    """Lazy-load the Voyage AI client (cached for process lifetime)."""
+    global _voyage_reranker_client
+    if _voyage_reranker_client is None:
+        import voyageai
+        _voyage_reranker_client = voyageai.Client(api_key=VOYAGE_API_KEY)
+    return _voyage_reranker_client
+
+
+def _rerank_voyage(
+    query: str,
+    results: list[SearchResult],
+    top_k: int,
+    model_name: str,
+) -> list[SearchResult]:
+    """Rerank results using the Voyage AI reranker API.
+
+    Sends (query, documents) to voyage rerank-2, maps scores back to
+    original SearchResult objects, and returns the top K sorted by score.
+    """
+    if not results:
+        return results
+
+    client = _get_voyage_client()
+    documents = [r.snippet for r in results]
+
+    try:
+        response = client.rerank(
+            query=query,
+            documents=documents,
+            model=model_name,
+            top_k=min(top_k, len(results)),
+        )
+    except Exception:
+        logger.exception("Voyage reranker failed — falling back to RRF order")
+        return results[:top_k]
+
+    reranked: list[SearchResult] = []
+    for item in response.results:
+        if item.index >= len(results):
+            logger.warning("Voyage reranker returned invalid index %d", item.index)
+            continue
+        result = results[item.index]
+        result.score = round(float(item.relevance_score), 6)
+        reranked.append(result)
+
+    return reranked
+
+
+# ---------------------------------------------------------------------------
+# Cross-encoder reranker (local fallback — no API key required)
 # ---------------------------------------------------------------------------
 
 _reranker_model = None
@@ -57,13 +117,13 @@ def _get_reranker(model_name: str):
     return _reranker_model
 
 
-def _rerank(
+def _rerank_local(
     query: str,
     results: list[SearchResult],
     top_k: int,
     model_name: str,
 ) -> list[SearchResult]:
-    """Rerank results using a cross-encoder model.
+    """Rerank results using a local cross-encoder model.
 
     Scores each (query, chunk_content) pair, re-sorts by score,
     and returns the top K.
@@ -80,6 +140,21 @@ def _rerank(
 
     reranked = sorted(results, key=lambda r: r.score, reverse=True)
     return reranked[:top_k]
+
+
+def _rerank(
+    query: str,
+    results: list[SearchResult],
+    top_k: int,
+    model_name: str,
+    backend: str = "local",
+) -> list[SearchResult]:
+    """Route reranking to voyage API or local cross-encoder based on backend."""
+    if backend == "voyage":
+        logger.debug("Reranking with Voyage API: %s", model_name)
+        return _rerank_voyage(query, results, top_k, model_name)
+    logger.debug("Reranking with local cross-encoder: %s", model_name)
+    return _rerank_local(query, results, top_k, model_name)
 
 
 # ---------------------------------------------------------------------------
@@ -106,12 +181,13 @@ def hybrid_search(
     5. (Optional) Rerank with cross-encoder
     6. Fetch metadata and build SearchResult objects
     """
-    reranker_enabled = config.reranker if config else False
-    reranker_top_n = config.reranker_top_n if config else 20
+    reranker_enabled = config.reranker if config else DEFAULT_RERANKER_ENABLED
+    reranker_top_n = config.reranker_top_n if config else DEFAULT_RERANKER_TOP_N
     reranker_model = (
         config.reranker_model if config
-        else "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        else DEFAULT_RERANKER_MODEL
     )
+    reranker_backend = config.reranker_backend if config else DEFAULT_RERANKER_BACKEND
 
     candidate_count = top_k * BM25_CANDIDATE_MULTIPLIER
 
@@ -181,9 +257,10 @@ def hybrid_search(
     # 6. Rerank (optional)
     if reranker_enabled and len(results) > 1:
         logger.debug(
-            "Reranking %d results with %s", len(results), reranker_model,
+            "Reranking %d results with %s (backend=%s)",
+            len(results), reranker_model, reranker_backend,
         )
-        results = _rerank(query, results, top_k, reranker_model)
+        results = _rerank(query, results, top_k, reranker_model, backend=reranker_backend)
     else:
         results = results[:top_k]
 

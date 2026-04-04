@@ -83,8 +83,14 @@ DEFAULT_LLM_MODEL = "claude-sonnet-4-20250514"
 
 # Reranker
 DEFAULT_RERANKER_ENABLED = os.environ.get("CODESIGHT_RERANKER", "false").lower() == "true"
+# Auto-select backend: voyage when VOYAGE_API_KEY is set, local cross-encoder otherwise
+DEFAULT_RERANKER_BACKEND = os.environ.get(
+    "CODESIGHT_RERANKER_BACKEND",
+    "voyage" if os.environ.get("VOYAGE_API_KEY") else "local"
+)
 DEFAULT_RERANKER_MODEL = os.environ.get(
-    "CODESIGHT_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    "CODESIGHT_RERANKER_MODEL",
+    "rerank-2" if os.environ.get("VOYAGE_API_KEY") else "cross-encoder/ms-marco-MiniLM-L-6-v2",
 )
 DEFAULT_RERANKER_TOP_N = int(os.environ.get("CODESIGHT_RERANKER_TOP_N", "20"))
 DEFAULT_LLM_BACKEND = os.environ.get("CODESIGHT_LLM_BACKEND", "claude")
@@ -161,5 +167,6 @@ class ServerConfig(BaseModel):
     llm_backend: str = Field(default=DEFAULT_LLM_BACKEND)
     llm_model: str = Field(default=DEFAULT_LLM_MODEL)
     reranker: bool = Field(default=DEFAULT_RERANKER_ENABLED)
+    reranker_backend: str = Field(default=DEFAULT_RERANKER_BACKEND)
     reranker_model: str = Field(default=DEFAULT_RERANKER_MODEL)
     reranker_top_n: int = Field(default=DEFAULT_RERANKER_TOP_N)
