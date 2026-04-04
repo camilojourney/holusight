@@ -47,11 +47,18 @@ def repo_fts_db_path(repo_path: str | Path) -> Path:
 # Defaults
 # ---------------------------------------------------------------------------
 
-DEFAULT_EMBEDDING_MODEL = os.environ.get(
-    "CODESIGHT_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
-)
-DEFAULT_EMBEDDING_BACKEND = os.environ.get("CODESIGHT_EMBEDDING_BACKEND", "local")
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY")
+
+# When VOYAGE_API_KEY is set, default to voyage-code-3 for everything (single model, no dual-index).
+# Override via CODESIGHT_EMBEDDING_MODEL / CODESIGHT_EMBEDDING_BACKEND env vars.
+DEFAULT_EMBEDDING_MODEL = os.environ.get(
+    "CODESIGHT_EMBEDDING_MODEL",
+    "voyage-code-3" if VOYAGE_API_KEY else "sentence-transformers/all-MiniLM-L6-v2",
+)
+DEFAULT_EMBEDDING_BACKEND = os.environ.get(
+    "CODESIGHT_EMBEDDING_BACKEND",
+    "voyage" if VOYAGE_API_KEY else "local",
+)
 
 # Allowlist of tested embedding models with their dimensions.
 EMBEDDING_MODEL_REGISTRY: dict[str, int] = {
