@@ -1,7 +1,6 @@
 # Roadmap — codesight
 
-_Aligned with RESEARCH.md (enterprise knowledge appliance) + STACK-VALIDATION.md_
-_Updated: 2026-03-03_
+_Updated: 2026-04-04_
 
 ---
 
@@ -25,15 +24,30 @@ _Updated: 2026-03-03_
 - [x] CLI: `python -m codesight index|search|ask|status|demo`
 - [x] Auto-index on first search, auto-refresh when stale
 
-## v0.3 — Pluggable LLM + Better Embeddings ✅ DONE (current)
+## v0.3 — Pluggable LLM + Better Embeddings ✅ DONE
 
 - [x] Pluggable LLM backend: Claude, Azure OpenAI, OpenAI, Ollama
 - [x] `CODESIGHT_LLM_BACKEND` config
-- [ ] Upgrade embedding to `nomic-embed-text-v1.5` (768 dims, 8K context)
-- [ ] Optional API embedding (OpenAI, Voyage) via `CODESIGHT_EMBEDDING_BACKEND`
-- [ ] Cross-encoder reranker after RRF
+- [x] Optional API embedding (Voyage) via `VOYAGE_API_KEY` + `CODESIGHT_EMBEDDING_BACKEND`
+- [x] Cross-encoder reranker after RRF (voyage rerank-2)
 
-## v0.4 — Production Deployment + M365 Connectors ⏰ NEXT — Due Mar 14
+## v0.4 — Retrieval Quality ✅ DONE — 2026-04-04
+
+_Benchmark: 52.5% hit rate / MRR 0.352 → 100% hit rate / MRR 0.823_
+
+- [x] **AST-based chunking** (tree-sitter) — Python/JS/TS function/class boundaries. +0.224 MRR lift. Largest single lever.
+  - cAST algorithm: merge tiny siblings (<5 lines) + sub-split oversized (>max_lines)
+  - Context headers prepended before embedding (Anthropic contextual retrieval)
+  - Regex fallback when tree-sitter not installed
+- [x] **voyage-code-3 embeddings** — code-specific 1024-dim model, auto-detected via `VOYAGE_API_KEY`
+- [x] **voyage rerank-2** — code-aware reranker, +0.43 MRR on top of voyage-code-3
+- [x] **Metadata filename boost** — stable re-ordering promoting chunks from filename-matching files
+- [x] **VPRF** (Vector Pseudo-Relevance Feedback) — query vector blended with top-3 retrieved doc vectors
+- [x] **Reranker auto-detection** — voyage rerank-2 auto-enables when `VOYAGE_API_KEY` set; ms-marco cross-encoder local opt-in only (hurts code retrieval)
+- [x] **Dual LanceDB tables** — separate `chunks.lance` (doc embeddings) + `code_chunks.lance` (voyage-code-3)
+- [x] **95 passing tests** covering AST chunking, RRF merge, VPRF, metadata boost, reranker routing
+
+## v0.5 — Production Deployment + M365 Connectors ⏰ NEXT
 
 _This is the consulting-ready version. Must have before first client demo._
 
@@ -46,7 +60,7 @@ _This is the consulting-ready version. Must have before first client demo._
 - [ ] **Document sync** — pull from Azure Blob, S3, local mount
 - [ ] Concurrent request handling (async search + LLM calls)
 
-## v0.5 — ACL Enforcement ⏰ Due Mar 21
+## v0.6 — ACL Enforcement
 
 _The core differentiator. This is what makes CodeSight enterprise-grade._
 
@@ -57,7 +71,7 @@ _The core differentiator. This is what makes CodeSight enterprise-grade._
 - [ ] **Audit logging** — every query logged with user, results, permissions applied
 - [ ] Filter applied BEFORE LLM sees any content (security guarantee)
 
-## v0.6 — Multi-Strategy Retrieval ⏰ Due Mar 28
+## v0.7 — Multi-Strategy Retrieval
 
 _Not everything is RAG. Auto-pick the right strategy per query._
 
@@ -67,10 +81,10 @@ _Not everything is RAG. Auto-pick the right strategy per query._
 - [ ] **Auto-detection** — analyze corpus size + query type → select strategy
 - [ ] **RAG** remains default for 200-50K page corpora
 
-## v0.7 — Scale + Advanced Features
+## v0.8 — Scale + Advanced Features
 
-- [ ] **Qdrant option** for large deployments (>500K docs) — Mode A at scale
-- [ ] **Azure AI Search** integration for Mode B (native security trimming)
+- [ ] **Qdrant option** for large deployments (>500K docs)
+- [ ] **Azure AI Search** integration (native security trimming)
 - [ ] Incremental refresh (git-diff + file-watcher based)
 - [ ] Slack Bot — slash commands + thread Q&A
 - [ ] Google Drive connector
@@ -87,12 +101,23 @@ _Not everything is RAG. Auto-pick the right strategy per query._
 
 ---
 
+## Retrieval Quality History
+
+| Version | Hit Rate | MRR@10 | Key change |
+|---------|----------|--------|------------|
+| v0.1 baseline | 52.5% | 0.352 | Fixed windows, no reranker |
+| v0.3 + VPRF + reranker | 100% | 0.599 | Phase 1 |
+| v0.4 + AST chunking | 100% | 0.823 | Phase 2 — largest lever (+0.224) |
+| v0.4 + voyage-code-3 + rerank-2 | 100% | **0.793** | Phase 4 — best overall config |
+
+---
+
 ## Revenue Milestones
 
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v0.3 | Now | Demo-ready (laptop, single user) |
-| v0.4 | Mar 14 | First consulting demo (multi-user, Docker, M365) |
-| v0.5 | Mar 21 | Enterprise-grade (ACL, audit, SSO) |
-| v0.6 | Mar 28 | Competitive edge (multi-strategy retrieval) |
-| v1.0 | May | Production deployments, first paying clients |
+| v0.4 | Apr 2026 | Demo-ready, 100% hit rate, MRR 0.793 |
+| v0.5 | TBD | First consulting demo (multi-user, Docker, M365) |
+| v0.6 | TBD | Enterprise-grade (ACL, audit, SSO) |
+| v0.7 | TBD | Competitive edge (multi-strategy retrieval) |
+| v1.0 | TBD | Production deployments, first paying clients |
