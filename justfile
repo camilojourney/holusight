@@ -38,3 +38,7 @@ improve:
 # Run security audit
 audit:
     claude --agent .claude/agents/security-sentinel.md
+
+# Verify repo integrity before committing (checks duplicates, specs, schema, dead modules)
+verify:
+    python3 /Users/mini/.openclaw/workspace/github/~Projects/system/shared/scripts/repo_verify.py --repo holusight --skip tests || [ $? -eq 2 ]
