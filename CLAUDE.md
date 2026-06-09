@@ -181,3 +181,18 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 | Worker reports | `.self-improvement/reports/<worker>/YYYY-MM-DD.md` |
 | Research/market analysis | `specs/NNN-name.md` (never in `docs/`) |
 | Competitive analysis | `COMPARISON.md` (root, already exists) |
+
+<!-- graphify:start -->
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `graphify query "<question>"`. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
+- Before editing a source file, run `graphify query` or `graphify path` to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- Do not re-read multiple source files after a good query unless the user asks for line-level proof.
+- Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost).
+<!-- graphify:end -->
