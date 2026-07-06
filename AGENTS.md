@@ -1,19 +1,172 @@
-# Agent Instructions — codesight
+# AGENTS.md
 
-[Project Docs Index]|root: ./docs
-|IMPORTANT: Fetch specific files on demand — do not assume content
-|architecture: {ARCHITECTURE.md}
-|decisions: {docs/decisions/0001-lancedb-over-chromadb.md, docs/decisions/0002-hybrid-rrf-retrieval.md, docs/decisions/0003-read-only-invariant.md}
-|playbooks: {docs/playbooks/development.md, docs/playbooks/ship-feature.md, docs/playbooks/investigate-bug.md}
-|specs: {specs/README.md, specs/001-core-search-tools.md, specs/002-embedding-model-config.md, specs/003-incremental-refresh.md, specs/004-tree-sitter-chunking.md}
 
----
+# CodeSight
 
-## Role
+AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with pluggable LLM answer synthesis.
 
-codesight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
+## Structure
 
-**Primary concerns:** retrieval quality, document parsing accuracy, answer quality with source citations.
+> WHERE things go in this repo. Read before creating or moving any file.
+> Type D -- Spec-Only repo with demo code (CLI code search tool).
+
+### Root Level
+
+| File/Dir | Purpose |
+|----------|---------|
+| `CLAUDE.md` | Claude Code quick reference (<=80 lines). |
+| `AGENTS.md` | Universal AI entry point. Agent authority matrix. |
+| `ARCHITECTURE.md` | Full system architecture (200-500 lines). |
+| `README.md` | Human-facing project overview. |
+| `COMPARISON.md` | Competitive comparison analysis. |
+| `justfile` | Unified task runner (`just --list` to discover). |
+| `pyproject.toml` | Python package config and dependencies (uv). |
+| `.env.example` | Environment variable template. Never `.env` itself. |
+| `src/` | Core Python library (`src/codesight/`). |
+| `demo/` | Demo application (app.py + requirements.txt). |
+| `specs/` | Numbered feature specifications. |
+| `docs/` | Structured documentation (four categories only). |
+| `tests/` | pytest test suite. |
+| `devlog/` | Session devlog entries (YYYY-MM-DD.md). |
+| `tasks/` | Temporary session task files (delete when done). |
+| `.claude/` | Claude Code configuration, rules, agents. |
+| `.self-improvement/` | Autonomous improvement system. |
+
+**Never create files at root** unless they are one of the above.
+
+### Source Code (`src/codesight/`)
+
+| Module | Purpose |
+|--------|---------|
+| `src/codesight/__main__.py` | CLI entry point. |
+| `src/codesight/api.py` | API layer. |
+| `src/codesight/chunker.py` | Code chunking logic. |
+| `src/codesight/config.py` | Configuration loading. |
+| `src/codesight/embeddings.py` | Embedding model interface. |
+| `src/codesight/git_utils.py` | Git repository utilities. |
+| `src/codesight/indexer.py` | Code indexing engine. |
+| `src/codesight/llm.py` | LLM backend interface. |
+| `src/codesight/parsers.py` | Language parsers (tree-sitter). |
+| `src/codesight/search.py` | Search and retrieval. |
+| `src/codesight/store.py` | Vector store (LanceDB). |
+| `src/codesight/types.py` | Shared type definitions. |
+
+### Demo (`demo/`)
+
+| File | Purpose |
+|------|---------|
+| `demo/app.py` | Demo application showcasing codesight capabilities. |
+| `demo/requirements.txt` | Demo-specific dependencies (separate from main pyproject.toml). |
+
+Demo is self-contained. It does not import from `src/codesight/` at runtime.
+
+### Docs (`docs/`)
+
+**Exactly four categories -- no others.**
+
+| Path | Purpose |
+|------|---------|
+| `docs/README.md` | Navigation index. |
+| `docs/vision.md` | Product vision. Update at most yearly. |
+| `docs/roadmap.md` | Now/Next/Later feature plan. |
+| `docs/decisions/NNNN-*.md` | ADRs -- immutable once accepted. |
+| `docs/playbooks/*.md` | Step-by-step operational guides. |
+
+**NEVER create** ad-hoc files in `docs/`. Architecture goes in `ARCHITECTURE.md` (root). Specs go in `specs/`. Research and market analysis go in `specs/` as numbered specs, NOT as standalone files in `docs/`.
+
+**NOTE:** `docs/RESEARCH.md` and `docs/MARKET.md` are legacy violations. Their content should be migrated to numbered specs in `specs/` and the files removed. Do not create new files like these.
+
+### Specs (`specs/`)
+
+Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirectories.
+
+### Tests (`tests/`)
+
+| Path | Purpose |
+|------|---------|
+| `tests/test_*.py` | Test files matching source modules. |
+
+### `.claude/` -- Claude Code Configuration
+
+| Path | Purpose |
+|------|---------|
+| `.claude/settings.json` | Permissions and hooks. |
+| `.claude/rules/*.md` | Behavioral rules (structure, workflow). |
+| `.claude/agents/*.md` | Agent definitions. |
+| `.claude/agent-memory/<agent>/` | Per-agent runtime memory (gitignored). |
+
+### `.self-improvement/`
+
+| Path | Purpose |
+|------|---------|
+| `.self-improvement/workers.yaml` | Worker registry. |
+| `.self-improvement/NEXT.md` | Priority queue (Manager writes, all workers read). |
+| `.self-improvement/MEMORY.md` | Domain knowledge and lessons learned. |
+| `.self-improvement/knowledge/` | Knowledge base files. |
+| `.self-improvement/memory/trajectory.jsonl` | Append-only run log (gitignored). |
+| `.self-improvement/memory/lessons.json` | Distilled patterns (gitignored). |
+| `.self-improvement/reports/<worker>/YYYY-MM-DD.md` | Per-worker output (gitignored). |
+
+### What Goes Where
+
+| Content | Location |
+|---------|----------|
+| New feature spec | `specs/NNN-name.md` |
+| Architecture decision | `docs/decisions/NNNN-name.md` |
+| Operational guide | `docs/playbooks/name.md` |
+| New source module | `src/codesight/{name}.py` |
+| Unit test | `tests/test_{module}.py` |
+| Demo code | `demo/` |
+| Dev session notes | `devlog/YYYY-MM-DD.md` |
+| Agent priorities | `.self-improvement/NEXT.md` |
+| Worker reports | `.self-improvement/reports/<worker>/YYYY-MM-DD.md` |
+| Research/market analysis | `specs/NNN-name.md` (never in `docs/`) |
+| Competitive analysis | `COMPARISON.md` (root, already exists) |
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
+- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- Do not re-read multiple source files after a good query unless the user asks for line-level proof.
+- Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
+- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
+<!-- graphify:end -->
+
+## Commands
+
+- Run demo: `streamlit run demo/app.py`
+- CLI: `python -m codesight index /path/to/docs`
+- Test: `pytest tests/ -x -v`
+- Lint: `ruff check src/ tests/`
+- Install: `pip install -e ".[dev]"`
+
+## Parallelism & Skills
+
+**Always use agents to parallelize work.** Launch multiple Agent() calls for independent tasks.
+
+**Use skills for repo work:**
+
+| Task | Skill |
+|------|-------|
+| Implement, fix bugs, add API | `/code holusight` |
+| Write specs | `/specs holusight` |
+| Research options | `/research holusight` |
+| UX/UI audit + fix | `/ux holusight` |
+| Acceptance testing | `/verify holusight` |
+| Health check, deps, lint | `/maintenance holusight` |
+| Multi-step plans | `/plan holusight` |
+| Technical decision | `/consult-engineering holusight` |
+| Autonomous systems | `/consult-systems holusight` |
+| Business decision | `/consult-business` |
+| Aesthetic quality | `/taste holusight` |
+| ML experiment design | `/consult-experiments holusight` |
+
+**Agent dispatch:** Claude subagents for research/analysis, Codex for implementation, Gemini for cross-model review.
 
 ## Agent Authority Matrix
 
@@ -48,6 +201,12 @@ codesight is an AI-powered document search engine. It indexes folders of documen
 | `prompt-optimizer` | Monthly | Sonnet |
 | `model-quality-auditor` | Weekly | Sonnet |
 
+## Role
+
+codesight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
+
+**Primary concerns:** retrieval quality, document parsing accuracy, answer quality with source citations.
+
 ## Memory
 
 Each worker with `memory: project` writes to `.claude/agent-memory/<worker>/MEMORY.md`.
@@ -61,6 +220,178 @@ Current priorities are in `.self-improvement/NEXT.md`.
 - New specs → `specs/NNN-name.md`
 - Decisions → `docs/decisions/NNNN-name.md`
 
+When the user types `/graphify`, invoke the graphify skill before doing anything else.
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
+- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- Do not re-read multiple source files after a good query unless the user asks for line-level proof.
+- Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
+- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
+<!-- graphify:end -->
+
+## Context
+
+- Architecture: @ARCHITECTURE.md
+- Rules: @.claude/rules/
+- Decisions: @docs/decisions/
+- Env template: @.env.example
+- Business ops: @business/README.md
+
+@import .claude/rules/workflow.md
+
+## IMPORTANT Rules
+
+- **Read-only invariant** — the engine NEVER writes to indexed folders. It only reads files to build the index. Violating this is the most critical bug possible.
+- **Path traversal prevention** — all `folder_path` inputs must be validated against a whitelist or resolved to real paths before use. Never allow `../` escapes.
+- **Content hash guard** — always check `sha256(chunk_content)[:16]` before re-embedding. Never embed unchanged content.
+- **No full file exposure** — search returns chunks with line ranges, never entire file contents.
+
+@import .claude/rules/workflow.md
+
+<!-- graphify:start -->
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
+- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- Do not re-read multiple source files after a good query unless the user asks for line-level proof.
+- Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
+- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
+<!-- graphify:end -->
+
+## Commands
+
+- Run demo: `streamlit run demo/app.py`
+- CLI: `python -m codesight index /path/to/docs`
+- Test: `pytest tests/ -x -v`
+- Lint: `ruff check src/ tests/`
+- Install: `pip install -e ".[dev]"`
+
+## Parallelism & Skills
+
+**Always use agents to parallelize work.** Launch multiple Agent() calls for independent tasks.
+
+**Use skills for repo work:**
+
+| Task | Skill |
+|------|-------|
+| Implement, fix bugs, add API | `/code holusight` |
+| Write specs | `/specs holusight` |
+| Research options | `/research holusight` |
+| UX/UI audit + fix | `/ux holusight` |
+| Acceptance testing | `/verify holusight` |
+| Health check, deps, lint | `/maintenance holusight` |
+| Multi-step plans | `/plan holusight` |
+| Technical decision | `/consult-engineering holusight` |
+| Autonomous systems | `/consult-systems holusight` |
+| Business decision | `/consult-business` |
+| Aesthetic quality | `/taste holusight` |
+| ML experiment design | `/consult-experiments holusight` |
+
+**Agent dispatch:** Claude subagents for research/analysis, Codex for implementation, Gemini for cross-model review.
+
+## Agent Authority Matrix
+
+### Autonomous — No confirmation needed
+- Bug fixes in chunker, embedder, search, parsers that don't touch security boundaries
+- Adding tests, updating docs, improving comments
+- Reading any file in the repo
+- Running lint and tests (`ruff check`, `pytest`)
+- Writing reports to `.self-improvement/reports/`
+
+### Ask First — Propose, wait for approval
+- New dependencies in `pyproject.toml`
+- Changes to the `CodeSight` public API (`index`, `search`, `ask`, `status`)
+- Changes to the data directory path or index schema
+- New config environment variables
+- Changes to the Claude system prompt in `api.py`
+
+### Never — Hard stop, escalate immediately
+- Writing to or deleting files in any indexed folder
+- Allowing `folder_path` inputs that traverse outside a validated root
+- Returning full file contents from search (chunks + line ranges only)
+- Committing secrets or API keys
+
+## Workers
+
+| Worker | Trigger | Model |
+|--------|---------|-------|
+| `manager` | Weekly | Opus |
+| `code-improver` | On-demand | Sonnet |
+| `security-sentinel` | Weekly | Opus |
+| `judge-agent` | Per cycle | Haiku |
+| `prompt-optimizer` | Monthly | Sonnet |
+| `model-quality-auditor` | Weekly | Sonnet |
+
+## Role
+
+codesight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
+
+**Primary concerns:** retrieval quality, document parsing accuracy, answer quality with source citations.
+
+## Memory
+
+Each worker with `memory: project` writes to `.claude/agent-memory/<worker>/MEMORY.md`.
+Cycle history is in `.self-improvement/memory/trajectory.jsonl`.
+Current priorities are in `.self-improvement/NEXT.md`.
+
+## Output Paths
+
+- Worker reports → `.self-improvement/reports/<worker>/YYYY-MM-DD.md`
+- Trajectory → `.self-improvement/memory/trajectory.jsonl`
+- New specs → `specs/NNN-name.md`
+- Decisions → `docs/decisions/NNNN-name.md`
+
+When the user types `/graphify`, invoke the graphify skill before doing anything else.
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
+- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- Do not re-read multiple source files after a good query unless the user asks for line-level proof.
+- Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
+- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
+<!-- graphify:end -->
+
+## Context
+
+- Architecture: @ARCHITECTURE.md
+- Rules: @.claude/rules/
+- Decisions: @docs/decisions/
+- Env template: @.env.example
+- Business ops: @business/README.md
+
+@import .claude/rules/workflow.md
+
+## IMPORTANT Rules
+
+- **Read-only invariant** — the engine NEVER writes to indexed folders. It only reads files to build the index. Violating this is the most critical bug possible.
+- **Path traversal prevention** — all `folder_path` inputs must be validated against a whitelist or resolved to real paths before use. Never allow `../` escapes.
+- **Content hash guard** — always check `sha256(chunk_content)[:16]` before re-embedding. Never embed unchanged content.
+- **No full file exposure** — search returns chunks with line ranges, never entire file contents.
+
+@import .claude/rules/workflow.md
+
+<!-- graphify:start -->
+
 ## graphify
 
 When the user types `/graphify`, invoke the graphify skill before doing anything else.
@@ -68,11 +399,13 @@ When the user types `/graphify`, invoke the graphify skill before doing anything
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `graphify query "<question>"`. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
-- Before editing a source file, run `graphify query` or `graphify path` to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
+- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
 - Do not re-read multiple source files after a good query unless the user asks for line-level proof.
 - Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
+- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
 <!-- graphify:end -->
