@@ -46,6 +46,9 @@ answer = engine.ask("What are the payment terms?") # Search + LLM answer
 status = engine.status()                           # Index freshness check
 ```
 
+The package root exports `CodeSight`, `ServerConfig`, `Answer`, `IndexStats`,
+`RepoStatus`, and `SearchResult` for stable public imports.
+
 ## Supported Formats
 
 | Format | Extension | Parser |

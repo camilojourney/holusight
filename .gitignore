@@ -47,7 +47,7 @@ node_modules
 # Session task files (eval outputs, pipeline state — not source)
 tasks/
 
-# graphify — commit graph.json; ignore heavy viz outputs
+# graphify - commit graph.json; ignore generated outputs and local state
 graphify-out/*.html
 graphify-out/*.svg
 graphify-out/*.graphml
