@@ -1,4 +1,4 @@
-# docs — codesight
+# docs - codesight
 
 Project documentation index.
 
@@ -8,8 +8,6 @@ Project documentation index.
 |------|---------|
 | [vision.md](vision.md) | Product vision, core business, and design principles |
 | [roadmap.md](roadmap.md) | Versioned feature roadmap (v0.1 through v1.0) |
-| [MARKET.md](MARKET.md) | Market positioning, competitive landscape, business model, cost comparisons |
-| [RESEARCH.md](RESEARCH.md) | Technical research: embeddings, LLM backends, hybrid search, reranking |
 | [decisions/](decisions/) | Architecture Decision Records (ADRs) |
 | [playbooks/](playbooks/) | Step-by-step operational guides |
 
@@ -28,5 +26,6 @@ Project documentation index.
 Do not create new top-level docs files without a corresponding ADR justifying it.
 
 For feature specifications, use `specs/` instead.
+For research and market analysis, use numbered specs in `specs/` or existing business docs outside `docs/`.
 For agent instructions, use `.claude/agents/`.
 For self-improvement logs, use `.self-improvement/`.
