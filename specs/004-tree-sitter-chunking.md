@@ -188,5 +188,5 @@ Rejected because: AST-level nodes (function, class) are the right granularity fo
 - [ ] Syntax errors in source → graceful fallback to regex, logged warning
 - [ ] Existing `Chunk` dataclass reused — no schema changes to LanceDB or SQLite
 - [ ] Precision@10 improves by at least 10% on a benchmark query set (5+ test queries against a code repo)
-- [ ] No regression on existing test suite: `pytest tests/ -x -v` passes
+- [ ] No regression on existing test suite: `uv run --extra dev pytest tests/ -x -v` passes
 - [ ] Document files (PDF, DOCX, PPTX) unaffected — still use paragraph chunking

@@ -4,17 +4,17 @@ default:
 
 # ─── Development ──────────────────────────────────
 
-# Run the MCP server
+# Run the demo app
 dev:
-    python -m semantic_search_mcp
+    uv run --extra demo python -m codesight demo
 
 # Install dependencies (dev)
 install:
     pip install -e ".[dev]"
 
-# Run MCP Inspector
+# Inspect CLI commands
 inspect:
-    npx @modelcontextprotocol/inspector python -m semantic_search_mcp
+    uv run python -m codesight --help
 
 # ─── Quality ──────────────────────────────────────
 
@@ -23,11 +23,11 @@ check: lint test
 
 # Lint source code
 lint:
-    ruff check src/ tests/
+    uv run --extra dev ruff check src/ tests/
 
 # Run tests
 test:
-    pytest tests/ -x -v
+    uv run --extra dev pytest tests/ -x -v
 
 # ─── Autonomous Workers ──────────────────────────
 
@@ -41,4 +41,4 @@ audit:
 
 # Verify repo integrity before committing (checks duplicates, specs, schema, dead modules)
 verify:
-    python3 /Users/mini/.openclaw/workspace/github/~Projects/system/shared/scripts/repo_verify.py --repo holusight --skip tests || [ $? -eq 2 ]
+    python3 /Users/mini/github/fleet-system/system/shared/scripts/repo_verify.py --repo holusight --skip tests || [ $? -eq 2 ]

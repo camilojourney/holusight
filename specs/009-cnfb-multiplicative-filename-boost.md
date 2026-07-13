@@ -117,7 +117,7 @@ Given `CODESIGHT_CNFB_ALPHA=5.0`, when the config is loaded, then `cnfb_alpha` i
 Given a call to `_cnfb_boost()` with 20 results, the query tokenization is performed exactly once (verifiable via unit test with mock).
 
 **AC-007 — Existing tests pass**
-`pytest tests/ -x -q` passes with zero failures after implementation.
+`uv run --extra dev pytest tests/ -x -q` passes with zero failures after implementation.
 
 ---
 

@@ -24,6 +24,7 @@ def _count_tokens(text: str) -> int:
     """Estimate token count. Uses tiktoken if available, else len//4."""
     try:
         import tiktoken
+
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except Exception:
@@ -33,14 +34,16 @@ def _count_tokens(text: str) -> int:
 @dataclass
 class EvalQuery:
     """A single eval query with its expected answer location."""
+
     query: str
-    expected_file: str      # substring match against result file_path
+    expected_file: str  # substring match against result file_path
     expected_start_line: int | None = None  # optional line check (within ±10 lines)
 
 
 @dataclass
 class EvalResult:
     """Aggregate metrics from running the eval harness."""
+
     hit_rate: float
     mrr_at_10: float
     tokens_per_correct_answer: float
@@ -106,14 +109,16 @@ def run_eval(
             hits += 1
             tokens_on_hits.append(query_tokens)
 
-        per_query.append({
-            "query": eq.query,
-            "expected_file": eq.expected_file,
-            "hit": is_hit,
-            "rank": hit_rank,
-            "rr": rr,
-            "query_tokens": query_tokens,
-        })
+        per_query.append(
+            {
+                "query": eq.query,
+                "expected_file": eq.expected_file,
+                "hit": is_hit,
+                "rank": hit_rank,
+                "rr": rr,
+                "query_tokens": query_tokens,
+            }
+        )
 
     num_queries = len(queries)
     hit_rate = hits / num_queries if num_queries > 0 else 0.0

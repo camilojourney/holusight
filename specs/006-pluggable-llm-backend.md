@@ -184,4 +184,4 @@ Rejected because: Azure OpenAI is critical for enterprise clients who are alread
 - [ ] `Answer.model` reports which backend + model was used (e.g., "claude:claude-sonnet-4-20250514")
 - [ ] Same system prompt used across all backends — same answer quality expectations
 - [ ] Web chat UI works identically with any backend
-- [ ] `pytest tests/ -x -v` passes (API tests mocked, Ollama test optional)
+- [ ] `uv run --extra dev pytest tests/ -x -v` passes (API tests mocked, Ollama test optional)

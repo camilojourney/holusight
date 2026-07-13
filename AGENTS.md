@@ -139,10 +139,10 @@ Rules:
 
 ## Commands
 
-- Run demo: `streamlit run demo/app.py`
+- Run demo: `uv run --extra demo python -m codesight demo`
 - CLI: `python -m codesight index /path/to/docs`
-- Test: `pytest tests/ -x -v`
-- Lint: `ruff check src/ tests/`
+- Test: `uv run --extra dev pytest tests/ -x -v`
+- Lint: `uv run --extra dev ruff check src/ tests/`
 - Install: `pip install -e ".[dev]"`
 
 ## Parallelism & Skills
@@ -174,7 +174,7 @@ Rules:
 - Bug fixes in chunker, embedder, search, parsers that don't touch security boundaries
 - Adding tests, updating docs, improving comments
 - Reading any file in the repo
-- Running lint and tests (`ruff check`, `pytest`)
+- Running lint and tests (`uv run --extra dev ruff check`, `uv run --extra dev pytest`)
 - Writing reports to `.self-improvement/reports/`
 
 ### Ask First — Propose, wait for approval
@@ -274,10 +274,10 @@ Rules:
 
 ## Commands
 
-- Run demo: `streamlit run demo/app.py`
+- Run demo: `uv run --extra demo python -m codesight demo`
 - CLI: `python -m codesight index /path/to/docs`
-- Test: `pytest tests/ -x -v`
-- Lint: `ruff check src/ tests/`
+- Test: `uv run --extra dev pytest tests/ -x -v`
+- Lint: `uv run --extra dev ruff check src/ tests/`
 - Install: `pip install -e ".[dev]"`
 
 ## Parallelism & Skills
@@ -309,7 +309,7 @@ Rules:
 - Bug fixes in chunker, embedder, search, parsers that don't touch security boundaries
 - Adding tests, updating docs, improving comments
 - Reading any file in the repo
-- Running lint and tests (`ruff check`, `pytest`)
+- Running lint and tests (`uv run --extra dev ruff check`, `uv run --extra dev pytest`)
 - Writing reports to `.self-improvement/reports/`
 
 ### Ask First — Propose, wait for approval

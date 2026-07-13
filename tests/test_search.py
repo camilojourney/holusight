@@ -199,11 +199,13 @@ class TestMetadataBoost:
 
     def test_filename_match_promoted_to_front(self):
         """Chunk from a file whose name matches a query token is promoted."""
-        metadatas = self._make_metadatas({
-            "chunk_a": "src/codesight/embeddings.py",
-            "chunk_b": "src/codesight/store.py",
-            "chunk_c": "src/codesight/search.py",
-        })
+        metadatas = self._make_metadatas(
+            {
+                "chunk_a": "src/codesight/embeddings.py",
+                "chunk_b": "src/codesight/store.py",
+                "chunk_c": "src/codesight/search.py",
+            }
+        )
         # "embeddings" matches embeddings.py stem
         result = _reorder_by_filename_match(
             ["chunk_b", "chunk_c", "chunk_a"],
@@ -215,10 +217,12 @@ class TestMetadataBoost:
 
     def test_no_match_preserves_original_order(self):
         """When no token matches any filename, original order is unchanged."""
-        metadatas = self._make_metadatas({
-            "chunk_a": "src/codesight/store.py",
-            "chunk_b": "src/codesight/search.py",
-        })
+        metadatas = self._make_metadatas(
+            {
+                "chunk_a": "src/codesight/store.py",
+                "chunk_b": "src/codesight/search.py",
+            }
+        )
         result = _reorder_by_filename_match(
             ["chunk_a", "chunk_b"],
             "how does retrieval work",  # "retrieval", "work" don't match store/search
@@ -228,10 +232,12 @@ class TestMetadataBoost:
 
     def test_stopwords_not_matched(self):
         """Stopwords like 'how', 'does', 'the', 'is' are filtered out."""
-        metadatas = self._make_metadatas({
-            "chunk_a": "src/codesight/how.py",   # filename matches stopword "how"
-            "chunk_b": "src/codesight/store.py",
-        })
+        metadatas = self._make_metadatas(
+            {
+                "chunk_a": "src/codesight/how.py",  # filename matches stopword "how"
+                "chunk_b": "src/codesight/store.py",
+            }
+        )
         # "how" and "does" are stopwords — should NOT trigger boost
         result = _reorder_by_filename_match(
             ["chunk_b", "chunk_a"],
@@ -244,10 +250,12 @@ class TestMetadataBoost:
 
     def test_partial_filename_match(self):
         """Token that is a substring of the filename stem triggers boost."""
-        metadatas = self._make_metadatas({
-            "chunk_a": "src/codesight/chunk_manager.py",
-            "chunk_b": "src/codesight/store.py",
-        })
+        metadatas = self._make_metadatas(
+            {
+                "chunk_a": "src/codesight/chunk_manager.py",
+                "chunk_b": "src/codesight/store.py",
+            }
+        )
         # "chunk" is a substring of "chunk_manager"
         result = _reorder_by_filename_match(
             ["chunk_b", "chunk_a"],
@@ -258,10 +266,12 @@ class TestMetadataBoost:
 
     def test_empty_query_tokens_after_stopword_filter(self):
         """If all tokens are stopwords, original order is preserved."""
-        metadatas = self._make_metadatas({
-            "chunk_a": "src/codesight/store.py",
-            "chunk_b": "src/codesight/search.py",
-        })
+        metadatas = self._make_metadatas(
+            {
+                "chunk_a": "src/codesight/store.py",
+                "chunk_b": "src/codesight/search.py",
+            }
+        )
         result = _reorder_by_filename_match(
             ["chunk_a", "chunk_b"],
             "how is",  # both stopwords
@@ -271,17 +281,19 @@ class TestMetadataBoost:
 
     def test_missing_metadata_goes_to_rest(self):
         """Chunks with missing metadata are placed after matched chunks."""
-        metadatas = self._make_metadatas({
-            "chunk_a": "src/codesight/embeddings.py",
-            # chunk_b has no metadata entry
-        })
+        metadatas = self._make_metadatas(
+            {
+                "chunk_a": "src/codesight/embeddings.py",
+                # chunk_b has no metadata entry
+            }
+        )
         result = _reorder_by_filename_match(
             ["chunk_b", "chunk_a"],
             "embeddings model",
             metadatas,
         )
-        assert result[0] == "chunk_a"   # embeddings.py match → front
-        assert result[1] == "chunk_b"   # no metadata → rest
+        assert result[0] == "chunk_a"  # embeddings.py match → front
+        assert result[1] == "chunk_b"  # no metadata → rest
 
 
 def _make_cnfb_result(

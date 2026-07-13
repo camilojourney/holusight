@@ -94,22 +94,24 @@ class TestChunkFile:
 
     def test_multiple_functions_produce_multiple_chunks(self):
         # Functions need 6+ lines to stay separate when AST chunker is active (min_lines=5)
-        content = "\n".join([
-            "def foo():",
-            "    a = 1",
-            "    b = 2",
-            "    c = 3",
-            "    d = 4",
-            "    return a + b + c + d",
-            "",
-            "def bar():",
-            "    x = 10",
-            "    y = 20",
-            "    z = 30",
-            "    w = 40",
-            "    t = 50",
-            "    return x + y + z + w + t",
-        ])
+        content = "\n".join(
+            [
+                "def foo():",
+                "    a = 1",
+                "    b = 2",
+                "    c = 3",
+                "    d = 4",
+                "    return a + b + c + d",
+                "",
+                "def bar():",
+                "    x = 10",
+                "    y = 20",
+                "    z = 30",
+                "    w = 40",
+                "    t = 50",
+                "    return x + y + z + w + t",
+            ]
+        )
         chunks = chunk_file(content, "multi.py")
         assert len(chunks) >= 2
 
@@ -154,22 +156,24 @@ class TestChunkFileAST:
     def test_two_functions_produce_two_chunks(self):
         """Two Python functions each >= min_lines → 2 separate chunks."""
         # Each function has 6 lines (> default min_lines=5), so they stay separate
-        content = "\n".join([
-            "def alpha():",
-            "    a = 1",
-            "    b = 2",
-            "    c = 3",
-            "    d = 4",
-            "    return a + b + c + d",
-            "",
-            "def beta():",
-            "    x = 10",
-            "    y = 20",
-            "    z = 30",
-            "    w = 40",
-            "    t = 50",
-            "    return x + y + z + w + t",
-        ])
+        content = "\n".join(
+            [
+                "def alpha():",
+                "    a = 1",
+                "    b = 2",
+                "    c = 3",
+                "    d = 4",
+                "    return a + b + c + d",
+                "",
+                "def beta():",
+                "    x = 10",
+                "    y = 20",
+                "    z = 30",
+                "    w = 40",
+                "    t = 50",
+                "    return x + y + z + w + t",
+            ]
+        )
         chunks = chunk_file_ast(content, "funcs.py")
         names = [c.scope for c in chunks]
         assert any("alpha" in n for n in names)
@@ -198,13 +202,7 @@ class TestChunkFileAST:
     def test_small_functions_merged(self):
         """Two consecutive tiny functions (< min_lines=5) should be merged into one chunk."""
         # Each function is 2 lines — well below min_lines=5
-        content = (
-            "def a():\n"
-            "    pass\n"
-            "\n"
-            "def b():\n"
-            "    pass\n"
-        )
+        content = "def a():\n    pass\n\ndef b():\n    pass\n"
         chunks = chunk_file_ast(content, "tiny.py", min_lines=5)
         # With merging, both tiny functions should collapse into 1 chunk
         assert len(chunks) == 1
@@ -221,13 +219,7 @@ class TestChunkFileAST:
     @pytestmark_ts
     def test_leading_imports_become_separate_chunk(self):
         """Module-level imports before the first function → own chunk."""
-        content = (
-            "import os\n"
-            "import sys\n"
-            "\n"
-            "def main():\n"
-            "    pass\n"
-        )
+        content = "import os\nimport sys\n\ndef main():\n    pass\n"
         chunks = chunk_file_ast(content, "main.py")
         # Should have at least 2 chunks: imports + main function
         assert len(chunks) >= 2
@@ -236,24 +228,26 @@ class TestChunkFileAST:
     def test_javascript_functions_chunked(self):
         """JS file with 2 substantial functions → at least 2 chunks."""
         # Each function body is 6+ lines to exceed default min_lines=5
-        content = "\n".join([
-            "function hello() {",
-            "    const a = 1;",
-            "    const b = 2;",
-            "    const c = 3;",
-            "    const d = 4;",
-            "    return a + b + c + d;",
-            "}",
-            "",
-            "function goodbye() {",
-            "    const x = 10;",
-            "    const y = 20;",
-            "    const z = 30;",
-            "    const w = 40;",
-            "    const t = 50;",
-            "    return x + y + z + w + t;",
-            "}",
-        ])
+        content = "\n".join(
+            [
+                "function hello() {",
+                "    const a = 1;",
+                "    const b = 2;",
+                "    const c = 3;",
+                "    const d = 4;",
+                "    return a + b + c + d;",
+                "}",
+                "",
+                "function goodbye() {",
+                "    const x = 10;",
+                "    const y = 20;",
+                "    const z = 30;",
+                "    const w = 40;",
+                "    const t = 50;",
+                "    return x + y + z + w + t;",
+                "}",
+            ]
+        )
         chunks = chunk_file_ast(content, "funcs.js")
         assert len(chunks) >= 2
 
@@ -261,22 +255,24 @@ class TestChunkFileAST:
     def test_chunk_file_uses_ast_for_python(self):
         """chunk_file() delegates to AST chunker for Python when tree-sitter is available."""
         # Use 6-line functions so they stay separate (above default min_lines=5)
-        content = "\n".join([
-            "def foo():",
-            "    a = 1",
-            "    b = 2",
-            "    c = 3",
-            "    d = 4",
-            "    return a + b + c + d",
-            "",
-            "def bar():",
-            "    x = 10",
-            "    y = 20",
-            "    z = 30",
-            "    w = 40",
-            "    t = 50",
-            "    return x + y + z + w + t",
-        ])
+        content = "\n".join(
+            [
+                "def foo():",
+                "    a = 1",
+                "    b = 2",
+                "    c = 3",
+                "    d = 4",
+                "    return a + b + c + d",
+                "",
+                "def bar():",
+                "    x = 10",
+                "    y = 20",
+                "    z = 30",
+                "    w = 40",
+                "    t = 50",
+                "    return x + y + z + w + t",
+            ]
+        )
         chunks = chunk_file(content, "test.py")
         scopes = [c.scope for c in chunks]
         assert any("foo" in s for s in scopes)

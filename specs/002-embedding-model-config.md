@@ -122,4 +122,4 @@ Rejected because: sentence-transformers is battle-tested, has better model selec
 - [ ] `CODESIGHT_EMBEDDING_BACKEND=api` uses OpenAI API, requires `OPENAI_API_KEY`
 - [ ] API embedding missing key → clear error naming the required env var
 - [ ] File preamble (first 3 lines of imports/docstring) prepended to chunk context before embedding
-- [ ] `pytest tests/ -x -v` passes with both local and API backends (API tests mocked)
+- [ ] `uv run --extra dev pytest tests/ -x -v` passes with both local and API backends (API tests mocked)
