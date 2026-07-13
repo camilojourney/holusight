@@ -1,23 +1,35 @@
-"""
-Placeholder test module. Replace with real tests.
+"""Public package export contract tests."""
 
-Priority test coverage:
-1. test_security.py — read-only invariant, path traversal prevention
-2. test_search.py — round-trip: index fixture folder, search, verify top result
-3. test_indexer.py — content hashing, incremental updates, document parsing
-4. test_parsers.py — PDF/DOCX/PPTX text extraction
-"""
+import codesight
+from codesight.api import CodeSight
+from codesight.config import ServerConfig
+from codesight.types import Answer, IndexStats, RepoStatus, SearchResult
+
+EXPECTED_PUBLIC_EXPORTS = [
+    "CodeSight",
+    "ServerConfig",
+    "Answer",
+    "IndexStats",
+    "RepoStatus",
+    "SearchResult",
+]
 
 
-def test_placeholder():
-    """Placeholder — replace with real tests."""
-    assert True
+def test_package_declares_expected_public_exports():
+    """The package root exposes a stable public import surface."""
+    assert codesight.__all__ == EXPECTED_PUBLIC_EXPORTS
 
 
-def test_import():
-    """Verify the package is importable after rename."""
-    from codesight import Answer, CodeSight, IndexStats, SearchResult
-    assert CodeSight is not None
-    assert Answer is not None
-    assert SearchResult is not None
-    assert IndexStats is not None
+def test_package_exports_resolve_to_canonical_objects():
+    """Root exports point at the implementation classes callers should import."""
+    expected_objects = {
+        "CodeSight": CodeSight,
+        "ServerConfig": ServerConfig,
+        "Answer": Answer,
+        "IndexStats": IndexStats,
+        "RepoStatus": RepoStatus,
+        "SearchResult": SearchResult,
+    }
+
+    for export_name, canonical_object in expected_objects.items():
+        assert getattr(codesight, export_name) is canonical_object
