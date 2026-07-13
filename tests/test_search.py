@@ -6,7 +6,13 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from codesight.search import _cnfb_boost, _reorder_by_filename_match, _rerank, rrf_merge, vprf_enhance_query
+from codesight.search import (
+    _cnfb_boost,
+    _reorder_by_filename_match,
+    _rerank,
+    rrf_merge,
+    vprf_enhance_query,
+)
 from codesight.types import SearchResult
 
 

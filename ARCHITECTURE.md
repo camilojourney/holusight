@@ -106,7 +106,7 @@ answer = engine.ask("What are the payment terms?") # Search + LLM answer
 status = engine.status()                          # Index freshness check
 ```
 
-The `CodeSight` class is the single entry point. Streamlit, Slack, CLI, and any future interface all call the same methods.
+The package root exposes the stable public import surface: `CodeSight`, `ServerConfig`, `Answer`, `IndexStats`, `RepoStatus`, and `SearchResult`. The `CodeSight` class is the single entry point. Streamlit, Slack, CLI, and any future interface all call the same methods.
 
 ### The `ask()` Pipeline
 

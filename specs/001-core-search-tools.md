@@ -88,6 +88,9 @@ from codesight import CodeSight
 
 engine = CodeSight("/path/to/documents")
 
+# Stable public imports from package root:
+# CodeSight, ServerConfig, Answer, IndexStats, RepoStatus, SearchResult
+
 # Index all files in the folder
 engine.index(force_rebuild: bool = False) -> IndexStats
 # Returns: IndexStats(total_files, total_chunks, duration_seconds)

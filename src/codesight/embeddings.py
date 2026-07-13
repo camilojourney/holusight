@@ -154,7 +154,8 @@ class APIEmbedder:
 class VoyageEmbedder:
     """Voyage embedding backend for code retrieval."""
 
-    BATCH_SIZE = 8  # Voyage max is 120K tokens/batch; large repos need small batches (~15K tokens each)
+    # Voyage max is 120K tokens/batch; large repos need small batches.
+    BATCH_SIZE = 8
 
     def __init__(
         self,
@@ -244,4 +245,3 @@ def get_embedder(
 
     logger.info("Using local embedding backend: %s", model_name)
     return LocalEmbedder(model_name=model_name, expected_dim=dim)
-
