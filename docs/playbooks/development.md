@@ -11,7 +11,7 @@
 cd codesight
 pip install -e ".[dev]"
 # or with uv:
-uv pip install -e ".[dev]"
+uv sync --extra dev
 ```
 
 ## Run Locally
@@ -29,11 +29,10 @@ python -m codesight ask "What are the payment terms?" /path/to/documents
 # Check index status
 python -m codesight status /path/to/documents
 
-# Launch the web chat UI (requires streamlit)
-pip install -e ".[demo]"
-python -m codesight demo
+# Launch the web chat UI
+uv run --extra demo python -m codesight demo
 # or directly:
-streamlit run demo/app.py
+uv run --extra demo streamlit run demo/app.py
 ```
 
 ## Python API
@@ -50,14 +49,14 @@ answer = engine.ask("What are the payment terms?")
 ## Tests
 
 ```bash
-pytest tests/ -x -v
+uv run --extra dev pytest tests/ -x -v
 ```
 
 ## Lint
 
 ```bash
-ruff check src/ tests/
-ruff format src/ tests/ --check  # dry run
+uv run --extra dev ruff check src/ tests/
+uv run --extra dev ruff format src/ tests/ --check  # dry run
 ```
 
 ## Environment Variables

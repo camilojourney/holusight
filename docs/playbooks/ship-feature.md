@@ -33,8 +33,8 @@ grep -rn "\.\./" src/codesight/
 ## 5. Run Full Suite
 
 ```bash
-pytest tests/ -x -v
-ruff check src/ tests/
+uv run --extra dev pytest tests/ -x -v
+uv run --extra dev ruff check src/ tests/
 ```
 
 ## 6. Update Docs

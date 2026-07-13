@@ -158,4 +158,4 @@ Rejected because: Adds ~50-200ms to every search. Some deployments prioritize sp
 - [ ] Search latency increase < 100ms for 20 chunks on M1 Mac
 - [ ] Works with both `search()` and `ask()` pipelines
 - [ ] Precision@5 improves by at least 15% on a benchmark query set (5+ test queries)
-- [ ] `pytest tests/ -x -v` passes with reranker both enabled and disabled
+- [ ] `uv run --extra dev pytest tests/ -x -v` passes with reranker both enabled and disabled
