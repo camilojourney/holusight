@@ -48,23 +48,31 @@ _BOUNDARY_PATTERNS: dict[str, re.Pattern] = {
     "ruby": re.compile(r"^(class |module |def )", re.MULTILINE),
     "php": re.compile(r"^(class |function |public |private |protected )", re.MULTILINE),
     "c": re.compile(r"^(\w+\s+\*?\w+\s*\()", re.MULTILINE),
-    "cpp": re.compile(
-        r"^(class |struct |namespace |template |(\w+\s+\*?\w+\s*\())", re.MULTILINE
-    ),
+    "cpp": re.compile(r"^(class |struct |namespace |template |(\w+\s+\*?\w+\s*\())", re.MULTILINE),
 }
 
 # Map file extension to language key
 _EXT_TO_LANG: dict[str, str] = {
     ".py": "python",
-    ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
-    ".ts": "typescript", ".tsx": "typescript",
+    ".js": "javascript",
+    ".jsx": "javascript",
+    ".mjs": "javascript",
+    ".ts": "typescript",
+    ".tsx": "typescript",
     ".go": "go",
     ".rs": "rust",
-    ".java": "java", ".kt": "java", ".scala": "java",
-    ".rb": "ruby", ".rake": "ruby",
+    ".java": "java",
+    ".kt": "java",
+    ".scala": "java",
+    ".rb": "ruby",
+    ".rake": "ruby",
     ".php": "php",
-    ".c": "c", ".h": "c",
-    ".cpp": "cpp", ".hpp": "cpp", ".cc": "cpp", ".cxx": "cpp",
+    ".c": "c",
+    ".h": "c",
+    ".cpp": "cpp",
+    ".hpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
     ".cs": "java",  # close enough for boundary detection
 }
 
@@ -206,7 +214,9 @@ def chunk_file(
         except Exception:
             logger.debug(
                 "AST chunking failed for %s (%s) — falling back to regex",
-                file_path, language, exc_info=True,
+                file_path,
+                language,
+                exc_info=True,
             )
 
     if pattern:
@@ -243,19 +253,25 @@ def _split_by_boundaries(
             scope = _detect_scope(segment_lines[0] if segment_lines else "", language)
             header = _make_context_header(file_path, scope, start + 1, end)
             chunk_content = "\n".join(segment_lines)
-            chunks.append(Chunk(
-                file_path=file_path,
-                start_line=start + 1,
-                end_line=end,
-                content=chunk_content,
-                scope=scope,
-                language=language,
-                context_header=header,
-            ))
+            chunks.append(
+                Chunk(
+                    file_path=file_path,
+                    start_line=start + 1,
+                    end_line=end,
+                    content=chunk_content,
+                    scope=scope,
+                    language=language,
+                    context_header=header,
+                )
+            )
         else:
             # Sub-split large scopes with overlapping windows
             sub_chunks = _split_by_windows(
-                segment_lines, file_path, language, max_lines, overlap_lines,
+                segment_lines,
+                file_path,
+                language,
+                max_lines,
+                overlap_lines,
                 line_offset=start,
             )
             chunks.extend(sub_chunks)
@@ -281,15 +297,17 @@ def _split_by_windows(
         start_line = line_offset + i + 1
         end_line = line_offset + end
         header = _make_context_header(file_path, scope, start_line, end_line)
-        chunks.append(Chunk(
-            file_path=file_path,
-            start_line=start_line,
-            end_line=end_line,
-            content="\n".join(segment),
-            scope=scope,
-            language=language,
-            context_header=header,
-        ))
+        chunks.append(
+            Chunk(
+                file_path=file_path,
+                start_line=start_line,
+                end_line=end_line,
+                content="\n".join(segment),
+                scope=scope,
+                language=language,
+                context_header=header,
+            )
+        )
         i += max_lines - overlap_lines
         if i >= len(lines):
             break
@@ -303,28 +321,34 @@ def _split_by_windows(
 
 # Top-level node types that define scope boundaries in each language.
 _AST_SCOPE_TYPES: dict[str, frozenset[str]] = {
-    "python": frozenset({
-        "function_definition",
-        "async_function_definition",
-        "class_definition",
-        "decorated_definition",
-    }),
-    "javascript": frozenset({
-        "function_declaration",
-        "class_declaration",
-        "export_statement",
-        "lexical_declaration",       # const/let arrow functions at module level
-        "variable_declaration",      # var arrow functions
-    }),
-    "typescript": frozenset({
-        "function_declaration",
-        "class_declaration",
-        "export_statement",
-        "lexical_declaration",
-        "variable_declaration",
-        "interface_declaration",
-        "type_alias_declaration",
-    }),
+    "python": frozenset(
+        {
+            "function_definition",
+            "async_function_definition",
+            "class_definition",
+            "decorated_definition",
+        }
+    ),
+    "javascript": frozenset(
+        {
+            "function_declaration",
+            "class_declaration",
+            "export_statement",
+            "lexical_declaration",  # const/let arrow functions at module level
+            "variable_declaration",  # var arrow functions
+        }
+    ),
+    "typescript": frozenset(
+        {
+            "function_declaration",
+            "class_declaration",
+            "export_statement",
+            "lexical_declaration",
+            "variable_declaration",
+            "interface_declaration",
+            "type_alias_declaration",
+        }
+    ),
 }
 
 
@@ -449,6 +473,7 @@ def chunk_file_ast(
             chunks.extend(
                 _split_by_windows(leading, file_path, language, max_lines, 0)
             )
+            chunks.extend(_split_by_windows(leading, file_path, language, max_lines, 0))
 
     prev_end = first_seg_start
     for seg_start, seg_end in merged:
@@ -457,22 +482,27 @@ def chunk_file_ast(
             gap = all_lines[prev_end:seg_start]
             if any(line.strip() for line in gap):
                 chunks.extend(
-                    _split_by_windows(gap, file_path, language, max_lines, 0,
-                                      line_offset=prev_end)
+                    _split_by_windows(gap, file_path, language, max_lines, 0, line_offset=prev_end)
                 )
 
-        seg_line_list = all_lines[seg_start: seg_end + 1]
+        seg_line_list = all_lines[seg_start : seg_end + 1]
         seg_len = len(seg_line_list)
 
         if seg_len <= max_lines:
-            chunks.append(_build_chunk_from_lines(
-                seg_line_list, file_path, language, seg_start + 1,
-            ))
+            chunks.append(
+                _build_chunk_from_lines(
+                    seg_line_list,
+                    file_path,
+                    language,
+                    seg_start + 1,
+                )
+            )
         else:
             # Sub-split oversized node with no overlap (function boundaries are complete)
             chunks.extend(
-                _split_by_windows(seg_line_list, file_path, language, max_lines, 0,
-                                  line_offset=seg_start)
+                _split_by_windows(
+                    seg_line_list, file_path, language, max_lines, 0, line_offset=seg_start
+                )
             )
 
         prev_end = seg_end + 1
@@ -482,8 +512,7 @@ def chunk_file_ast(
         trailing = all_lines[prev_end:]
         if any(line.strip() for line in trailing):
             chunks.extend(
-                _split_by_windows(trailing, file_path, language, max_lines, 0,
-                                  line_offset=prev_end)
+                _split_by_windows(trailing, file_path, language, max_lines, 0, line_offset=prev_end)
             )
 
     return chunks
@@ -555,17 +584,22 @@ def _split_text_by_paragraphs(
         if current_text and len(current_text) + len(para) + 2 > max_chars:
             chunk_idx += 1
             header = _make_context_header(
-                file_path, scope, page_number, page_number,
+                file_path,
+                scope,
+                page_number,
+                page_number,
             )
-            chunks.append(Chunk(
-                file_path=file_path,
-                start_line=page_number,
-                end_line=page_number,
-                content=current_text,
-                scope=scope,
-                language=language,
-                context_header=header,
-            ))
+            chunks.append(
+                Chunk(
+                    file_path=file_path,
+                    start_line=page_number,
+                    end_line=page_number,
+                    content=current_text,
+                    scope=scope,
+                    language=language,
+                    context_header=header,
+                )
+            )
             # Keep overlap from the end of current chunk
             if overlap_chars > 0 and len(current_text) > overlap_chars:
                 current_text = current_text[-overlap_chars:]
@@ -580,14 +614,16 @@ def _split_text_by_paragraphs(
     # Flush remaining text
     if current_text.strip():
         header = _make_context_header(file_path, scope, page_number, page_number)
-        chunks.append(Chunk(
-            file_path=file_path,
-            start_line=page_number,
-            end_line=page_number,
-            content=current_text,
-            scope=scope,
-            language=language,
-            context_header=header,
-        ))
+        chunks.append(
+            Chunk(
+                file_path=file_path,
+                start_line=page_number,
+                end_line=page_number,
+                content=current_text,
+                scope=scope,
+                language=language,
+                context_header=header,
+            )
+        )
 
     return chunks

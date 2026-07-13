@@ -123,6 +123,7 @@ class APIEmbedder:
     def client(self):
         if self._client is None:
             from openai import OpenAI
+
             self._client = OpenAI(api_key=self._api_key, timeout=30)
         return self._client
 
@@ -165,8 +166,7 @@ class VoyageEmbedder:
         self._api_key = VOYAGE_API_KEY
         if not self._api_key:
             raise ValueError(
-                "VOYAGE_API_KEY environment variable is required for the voyage embedding "
-                "backend."
+                "VOYAGE_API_KEY environment variable is required for the voyage embedding backend."
             )
         self.model_name = model_name
         self.expected_dim = expected_dim

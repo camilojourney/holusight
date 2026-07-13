@@ -104,8 +104,8 @@ class TestRunEval:
         """Correct answer at rank 2 → MRR=0.5."""
         store, embedder = self._make_store_embedder()
         results = [
-            _make_result("src/other.py"),       # rank 1 — not matching
-            _make_result("src/chunker.py"),      # rank 2 — matches
+            _make_result("src/other.py"),  # rank 1 — not matching
+            _make_result("src/chunker.py"),  # rank 2 — matches
         ]
 
         with patch("codesight.search.hybrid_search", return_value=results):
