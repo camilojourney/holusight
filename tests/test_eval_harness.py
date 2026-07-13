@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from codesight.types import SearchResult
-from tests.eval_harness import EvalQuery, EvalResult, _count_tokens, run_eval
+from tests.eval_harness import EvalQuery, _count_tokens, run_eval
 
 
 def _make_result(

@@ -16,14 +16,14 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
 from .config import (
     DEFAULT_CHUNK_MAX_LINES,
     DEFAULT_CHUNK_OVERLAP_LINES,
     DEFAULT_DOC_CHUNK_MAX_CHARS,
     DEFAULT_DOC_CHUNK_OVERLAP_CHARS,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Language-specific boundary patterns
@@ -445,7 +445,7 @@ def chunk_file_ast(
     first_seg_start = merged[0][0] if merged else len(all_lines)
     if first_seg_start > 0:
         leading = all_lines[:first_seg_start]
-        if any(l.strip() for l in leading):
+        if any(line.strip() for line in leading):
             chunks.extend(
                 _split_by_windows(leading, file_path, language, max_lines, 0)
             )
@@ -455,7 +455,7 @@ def chunk_file_ast(
         # Gap between segments (e.g., module-level constants between functions)
         if seg_start > prev_end:
             gap = all_lines[prev_end:seg_start]
-            if any(l.strip() for l in gap):
+            if any(line.strip() for line in gap):
                 chunks.extend(
                     _split_by_windows(gap, file_path, language, max_lines, 0,
                                       line_offset=prev_end)
@@ -480,7 +480,7 @@ def chunk_file_ast(
     # Trailing lines after last segment
     if prev_end < len(all_lines):
         trailing = all_lines[prev_end:]
-        if any(l.strip() for l in trailing):
+        if any(line.strip() for line in trailing):
             chunks.extend(
                 _split_by_windows(trailing, file_path, language, max_lines, 0,
                                   line_offset=prev_end)

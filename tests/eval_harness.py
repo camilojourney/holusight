@@ -15,10 +15,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from codesight.search import hybrid_search as HybridSearchFn
-    from codesight.store import ChunkStore
-    from codesight.embeddings import Embedder
     from codesight.config import ServerConfig
+    from codesight.embeddings import Embedder
+    from codesight.store import ChunkStore
 
 
 def _count_tokens(text: str) -> int:
