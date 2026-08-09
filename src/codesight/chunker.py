@@ -113,6 +113,40 @@ class Chunk:
 # Scope detection helpers
 # ---------------------------------------------------------------------------
 
+# (regex, label template with {name}) — tried in order per language
+_JS_TS_SCOPE_PATTERNS: tuple[tuple[str, str], ...] = (
+    (r"(?:export\s+)?function\s+(\w+)", "function {name}"),
+    (r"(?:export\s+)?class\s+(\w+)", "class {name}"),
+    (r"(?:export\s+)?(?:const|let|var)\s+(\w+)", "const {name}"),
+)
+
+_SCOPE_PATTERNS: dict[str, tuple[tuple[str, str], ...]] = {
+    "python": (
+        (r"(async\s+)?def\s+(\w+)", "function {name}"),
+        (r"class\s+(\w+)", "class {name}"),
+    ),
+    "javascript": _JS_TS_SCOPE_PATTERNS,
+    "typescript": _JS_TS_SCOPE_PATTERNS,
+    "go": (
+        (r"func\s+(?:\(\w+\s+\*?\w+\)\s+)?(\w+)", "function {name}"),
+        (r"type\s+(\w+)", "type {name}"),
+    ),
+    "rust": (
+        (r"(?:pub\s+)?fn\s+(\w+)", "function {name}"),
+        (r"(?:pub\s+)?struct\s+(\w+)", "struct {name}"),
+        (r"(?:pub\s+)?impl\s+(\w+)", "impl {name}"),
+    ),
+}
+
+
+def _scope_from_patterns(first_line: str, language: str) -> str | None:
+    """Return a scope label when first_line matches a language-specific pattern."""
+    for pattern, label in _SCOPE_PATTERNS.get(language, ()):
+        match = re.match(pattern, first_line)
+        if match:
+            return label.format(name=match.group(match.lastindex or 1))
+    return None
+
 
 def _detect_scope(first_line: str, language: str) -> str:
     """Extract a human-readable scope label from the first line of a chunk."""
@@ -120,53 +154,12 @@ def _detect_scope(first_line: str, language: str) -> str:
     if not first_line:
         return "module-level"
 
-    # Python: "def foo(...)" -> "function foo"
-    if language == "python":
-        m = re.match(r"(async\s+)?def\s+(\w+)", first_line)
-        if m:
-            return f"function {m.group(2)}"
-        m = re.match(r"class\s+(\w+)", first_line)
-        if m:
-            return f"class {m.group(1)}"
+    scope = _scope_from_patterns(first_line, language)
+    if scope is not None:
+        return scope
 
-    # JS/TS
-    if language in ("javascript", "typescript"):
-        m = re.match(r"(?:export\s+)?function\s+(\w+)", first_line)
-        if m:
-            return f"function {m.group(1)}"
-        m = re.match(r"(?:export\s+)?class\s+(\w+)", first_line)
-        if m:
-            return f"class {m.group(1)}"
-        m = re.match(r"(?:export\s+)?(?:const|let|var)\s+(\w+)", first_line)
-        if m:
-            return f"const {m.group(1)}"
-
-    # Go
-    if language == "go":
-        m = re.match(r"func\s+(?:\(\w+\s+\*?\w+\)\s+)?(\w+)", first_line)
-        if m:
-            return f"function {m.group(1)}"
-        m = re.match(r"type\s+(\w+)", first_line)
-        if m:
-            return f"type {m.group(1)}"
-
-    # Rust
-    if language == "rust":
-        m = re.match(r"(?:pub\s+)?fn\s+(\w+)", first_line)
-        if m:
-            return f"function {m.group(1)}"
-        m = re.match(r"(?:pub\s+)?struct\s+(\w+)", first_line)
-        if m:
-            return f"struct {m.group(1)}"
-        m = re.match(r"(?:pub\s+)?impl\s+(\w+)", first_line)
-        if m:
-            return f"impl {m.group(1)}"
-
-    # Fallback: use the first significant token
     tokens = first_line.split()
-    if tokens:
-        return tokens[0]
-    return "unknown"
+    return tokens[0] if tokens else "unknown"
 
 
 def _make_context_header(file_path: str, scope: str, start_line: int, end_line: int) -> str:
