@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Holusight - hybrid BM25 + vector document and code search with RRF retrieval and source citations. Local-first AI search for your files." />
+  <title>Holusight - Hybrid Document &amp; Code Search</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0E1117;
+      color: #E8EAED;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      max-width: 720px;
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .logo {
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      background: linear-gradient(135deg, #F5A623, #e8890c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .subtitle {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #F5A623;
+      margin-bottom: 20px;
+    }
+    .tagline {
+      font-size: 20px;
+      color: #a1a1aa;
+      margin-bottom: 40px;
+      line-height: 1.6;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 40px;
+      text-align: left;
+    }
+    .feature {
+      background: #1A1D26;
+      border: 1px solid rgba(245, 166, 35, 0.12);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .feature h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #E8EAED;
+      margin-bottom: 6px;
+    }
+    .feature p {
+      font-size: 13px;
+      color: #71717a;
+      line-height: 1.5;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+    .cta {
+      display: inline-block;
+      padding: 14px 28px;
+      background: linear-gradient(135deg, #F5A623, #e8890c);
+      color: #0E1117;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .cta:hover { opacity: 0.9; }
+    .cta-secondary {
+      display: inline-block;
+      padding: 14px 28px;
+      background: transparent;
+      color: #E8EAED;
+      font-size: 15px;
+      font-weight: 600;
+      border: 1px solid rgba(245, 166, 35, 0.35);
+      border-radius: 8px;
+      text-decoration: none;
+      transition: border-color 0.2s;
+    }
+    .cta-secondary:hover { border-color: #F5A623; }
+    .demo {
+      background: #1A1D26;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 20px 24px;
+      text-align: left;
+      margin-bottom: 32px;
+    }
+    .demo h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #F5A623;
+      margin-bottom: 10px;
+    }
+    .demo pre {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 13px;
+      color: #a1a1aa;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+    .footer {
+      font-size: 13px;
+      color: #52525b;
+      line-height: 1.6;
+    }
+    .footer a { color: #71717a; }
+    @media (max-width: 560px) {
+      .features { grid-template-columns: 1fr; }
+      .logo { font-size: 38px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">Holusight</div>
+    <p class="subtitle">camilojourney/holusight</p>
+    <p class="tagline">
+      Hybrid BM25 + vector search with reciprocal rank fusion.<br/>
+      Index documents and code locally - ask questions, get cited answers.
+    </p>
+
+    <div class="features">
+      <div class="feature">
+        <h3>Hybrid Retrieval</h3>
+        <p>BM25 keyword search fused with dense vectors via RRF. Catches exact terms and semantic matches.</p>
+      </div>
+      <div class="feature">
+        <h3>Documents &amp; Code</h3>
+        <p>PDF, Word, PowerPoint, markdown, and source files - one index, AST-aware chunking for code.</p>
+      </div>
+      <div class="feature">
+        <h3>Local-First</h3>
+        <p>Indexes live on your machine. Your files never leave your environment unless you choose a cloud LLM.</p>
+      </div>
+      <div class="feature">
+        <h3>Source Citations</h3>
+        <p>Every answer links back to the exact chunk, file, and line range that supported it.</p>
+      </div>
+    </div>
+
+    <div class="demo">
+      <h3>Try it locally</h3>
+      <pre>pip install -e ".[dev,demo]"
+python -m codesight index ./your-docs
+python -m codesight search "payment terms" ./your-docs
+python -m codesight demo</pre>
+    </div>
+
+    <div class="actions">
+      <a class="cta" href="https://github.com/camilojourney/holusight">View on GitHub</a>
+      <a class="cta-secondary" href="mailto:juan@camilomartinez.co">Contact</a>
+    </div>
+
+    <div class="footer">
+      Open-source document intelligence.<br/>
+      Python package: <a href="https://github.com/camilojourney/holusight">codesight</a>
+    </div>
+  </div>
+</body>
+</html>
