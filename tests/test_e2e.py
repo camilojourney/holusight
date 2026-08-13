@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from codesight.api import CodeSight
+from codesight import config as config_module
 from codesight.config import ServerConfig
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "pilot_docs"
@@ -16,7 +17,7 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures" / "pilot_docs"
 @pytest.fixture
 def indexed_engine(tmp_path, monkeypatch):
     """Index pilot fixtures into an isolated data directory."""
-    monkeypatch.setenv("CODESIGHT_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
     engine = CodeSight(FIXTURES, config=ServerConfig())
     stats = engine.index(force_rebuild=True)
     assert stats.files_indexed >= 2
@@ -65,7 +66,7 @@ class TestE2ERetrieval:
     def test_empty_collection_returns_no_results(self, tmp_path, monkeypatch):
         empty = tmp_path / "empty"
         empty.mkdir()
-        monkeypatch.setenv("CODESIGHT_DATA_DIR", str(tmp_path / "data"))
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
         engine = CodeSight(empty, config=ServerConfig())
         engine.index()
         results = engine.search("anything")
@@ -84,7 +85,7 @@ class TestE2ERetrieval:
 
     def test_index_persists_across_engine_restart(self, tmp_path, monkeypatch):
         data_dir = tmp_path / "data"
-        monkeypatch.setenv("CODESIGHT_DATA_DIR", str(data_dir))
+        monkeypatch.setattr(config_module, "DATA_DIR", data_dir)
         e1 = CodeSight(FIXTURES, config=ServerConfig())
         e1.index(force_rebuild=True)
         count = e1.store.chunk_count

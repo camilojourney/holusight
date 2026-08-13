@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "src/codesight/web/static/app.js": {
-    "mtime": 1786586316.3371882,
-    "ast_hash": "4c32a37a64cd73f48a318c341927fcfd",
+    "mtime": 1786586820.0784059,
+    "ast_hash": "1fe2d8fa08b31357430a67659c69c2e5",
     "semantic_hash": ""
   },
   "tests/__init__.py": {
@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   "business/proposals/templates/presentation-deck.md": {
-    "mtime": 1786586573.8614707,
-    "ast_hash": "62de7b774270c783ffe3622317f5d7dc",
+    "mtime": 1786586820.0788376,
+    "ast_hash": "e85c2412f0fbd2eabf6718c31778062e",
     "semantic_hash": ""
   },
   "business/proposals/templates/proposal.md": {
@@ -490,8 +490,8 @@
     "semantic_hash": ""
   },
   "docs/playbooks/client-pitch.md": {
-    "mtime": 1786586573.8605833,
-    "ast_hash": "f8451b52b4e9f4c12a872303124774a9",
+    "mtime": 1786586820.0791924,
+    "ast_hash": "546d5c3ad62e21c529b3fe5d063a9a90",
     "semantic_hash": ""
   },
   "docs/playbooks/development.md": {
@@ -500,8 +500,8 @@
     "semantic_hash": ""
   },
   "docs/playbooks/docker-deployment.md": {
-    "mtime": 1786586573.8628044,
-    "ast_hash": "8d948249b4465ed2c45726ff2a44d8ee",
+    "mtime": 1786586820.0793393,
+    "ast_hash": "3f7ddfee9a1a4a4e7556764589c6cc1d",
     "semantic_hash": ""
   },
   "docs/playbooks/investigate-bug.md": {
@@ -605,8 +605,8 @@
     "semantic_hash": ""
   },
   "specs/008-docker-deployment-fastapi.md": {
-    "mtime": 1786586316.3354402,
-    "ast_hash": "a939d599f92ec6642237aeafbb3f892a",
+    "mtime": 1786586820.0795412,
+    "ast_hash": "0afa56485a01c639c649cfaafde854be",
     "semantic_hash": ""
   },
   "specs/009-cnfb-multiplicative-filename-boost.md": {

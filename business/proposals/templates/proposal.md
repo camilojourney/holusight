@@ -39,7 +39,7 @@ We deploy **CodeSight** — a hybrid AI search engine that combines keyword matc
 
 - **Answers questions**, not just finds files — "What are the payment terms in the Acme contract?" returns the actual answer with the page number
 - **Searches across documents** — finds information scattered across multiple files
-- **Runs on your infrastructure** — no data leaves your network
+- **Runs on your infrastructure** — document indexing and search stay on your deployment
 
 ### What gets indexed
 
@@ -131,7 +131,7 @@ Do not publish unverified Copilot/Glean ROI or per-user comparisons in the clien
 
 1. **Working product.** CodeSight is built and deployed — not a prototype. We demo with your actual documents.
 2. **Speed.** Working system in days, not months.
-3. **Privacy.** Your data never leaves your infrastructure. Open source, fully auditable.
+3. **Privacy.** Document indexing and search run on your infrastructure; cloud answer providers may receive retrieved context. Open source, fully auditable.
 4. **Cost.** Fraction of enterprise alternatives (Glean: $45-50/user/month, Copilot: $30/user/month).
 5. **No lock-in.** Open source tool. If you stop working with us, the system keeps running.
 

@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import shutil
 import subprocess
+from threading import Thread
+from urllib.request import urlopen
 
 import pytest
 
@@ -20,6 +24,20 @@ CANONICAL_PUBLIC_SITE = "https://holusight.com/"
 
 def _load_vercel_config() -> dict:
     return json.loads(VERCEL_CONFIG.read_text(encoding="utf-8"))
+
+
+def _fetch_landing_page(page: str) -> str:
+    handler = partial(SimpleHTTPRequestHandler, directory=str(REPO_ROOT / "landing"))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with urlopen(f"http://127.0.0.1:{server.server_port}/{page}") as response:
+            assert response.status == 200
+            return response.read().decode("utf-8")
+    finally:
+        server.shutdown()
+        thread.join()
 
 
 def test_vercel_output_directory_contains_index_html():
@@ -80,18 +98,16 @@ FORBIDDEN_AFFIRMATIVE_CLAIMS = (
 
 def test_public_site_does_not_claim_unshipped_capabilities():
     """Marketing copy must not claim planned or unverified capabilities."""
-    landing = REPO_ROOT / "landing"
-    pages = list(landing.glob("*.html"))
-    assert pages
+    pages = ("index.html", "docs.html", "pricing.html")
     for page in pages:
-        text = page.read_text(encoding="utf-8")
+        text = _fetch_landing_page(page)
         for claim in FORBIDDEN_AFFIRMATIVE_CLAIMS:
-            assert claim.lower() not in text.lower(), f"{page.name} claims {claim!r}"
+            assert claim.lower() not in text.lower(), f"{page} claims {claim!r}"
 
 
 def test_public_site_states_static_boundary_and_pilot_range():
-    home = (REPO_ROOT / "landing" / "index.html").read_text(encoding="utf-8")
-    pricing = (REPO_ROOT / "landing" / "pricing.html").read_text(encoding="utf-8")
+    home = _fetch_landing_page("index.html")
+    pricing = _fetch_landing_page("pricing.html")
     assert "does not index" in home.lower() or "static" in home.lower()
     assert "$1,000" in pricing and "$2,000" in pricing
 

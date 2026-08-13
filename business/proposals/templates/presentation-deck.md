@@ -39,7 +39,7 @@
 >
 > [Screenshot of the Streamlit chat UI with a real answer]
 
-**Say:** "I don't replace your SharePoint, your Drive, or your email. I make them searchable. Your team opens a web chat, types a question like they'd ask a colleague, and gets the exact answer — with the file name and page number."
+**Say:** "I don't replace your existing systems. We start with a customer-mounted folder or repository export. Your team opens a web chat, types a question like they'd ask a colleague, and gets the exact answer — with the file name and page number."
 
 ---
 
@@ -136,9 +136,9 @@
 > 2. Hybrid search — keyword + semantic + reranking, not just vector-only like competitors
 > 3. Your data stays on your infrastructure — search is 100% local
 > 4. Open source — no lock-in, no vendor dependency
-> 5. Built to grow: today it searches folders, next it connects to email + SharePoint + Teams
+> 5. Built to grow: today it searches folders; future integrations are separately scoped
 
-**Say:** "I'm not selling you vaporware. You just saw it work with [your/realistic] documents. I can have this running for your team in days. And here's the roadmap: today we start with your documents in a folder. Next phase, we can connect it to your email, your SharePoint, your Teams — all searchable from one chat. Each phase builds on the last. You're not buying a dead-end tool, you're starting a platform."
+**Say:** "I'm not selling you vaporware. You just saw it work with [your/realistic] documents. I can have this running for your team in days. Today we start with your documents in a folder. Additional corpora and future integrations can be separately scoped after the pilot. Each phase builds on the last. You're not buying a dead-end tool, you're starting with a focused deployment."
 
 ---
 
@@ -147,7 +147,7 @@
 **On screen:**
 > **Let's start with a pilot.**
 >
-> 1 project. 2 weeks. $[7,500-10,000].
+> 1 project. 2 weeks. $[1,000-2,000].
 > Money-back guarantee.
 >
 > [email] | [phone]
@@ -168,4 +168,4 @@
 | "Isn't this just RAG?" | "RAG is the category. Most implementations use basic vector search. We use hybrid BM25 + vector + RRF — that's what production search engines use. The retrieval is the hard part." |
 | "What if we outgrow it?" | "This is built for 500-5K documents per project. If you grow to millions across the whole org, you'll want Glean. But most teams don't need that — and this engagement tells you exactly what you'd need next." |
 | "Can't we just use Claude Projects?" | "Claude Projects handles 20-30 files, no persistent index, $20/user/month, data goes to Anthropic. This handles thousands of documents, local search, persistent index." |
-| "What happens after the pilot?" | "If it works, we scale: more projects, connect email and SharePoint, multi-department rollout. Each phase has a clear price. You're never locked in — it's open source." |
+| "What happens after the pilot?" | "If it works, we scale to additional customer-mounted corpora or separately scoped future integrations. Each phase has a clear price. You're never locked in — it's open source." |
