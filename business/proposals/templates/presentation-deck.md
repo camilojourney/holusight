@@ -148,11 +148,11 @@
 > **Let's start with a pilot.**
 >
 > 1 project. 2 weeks. $[1,000-2,000].
-> Money-back guarantee.
+> Any guarantee is documented in the SOW.
 >
 > [email] | [phone]
 
-**Say:** "The lowest-risk way to try this: pick one project, give me the documents, and I'll have it running in a week. Your team uses it for a week. If it doesn't save them time, you pay nothing. When can we start?"
+**Say:** "The lowest-risk way to try this: pick one project, give me the documents, and I'll have it running in a week. Your team uses it for a week, then we review the agreed acceptance metrics. Any guarantee is documented in the SOW. When can we start?"
 
 ---
 
