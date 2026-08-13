@@ -2,6 +2,8 @@
 
 AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with pluggable LLM answer synthesis.
 
+The live public site is [holusight.com](https://holusight.com/). That is Holusight's public marketing site; document indexing stays local-first, so indexed files are not published there and do not leave your environment by default.
+
 ## Quick Start
 
 ```bash
