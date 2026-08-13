@@ -20,6 +20,8 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `README.md` | Human-facing project overview. |
 | `COMPARISON.md` | Competitive comparison analysis. |
 | `justfile` | Unified task runner (`just --list` to discover). |
+| `landing/` | Static public site for holusight.com (Vercel `outputDirectory`). |
+| `vercel.json` | Vercel static deploy config; must point at a directory with `index.html`. |
 | `pyproject.toml` | Python package config and dependencies (uv). |
 | `.env.example` | Environment variable template. Never `.env` itself. |
 | `src/` | Core Python library (`src/codesight/`). |
@@ -409,3 +411,10 @@ Rules:
 - After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
 - In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
 <!-- graphify:end -->
+
+## Maintaining this file
+
+Keep this file for knowledge useful to almost every future agent session in this project.
+Do not repeat what the codebase already shows; point to the authoritative file or command instead.
+Prefer rewriting or pruning existing entries over appending new ones.
+When updating this file, preserve this bar for all agents and keep entries concise.

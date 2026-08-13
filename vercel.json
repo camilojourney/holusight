@@ -3,5 +3,5 @@
   "framework": null,
   "installCommand": "",
   "buildCommand": null,
-  "outputDirectory": "docs"
+  "outputDirectory": "landing"
 }
