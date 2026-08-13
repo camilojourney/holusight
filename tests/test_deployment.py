@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from markdown_it import MarkdownIt
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 README = REPO_ROOT / "README.md"
 VERCEL_CONFIG = REPO_ROOT / "vercel.json"
@@ -36,9 +38,14 @@ def test_vercel_config_is_static_site_not_python_build():
     assert config["outputDirectory"] == "landing"
 
 
-def test_readme_links_canonical_public_site():
-    """Human-facing README must keep the canonical holusight.com link discoverable."""
-    readme = README.read_text(encoding="utf-8")
-    assert CANONICAL_PUBLIC_SITE in readme, (
-        f"{README} must include the canonical public-site URL {CANONICAL_PUBLIC_SITE}"
-    )
+def test_readme_renders_canonical_public_site_link():
+    """Human-facing README must render the canonical public-site link."""
+    tokens = MarkdownIt("commonmark").parse(README.read_text(encoding="utf-8"))
+    destinations = {
+        child.attrGet("href")
+        for token in tokens
+        for child in token.children or []
+        if child.type == "link_open"
+    }
+
+    assert CANONICAL_PUBLIC_SITE in destinations
