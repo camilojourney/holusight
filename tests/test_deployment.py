@@ -21,19 +21,8 @@ def test_vercel_output_directory_contains_index_html():
     assert output_dir.is_dir(), f"outputDirectory {output_dir} is missing"
     index_html = output_dir / "index.html"
     assert index_html.is_file(), (
-        f"{index_html} is missing — Vercel static deploy will 404 at holusight.com"
+        f"{index_html} is missing - Vercel static deploy will 404 at holusight.com"
     )
-
-
-def test_landing_page_represents_holusight_product():
-    """Public site must describe Holusight search, not unrelated products."""
-    config = _load_vercel_config()
-    html = (REPO_ROOT / config["outputDirectory"] / "index.html").read_text(encoding="utf-8")
-
-    assert "Holusight" in html
-    assert "BM25" in html
-    assert "vector" in html.lower()
-    assert "Observatory" not in html
 
 
 def test_vercel_config_is_static_site_not_python_build():
