@@ -12,6 +12,8 @@ COPY src ./src
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -e ".[server]"
 
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
 ENV CODESIGHT_DATA_DIR=/index
 ENV CODESIGHT_DOCUMENTS_DIR=/data
 ENV CODESIGHT_PRODUCTION=1

@@ -30,7 +30,10 @@
 
   function locationLabel(source) {
     const scope = source.scope || "";
-    if (scope.startsWith("page ") || scope.startsWith("section ") || scope.startsWith("slide ")) {
+    if (scope.startsWith("slide ")) {
+      return `slide ${source.start_line}-${source.end_line}`;
+    }
+    if (scope.startsWith("page ") || scope.startsWith("section ")) {
       return `page ${source.start_line}-${source.end_line}`;
     }
     return `lines ${source.start_line}-${source.end_line}`;

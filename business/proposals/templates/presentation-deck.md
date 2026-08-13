@@ -67,7 +67,7 @@
 ## Slide 5: Data Privacy
 
 **On screen:**
-> **Your data never leaves your network.**
+> **Your documents stay on your infrastructure.**
 >
 > | What | Where it runs |
 > |------|--------------|
@@ -77,7 +77,7 @@
 >
 > Open source — audit every line of code.
 
-**Say:** "This is usually the first question I get, so let me address it upfront. Search and indexing run entirely on your infrastructure. No internet connection needed. The only time data goes anywhere is when you want an AI-generated answer — and you choose where: your Azure tenant, a cloud API, or a completely local model with zero network activity. I'm never in the middle."
+**Say:** "This is usually the first question I get, so let me address it upfront. Search and indexing run entirely on your infrastructure. If you choose cloud answer synthesis, retrieved context is sent to that provider under your account. For fully local answers, configure Ollama. I'm never in the middle."
 
 ---
 

@@ -9,6 +9,8 @@ Deploy Holusight as a single-team pilot on the customer's infrastructure.
 - API key for the deployment (`CODESIGHT_API_KEY`)
 - Optional: LLM provider credentials for **Ask** mode (Search works without any LLM)
 
+The image downloads and caches the default local embedding model during the Docker build. Build it on a connected machine before moving it to an air-gapped environment. Cloud answer providers still require their network access; use Ollama for fully local answers.
+
 ## Quick start (pilot)
 
 ```bash

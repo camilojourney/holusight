@@ -76,7 +76,7 @@ You can verify this by running the tool with network monitoring. Search works wi
 
 ### "Can we run this completely offline / air-gapped?"
 
-Yes. Use a local embedding model (default) + local LLM (Ollama). Zero internet required after initial setup. Deploy on an air-gapped server with:
+Yes, after the image or embedding model has been prepared while connected. Use a local embedding model (default) + local LLM (Ollama). Runtime search and fully local answers then need no internet. Deploy on an air-gapped server with:
 - The Python package (pre-downloaded)
 - The embedding model (pre-downloaded, ~270MB)
 - The LLM model (pre-downloaded via Ollama, ~4-8GB)
