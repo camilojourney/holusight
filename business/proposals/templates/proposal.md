@@ -123,7 +123,7 @@ Your team member opens web chat
 
 Do not publish unverified Copilot/Glean ROI or per-user comparisons in the client-facing copy unless the client supplies their own numbers.
 
-**Terms:** 50% upfront, 50% on delivery. Money-back guarantee on pilot phase.
+**Terms:** 50% upfront, 50% on delivery. Any guarantee must be explicitly negotiated in the SOW.
 
 ---
 
