@@ -34,18 +34,17 @@ AI-powered document search that works with your existing [M365 / Google Workspac
 - Technical specs
 - [Client-specific document types]
 
-### THE NUMBERS
+### THE ENGAGEMENT
 
-[Customize with client's actual team size and estimated search time]
+Recommended starting range (not a published SaaS list price):
 
-| | Without CodeSight | With CodeSight |
-|--|-------------------|----------------|
-| Finding a document | 15-30 minutes | 5 seconds |
-| Monthly search time ([X] people) | [X] hours | [X] hours |
-| Monthly cost of lost productivity | $[X] | — |
-| **CodeSight cost** | — | **$50-200/month** |
+| Item | Range |
+|------|-------|
+| 2-week single-team pilot | **$8,000–$12,000** |
+| Optional monthly support | **$500–$1,000** |
+| Customer VM / LLM API | Customer-owned |
 
-**Pays for itself in [X] weeks.**
+Do not invent ROI hours or “pays for itself” claims. Use the client’s own discovery numbers if they provide them.
 
 ### DATA PRIVACY
 
@@ -56,7 +55,6 @@ AI-powered document search that works with your existing [M365 / Google Workspac
 
 ### NEXT STEP
 
-Let's run a 2-week pilot on [one project / one department]. $[7,500-10,000].
-If it doesn't save your team time, you pay nothing.
+Let's run a 2-week pilot on [one project / one department]. Recommended starting range: $8,000–$12,000. Terms (including any guarantee) are negotiated in the SOW — do not promise “pay nothing” unless the signed SOW says so.
 
 **Contact:** [email] | [website]

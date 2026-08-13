@@ -29,6 +29,15 @@ def test_vercel_output_directory_contains_index_html():
     )
 
 
+def test_landing_pages_exist():
+    """Key marketing/docs pages must exist for holusight.com navigation."""
+    config = _load_vercel_config()
+    output_dir = REPO_ROOT / config["outputDirectory"]
+    for page in ("index.html", "docs.html", "pricing.html"):
+        assert (output_dir / page).is_file(), f"missing landing/{page}"
+    assert (output_dir / "css" / "site.css").is_file()
+
+
 def test_vercel_config_is_static_site_not_python_build():
     """Keep Vercel deploy as a static landing page, not a Streamlit/FastAPI build."""
     config = _load_vercel_config()
@@ -49,3 +58,42 @@ def test_readme_renders_canonical_public_site_link():
     }
 
     assert CANONICAL_PUBLIC_SITE in destinations
+
+
+FORBIDDEN_AFFIRMATIVE_CLAIMS = (
+    "50 concurrent users",
+    "supports 50 users",
+    "SOC 2 certified",
+    "SOC2 certified",
+    "HIPAA compliant",
+    "SAML included",
+    "Graphify-powered",
+    "live Microsoft 365 integration",
+    "live M365 integration",
+)
+
+
+def test_public_site_does_not_claim_unshipped_capabilities():
+    """Marketing copy must not claim planned or unverified capabilities."""
+    landing = REPO_ROOT / "landing"
+    pages = list(landing.glob("*.html"))
+    assert pages
+    for page in pages:
+        text = page.read_text(encoding="utf-8")
+        for claim in FORBIDDEN_AFFIRMATIVE_CLAIMS:
+            assert claim.lower() not in text.lower(), f"{page.name} claims {claim!r}"
+
+
+def test_public_site_states_static_boundary_and_pilot_range():
+    home = (REPO_ROOT / "landing" / "index.html").read_text(encoding="utf-8")
+    pricing = (REPO_ROOT / "landing" / "pricing.html").read_text(encoding="utf-8")
+    assert "does not index" in home.lower() or "static" in home.lower()
+    assert "$8,000" in pricing and "$12,000" in pricing
+
+
+def test_docker_files_exist_and_require_api_key():
+    dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "CODESIGHT_PRODUCTION=1" in dockerfile
+    assert "CODESIGHT_API_KEY" in compose
+    assert ":ro" in compose

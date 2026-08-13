@@ -34,6 +34,15 @@ python -m codesight status /path/to/documents
 # Launch the web chat UI
 pip install -e ".[demo]"
 python -m codesight demo
+
+# Production server (FastAPI + browser UI)
+pip install -e ".[server]"
+export CODESIGHT_API_KEY=$(openssl rand -hex 24)
+export CODESIGHT_DOCUMENTS_DIR=/path/to/documents
+python -m codesight serve
+
+# Or use Docker (see docs/playbooks/docker-deployment.md)
+docker compose up --build
 ```
 
 ## Python API
@@ -87,6 +96,19 @@ Measured on the holusight codebase (96 files, 20 representative queries):
 
 **AST chunking is the largest single lever** (+0.224 MRR). The local `ms-marco` cross-encoder hurts code retrieval — only enable it explicitly.
 
+## Deployment (pilot)
+
+Single-team production shape: FastAPI server, browser UI, API key auth, read-only document mount.
+
+```bash
+export CODESIGHT_API_KEY=$(openssl rand -hex 24)
+docker compose up --build
+```
+
+See [docs/playbooks/docker-deployment.md](docs/playbooks/docker-deployment.md) and the [capability matrix](specs/010-capability-inventory.md) for what is shipped vs planned.
+
+**holusight.com** is a static marketing site only — customer documents are indexed on the customer's deployment.
+
 ## Configuration
 
 | Variable | Default | Description |
@@ -111,5 +133,6 @@ See [.env.example](.env.example) for all options.
 - sentence-transformers + voyage-code-3 (optional)
 - tree-sitter (optional — AST chunking for Python/JS/TS)
 - Anthropic Claude API / Azure OpenAI / OpenAI / Ollama
-- Streamlit (web chat UI)
+- Streamlit (local demo UI)
+- FastAPI + uvicorn (single-team production server, optional `[server]` extra)
 - pymupdf, python-docx, python-pptx (document parsing)

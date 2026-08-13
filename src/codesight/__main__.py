@@ -6,6 +6,7 @@ Usage:
     python -m codesight ask "question" [path]    Ask a question (uses Claude)
     python -m codesight status [path]            Check index status
     python -m codesight demo                     Launch Streamlit web chat
+    python -m codesight serve                    Launch FastAPI production server
 """
 
 from __future__ import annotations
@@ -76,6 +77,15 @@ def main():
     # demo
     sub.add_parser("demo", help="Launch Streamlit web chat UI")
 
+    # serve
+    p_serve = sub.add_parser("serve", help="Launch FastAPI production server")
+    p_serve.add_argument("--host", default="0.0.0.0", help="Bind host")
+    p_serve.add_argument("--port", type=int, default=8000, help="Bind port")
+    p_serve.add_argument(
+        "path", nargs="?", default=None,
+        help="Document folder (sets CODESIGHT_DOCUMENTS_DIR)",
+    )
+
     args = parser.parse_args()
     _configure_logging(getattr(args, "verbose", False))
 
@@ -85,6 +95,10 @@ def main():
 
     if args.command == "demo":
         _launch_demo()
+        return
+
+    if args.command == "serve":
+        _launch_serve(args)
         return
 
     # Lazy import to avoid loading heavy deps for --help
@@ -201,6 +215,39 @@ def _launch_demo():
         print(f"Demo app not found at {app_path}", file=sys.stderr)
         sys.exit(1)
     subprocess.run(["streamlit", "run", str(app_path)], check=True)
+
+
+def _launch_serve(args) -> None:
+    """Launch the FastAPI production server."""
+    import os
+    from pathlib import Path
+
+    if args.path:
+        docs = Path(args.path).expanduser().resolve()
+        if not docs.is_dir():
+            print(f"Error: Not a directory: {args.path}", file=sys.stderr)
+            sys.exit(1)
+        os.environ["CODESIGHT_DOCUMENTS_DIR"] = str(docs)
+
+    # Production-shaped unless explicitly opted out
+    if not os.environ.get("CODESIGHT_ALLOW_UNAUTHENTICATED"):
+        os.environ.setdefault("CODESIGHT_PRODUCTION", "1")
+
+    try:
+        import uvicorn
+    except ImportError:
+        print(
+            "FastAPI server dependencies missing. Install with: pip install -e \".[server]\"",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    uvicorn.run(
+        "codesight.web.server:app",
+        host=args.host,
+        port=args.port,
+        reload=False,
+    )
 
 
 if __name__ == "__main__":

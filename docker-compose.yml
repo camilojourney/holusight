@@ -1,0 +1,26 @@
+# Holusight single-team pilot deployment
+# Usage:
+#   export CODESIGHT_API_KEY=$(openssl rand -hex 24)
+#   docker compose up --build
+# Open http://localhost:8000 and enter the API key in the sidebar.
+
+services:
+  holusight:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      CODESIGHT_API_KEY: ${CODESIGHT_API_KEY:?Set CODESIGHT_API_KEY in .env or shell}
+      CODESIGHT_PRODUCTION: "1"
+      CODESIGHT_DATA_DIR: /index
+      CODESIGHT_DOCUMENTS_DIR: /data
+      CODESIGHT_LLM_BACKEND: ${CODESIGHT_LLM_BACKEND:-claude}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./tests/fixtures/pilot_docs:/data:ro
+      - holusight-index:/index
+    restart: unless-stopped
+
+volumes:
+  holusight-index:

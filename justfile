@@ -4,9 +4,13 @@ default:
 
 # ─── Development ──────────────────────────────────
 
-# Run the demo app
+# Run the Streamlit demo app
 dev:
     uv run --extra demo python -m codesight demo
+
+# Run FastAPI server against fixture docs (dev auth escape hatch)
+serve:
+    CODESIGHT_ALLOW_UNAUTHENTICATED=true uv run --extra server python -m codesight serve tests/fixtures/pilot_docs
 
 # Install dependencies (dev)
 install:
@@ -27,7 +31,7 @@ lint:
 
 # Run tests
 test:
-    uv run --extra dev pytest tests/ -x -v
+    uv run --extra dev --extra server pytest tests/ -x -v
 
 # ─── Autonomous Workers ──────────────────────────
 

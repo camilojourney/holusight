@@ -1,10 +1,10 @@
 # Spec 008: Docker Deployment + FastAPI Production Server
 
-**Status:** planned
-**Phase:** v0.4
+**Status:** implemented (single-team subset)
+**Phase:** v0.5 SMB pilot
 **Author:** Juan Martinez
 **Created:** 2026-02-28
-**Updated:** 2026-02-28
+**Updated:** 2026-08-13
 
 ## Problem
 

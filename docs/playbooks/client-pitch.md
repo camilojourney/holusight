@@ -93,15 +93,15 @@ For larger deployments where different teams need different access, this is on t
 
 ### "How much does this cost?"
 
-| Component | Cost |
-|-----------|------|
-| CodeSight software | Free (open source) |
-| Search & indexing | Free (runs locally, forever) |
-| AI answers (Claude API) | ~$0.01-0.03 per question |
-| AI answers (Ollama/local) | Free |
-| Consulting engagement | $5K-$25K (setup, customization, training) |
+| Component | Recommended framing |
+|-----------|---------------------|
+| CodeSight software | Open source engine |
+| Search & indexing | Runs locally; no Holusight usage fee |
+| Ask / LLM answers | Customer’s Claude / Azure / OpenAI / Ollama account |
+| 2-week pilot | **$8,000–$12,000** starting range |
+| Optional support | **$500–$1,000 / month** |
 
-Typical monthly cost for a 50-person team with 20 questions/user/day via Claude API: **$150-450/month.** Compare to Microsoft Copilot at **$1,500/month.**
+Do not quote unverified Copilot/Glean monthly totals or per-question token costs unless you have a current, dated source. Authoritative offer: `business/pilot-offer.md`.
 
 ### "Why should we pay for consulting if the software is free?"
 

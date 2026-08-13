@@ -6,7 +6,7 @@
 
 1. Create client folder: `proposals/clients/<name>/`
 2. Run **delivery-planner** agent to create delivery plan
-3. Get M365 / data source access from client (OAuth app registration)
+3. Confirm a read-only document folder (or git mirror) the customer can mount — M365 live sync is not in v1
 4. Identify the pilot project (1 department or project folder)
 
 ### Week 1: Discovery + Index

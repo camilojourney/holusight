@@ -47,18 +47,23 @@ _Benchmark: 52.5% hit rate / MRR 0.352 → 100% hit rate / MRR 0.823_
 - [x] **Dual LanceDB tables** — separate `chunks.lance` (doc embeddings) + `code_chunks.lance` (voyage-code-3)
 - [x] **95 passing tests** covering AST chunking, RRF merge, VPRF, metadata boost, reranker routing
 
-## v0.5 — Production Deployment + M365 Connectors ⏰ NEXT
+## v0.5 — Single-team Docker + FastAPI pilot ✅ DONE — 2026-08-13
 
-_This is the consulting-ready version. Must have before first client demo._
+_Consulting-ready for one team. Not a multi-tenant SaaS or M365 platform._
 
-- [ ] **Dockerfile** for single-command deployment
-- [ ] **FastAPI web server** (replaces Streamlit for multi-user production)
-- [ ] **Basic auth middleware** (API key or Bearer token)
-- [ ] **Microsoft Graph connector** — SharePoint + OneDrive (priority #1 connector)
-- [ ] **Outlook/Exchange connector** — email indexing via Graph API
-- [ ] **Email parsing** — `.eml`, `.msg`, `.xlsx` file formats
-- [ ] **Document sync** — pull from Azure Blob, S3, local mount
-- [ ] Concurrent request handling (async search + LLM calls)
+- [x] **Dockerfile** + `docker-compose.yml` for single-command deployment
+- [x] **FastAPI web server** with browser search/ask UI and citations
+- [x] **API key auth** (`X-API-Key` / Bearer) required in production-shaped runs
+- [x] Read-only document mount + persistent index volume
+- [x] Search works without an LLM key; Ask distinguishes synthesis provider
+- [x] Capability inventory: [specs/010-capability-inventory.md](../specs/010-capability-inventory.md)
+
+Still planned (not in this slice):
+- [ ] **Microsoft Graph connector** — SharePoint + OneDrive
+- [ ] **Outlook/Exchange connector**
+- [ ] **Email parsing** — `.eml`, `.msg`, `.xlsx`
+- [ ] **Document sync** from Azure Blob / S3
+- [ ] Concurrent-user SLA (not claimed)
 
 ## v0.6 — ACL Enforcement
 
