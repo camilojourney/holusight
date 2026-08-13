@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
+
+import pytest
 
 from markdown_it import MarkdownIt
 
@@ -88,12 +93,39 @@ def test_public_site_states_static_boundary_and_pilot_range():
     home = (REPO_ROOT / "landing" / "index.html").read_text(encoding="utf-8")
     pricing = (REPO_ROOT / "landing" / "pricing.html").read_text(encoding="utf-8")
     assert "does not index" in home.lower() or "static" in home.lower()
-    assert "$8,000" in pricing and "$12,000" in pricing
+    assert "$1,000" in pricing and "$2,000" in pricing
 
 
-def test_docker_files_exist_and_require_api_key():
-    dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
-    compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    assert "CODESIGHT_PRODUCTION=1" in dockerfile
-    assert "CODESIGHT_API_KEY" in compose
-    assert ":ro" in compose
+def test_compose_resolves_customer_mount_and_production_environment(tmp_path):
+    """Docker Compose's normalized model must protect the customer boundary."""
+    if shutil.which("docker") is None:
+        pytest.skip("Docker is not installed")
+
+    env = {
+        **os.environ,
+        "CODESIGHT_API_KEY": "test-key",
+        "CODESIGHT_DOCUMENTS_HOST_DIR": str(tmp_path),
+    }
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(REPO_ROOT / "docker-compose.yml"),
+            "config",
+            "--format",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    model = json.loads(result.stdout)
+    service = model["services"]["holusight"]
+    assert service["environment"]["CODESIGHT_PRODUCTION"] == "1"
+    assert service["environment"]["CODESIGHT_DOCUMENTS_DIR"] == "/data"
+    mount = next(volume for volume in service["volumes"] if volume["target"] == "/data")
+    assert mount["source"] == str(tmp_path)
+    assert mount["read_only"] is True

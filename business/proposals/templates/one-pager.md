@@ -40,7 +40,7 @@ Recommended starting range (not a published SaaS list price):
 
 | Item | Range |
 |------|-------|
-| 2-week single-team pilot | **$8,000–$12,000** |
+| 2-week single-team pilot | **$1,000–$2,000** |
 | Optional monthly support | **$500–$1,000** |
 | Customer VM / LLM API | Customer-owned |
 
@@ -49,12 +49,12 @@ Do not invent ROI hours or “pays for itself” claims. Use the client’s own 
 ### DATA PRIVACY
 
 - Search runs entirely on your machine — no data leaves your network
-- You control which AI model generates answers (cloud API or 100% local)
+- You control which AI model generates answers (cloud API, or Ollama for fully local synthesis)
 - Open source software — you can audit every line of code
 - We are never in the middle — you own the API key, you pick the provider
 
 ### NEXT STEP
 
-Let's run a 2-week pilot on [one project / one department]. Recommended starting range: $8,000–$12,000. Terms (including any guarantee) are negotiated in the SOW — do not promise “pay nothing” unless the signed SOW says so.
+Let's run a 2-week pilot on [one project / one department]. Recommended starting range: $1,000–$2,000. Terms (including any guarantee) are negotiated in the SOW — do not promise “pay nothing” unless the signed SOW says so.
 
 **Contact:** [email] | [website]

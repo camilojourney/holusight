@@ -45,7 +45,7 @@ Aligned across site, proposals, and this doc:
 
 | Item | Recommended range (USD) |
 |------|-------------------------|
-| **Pilot setup fee** (2 weeks, single team) | **$8,000 – $12,000** |
+| **Pilot setup fee** (2 weeks, single team) | **$1,000 – $2,000** |
 | **Optional monthly support** (updates, index health, minor config) | **$500 – $1,000 / month** after pilot |
 | **Customer infrastructure** | Billed by customer cloud/provider (typical: $50–200/mo for a small VM + disk) |
 | **LLM API usage** (if not using Ollama) | Billed to customer’s API account |

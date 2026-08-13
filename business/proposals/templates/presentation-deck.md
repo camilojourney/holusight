@@ -73,7 +73,7 @@
 > |------|--------------|
 > | Document indexing | Your machine |
 > | Search | Your machine |
-> | AI answers | Your choice: cloud API or 100% local |
+> | AI answers | Your choice: cloud API or Ollama for fully local synthesis |
 >
 > Open source — audit every line of code.
 

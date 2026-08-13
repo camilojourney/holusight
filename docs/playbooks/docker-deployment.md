@@ -16,11 +16,9 @@ git clone https://github.com/camilojourney/holusight.git
 cd holusight
 
 export CODESIGHT_API_KEY=$(openssl rand -hex 24)
+export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/customer/docs
 export CODESIGHT_LLM_BACKEND=claude   # or azure, openai, ollama
 export ANTHROPIC_API_KEY=sk-ant-...   # if using Claude
-
-# Edit docker-compose.yml volumes to point at customer docs:
-#   - /path/to/customer/docs:/data:ro
 
 docker compose up --build -d
 ```
@@ -41,7 +39,8 @@ Open `http://<server>:8000`, enter the API key in the sidebar, click **Re-index*
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `CODESIGHT_API_KEY` | **Yes** (production) | Shared team API key |
-| `CODESIGHT_DOCUMENTS_DIR` | Default `/data` | Read-only document root inside container |
+| `CODESIGHT_DOCUMENTS_HOST_DIR` | **Yes** (compose) | Host document directory mounted read-only at `/data` |
+| `CODESIGHT_DOCUMENTS_DIR` | `/data` | Read-only document root inside container |
 | `CODESIGHT_DATA_DIR` | Default `/index` | Persistent index volume |
 | `CODESIGHT_PRODUCTION` | `1` in image | Enforces API key |
 | `CODESIGHT_LLM_BACKEND` | For Ask | `claude`, `azure`, `openai`, `ollama` |

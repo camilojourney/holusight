@@ -2,6 +2,7 @@
 # Usage:
 #   export CODESIGHT_API_KEY=$(openssl rand -hex 24)
 #   docker compose up --build
+#   export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/customer/docs
 # Open http://localhost:8000 and enter the API key in the sidebar.
 
 services:
@@ -18,7 +19,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
-      - ./tests/fixtures/pilot_docs:/data:ro
+      - ${CODESIGHT_DOCUMENTS_HOST_DIR:?Set CODESIGHT_DOCUMENTS_HOST_DIR to a host document directory}:/data:ro
       - holusight-index:/index
     restart: unless-stopped
 

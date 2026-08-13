@@ -19,7 +19,7 @@
 
 We propose deploying an AI-powered search system that makes your existing documents instantly searchable. Your team asks questions in plain English and gets precise answers with source citations — in seconds instead of minutes.
 
-**Investment:** $[8,000–12,000 recommended starting range] for a 2-week single-team pilot. See `business/pilot-offer.md`.
+**Investment:** $[1,000–2,000 recommended starting range] for a 2-week single-team pilot. See `business/pilot-offer.md`.
 
 ---
 
@@ -116,7 +116,7 @@ Your team member opens web chat
 
 | Phase | What | Timeline | Investment |
 |-------|------|----------|-----------|
-| **Pilot** | Single team, Docker/VM deploy, training | 2 weeks | **$8,000–$12,000** (recommended starting range) |
+| **Pilot** | Single team, Docker/VM deploy, training | 2 weeks | **$1,000–$2,000** (recommended starting range) |
 | **Scale** | Additional teams / corpora | Separate SOW | Quote after pilot |
 | **Optional support** | Updates, index health, minor config | Monthly | **$500–$1,000**/month |
 | **Customer infra + LLM** | VM/cloud + API usage | Monthly | Customer-owned (typical small VM $50–200; LLM billed to their account) |

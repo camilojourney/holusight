@@ -98,7 +98,7 @@ For larger deployments where different teams need different access, this is on t
 | CodeSight software | Open source engine |
 | Search & indexing | Runs locally; no Holusight usage fee |
 | Ask / LLM answers | Customer’s Claude / Azure / OpenAI / Ollama account |
-| 2-week pilot | **$8,000–$12,000** starting range |
+| 2-week pilot | **$1,000–$2,000** starting range |
 | Optional support | **$500–$1,000 / month** |
 
 Do not quote unverified Copilot/Glean monthly totals or per-question token costs unless you have a current, dated source. Authoritative offer: `business/pilot-offer.md`.
