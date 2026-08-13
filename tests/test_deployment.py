@@ -6,7 +6,9 @@ import json
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+README = REPO_ROOT / "README.md"
 VERCEL_CONFIG = REPO_ROOT / "vercel.json"
+CANONICAL_PUBLIC_SITE = "https://holusight.com/"
 
 
 def _load_vercel_config() -> dict:
@@ -32,3 +34,11 @@ def test_vercel_config_is_static_site_not_python_build():
     assert config.get("framework") is None
     assert not config.get("buildCommand")
     assert config["outputDirectory"] == "landing"
+
+
+def test_readme_links_canonical_public_site():
+    """Human-facing README must keep the canonical holusight.com link discoverable."""
+    readme = README.read_text(encoding="utf-8")
+    assert CANONICAL_PUBLIC_SITE in readme, (
+        f"{README} must include the canonical public-site URL {CANONICAL_PUBLIC_SITE}"
+    )
