@@ -111,7 +111,7 @@
 > | **Scale** | Remaining projects, full team training | 2-4 weeks |
 > | **Maintain** | Monitoring, reindexing, support | Ongoing |
 
-**Say:** "We start small. One project, two weeks, [X] dollars. I index your documents, deploy the web chat, and train your team. If it doesn't save time, you don't pay. After the pilot, we scale to other projects at [X] per project."
+**Say:** "We start small. One project, two weeks, [X] dollars. I index your documents, deploy the web chat, and train your team. After the pilot, we review the agreed acceptance metrics and can scope additional projects at [X] per project."
 
 ---
 

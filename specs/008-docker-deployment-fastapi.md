@@ -196,7 +196,7 @@ RUN python -c "from sentence_transformers import SentenceTransformer; \
 EXPOSE 8000
 ENV CODESIGHT_DATA_DIR=/index
 
-CMD ["uvicorn", "codesight.web.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "codesight.web.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 ```
 
 ### Web Chat UI
