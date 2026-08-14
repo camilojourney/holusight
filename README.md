@@ -42,6 +42,7 @@ export CODESIGHT_DOCUMENTS_DIR=/path/to/documents
 python -m codesight serve
 
 # Or use Docker (see docs/playbooks/docker-deployment.md)
+export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/documents
 docker compose up --build
 ```
 
@@ -102,6 +103,7 @@ Single-team production shape: FastAPI server, browser UI, API key auth, read-onl
 
 ```bash
 export CODESIGHT_API_KEY=$(openssl rand -hex 24)
+export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/documents
 docker compose up --build
 ```
 

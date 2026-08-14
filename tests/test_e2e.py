@@ -10,6 +10,7 @@ import pytest
 from codesight.api import CodeSight
 from codesight import config as config_module
 from codesight.config import ServerConfig
+from codesight.search import rrf_merge
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "pilot_docs"
 
@@ -38,9 +39,15 @@ class TestE2ERetrieval:
         assert any("auth_utils" in r.file_path for r in results)
 
     def test_rrf_merges_keyword_and_semantic(self, indexed_engine):
+        vector_ids = ["shared", "vector-only"]
+        bm25_ids = ["bm25-only", "shared"]
+        merged = rrf_merge([vector_ids, bm25_ids])
+        assert [chunk_id for chunk_id, _ in merged] == ["shared", "bm25-only", "vector-only"]
+        assert merged[0][1] == (1 / 61) + (1 / 62)
+        assert merged[0][1] > merged[1][1]
+
         results = indexed_engine.search("payment billing invoice")
-        assert len(results) >= 1
-        # Citations include file path and line/page range
+        assert results
         top = results[0]
         assert top.file_path
         assert top.start_line >= 1
@@ -53,8 +60,9 @@ class TestE2ERetrieval:
         assert results
         r = results[0]
         assert r.file_path.endswith(".md")
-        # Markdown uses line numbers in scope
-        assert "lines" in f"{r.start_line}-{r.end_line}" or r.start_line >= 1
+        assert r.scope == "#"
+        assert r.start_line >= 1
+        assert r.end_line >= r.start_line
 
     def test_citation_metadata_for_code(self, indexed_engine):
         results = indexed_engine.search("verify_api_token", file_glob="*.py")
