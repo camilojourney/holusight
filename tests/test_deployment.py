@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
+import subprocess
 from functools import partial
 from html.parser import HTMLParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-import re
-import shutil
-import subprocess
 from threading import Thread
 from urllib.request import urlopen
 

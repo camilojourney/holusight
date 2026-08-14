@@ -52,6 +52,8 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/search.py` | Search and retrieval. |
 | `src/codesight/store.py` | Vector store (LanceDB). |
 | `src/codesight/types.py` | Shared type definitions. |
+| `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |
+| `src/codesight/web/static/` | Browser UI assets for the FastAPI pilot server. |
 
 ### Demo (`demo/`)
 

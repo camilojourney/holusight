@@ -14,7 +14,7 @@
 ## Discovery Call Script
 
 1. "How does your team find information today?" (surface the pain)
-2. "What systems do you use?" (M365, Google, Confluence — determines connectors)
+2. "Where can the pilot's read-only document folder or repository export live?" (customer VM, on-prem server, or customer cloud)
 3. "How many people would use this?" (size the deal)
 4. "Have you tried anything else?" (understand why competitors failed)
 5. "What would solving this be worth to your company?" (anchor value, not cost)
@@ -28,6 +28,6 @@
 
 ## Pricing Anchors
 
-- Reference `specs/005-money-model.md` for current pricing
-- Always lead with ROI: "Your team loses $X/month in search time"
-- Pilot is the entry point: $3-5K, 2 weeks, one project, money-back guarantee
+- Reference `business/pilot-offer.md` for the current recommended offer
+- Use the client's own discovery numbers; do not invent ROI claims
+- Pilot is the entry point: $1,000-$2,000, two weeks, one team; optional support is $500-$1,000/month

@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from codesight.api import CodeSight
 from codesight import config as config_module
+from codesight.api import CodeSight
 from codesight.config import ServerConfig
 from codesight.search import rrf_merge
 

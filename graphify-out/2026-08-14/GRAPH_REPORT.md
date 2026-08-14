@@ -1,27 +1,27 @@
-# Graph Report - 01KZWDFFGEQS7EWF3V8NQZE02M  (2026-08-13)
+# Graph Report - 01KZWDFFGEQS7EWF3V8NQZE02M  (2026-08-14)
 
 ## Corpus Check
-- 124 files · ~80,123 words
+- 124 files · ~80,353 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1701 nodes · 2189 edges · 136 communities (124 shown, 12 thin omitted)
+- 1702 nodes · 2190 edges · 136 communities (124 shown, 12 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 113 edges (avg confidence: 0.51)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `eb62412b`
+- Built from commit: `f8ef150f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - chunk_file_ast
-- ndarray
+- Embedder
 - EvalQuery
 - CodeSight
 - Market Opportunity — Enterprise Knowledge Appliance
 - get_backend
-- SearchResult
+- search.py
 - Playbook: Client Pitch — Questions, Objections, and Answers
 - Research — Enterprise Knowledge Appliance
 - CodeSight vs CLAUDE.md: Honest Comparison
@@ -33,7 +33,7 @@
 - ChunkStore
 - Market — Enterprise Knowledge Appliance
 - Spec: Infrastructure & Data Connectors
-- ServerConfig
+- SearchResult
 - _cnfb_boost
 - chunker.py
 - Spec 008: Docker Deployment + FastAPI Production Server
@@ -45,12 +45,11 @@
 - Question: Challenge voyage rerank-2.5 and LLM query expansion assumptions for 2026
 - indexer.py
 - Spec 006: Pluggable LLM Backend
-- Implementation Notes
+- TestMetadataBoost
 - AI-Powered Document Search for [Company Name]
 - Spec: Deployment Modes
 - FTSSidecar
 - extract_text
-- rrf_merge
 - test_mcp.py
 - _auth_headers
 - Presentation Deck — Slide-by-Slide Script
@@ -74,7 +73,7 @@
 - Mode A: Local-Only
 - Mode A: Local-Only
 - Mode A: Local-Only
-- Alternatives Considered
+- Implementation Notes
 - docs/README.md
 - Playbook: Development Setup
 - __main__.py
@@ -123,7 +122,7 @@
 - security-sentinel.md
 - 0005 — Unified Consulting Repo into CodeSight
 - Knowledge Base — codesight
-- TestReadOnlyInvariant
+- Implementation Notes
 - Closed Deals — Won & Lost
 - vprf_enhance_query
 - .get_chunk_metadata
@@ -136,15 +135,16 @@
 - conventions.md
 - research/README.md
 - codesight
-- server.py
+- require_auth
 - Docker deployment playbook
 - app.js
-- .clamp_cnfb_alpha
+- ServerConfig
 - CodeSight
 - Spec 010: Capability Truth Inventory
 - _detect_language
 - ADR 0010: Graphify Extension Contract (Not Integrated in v1)
-- config.py
+- test_placeholder.py
+- TestMCPIndexTool
 - auth_utils.py
 - payment-terms.md
 - pilot_docs/README.md
@@ -162,6 +162,8 @@
 10. `RepoStatus` - 19 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `TestE2ERetrieval` --uses--> `CodeSight`  [INFERRED]
+  tests/test_e2e.py → src/codesight/api.py
 - `TestMCPAskExtension` --uses--> `CodeSight`  [INFERRED]
   tests/test_mcp.py → src/codesight/api.py
 - `TestMCPIndexTool` --uses--> `CodeSight`  [INFERRED]
@@ -170,8 +172,6 @@
   tests/test_mcp.py → src/codesight/api.py
 - `TestMCPStatusTool` --uses--> `CodeSight`  [INFERRED]
   tests/test_mcp.py → src/codesight/api.py
-- `TestChunkIdSanitization` --uses--> `CodeSight`  [INFERRED]
-  tests/test_security.py → src/codesight/api.py
 
 ## Import Cycles
 - None detected.
@@ -182,9 +182,9 @@
 Cohesion: 0.16
 Nodes (12): pytestmark_ts, chunk_file_ast(), Split a file using tree-sitter AST nodes (cAST approach). Algorithm: 1. Parse…, Tests for chunk_file_ast() — requires tree-sitter to be installed., Two Python functions each >= min_lines → 2 separate chunks., Two consecutive tiny functions (< min_lines=5) should be merged into one chunk., A function exceeding max_lines should be sub-split into multiple chunks., Module-level imports before the first function → own chunk. (+4 more)
 
-### Community 1 - "ndarray"
-Cohesion: 0.09
-Nodes (16): APIEmbedder, LocalEmbedder, _normalize_rows(), ndarray, OpenAI embedding API backend — best quality, requires API key., Embed texts via OpenAI API in batches of 512., Embed a single query string., Voyage embedding backend for code retrieval. (+8 more)
+### Community 1 - "Embedder"
+Cohesion: 0.08
+Nodes (19): APIEmbedder, Embedder, LocalEmbedder, _normalize_rows(), ndarray, Protocol, OpenAI embedding API backend — best quality, requires API key., Embed texts via OpenAI API in batches of 512. (+11 more)
 
 ### Community 2 - "EvalQuery"
 Cohesion: 0.10
@@ -202,9 +202,9 @@ Nodes (37): 1. Microsoft 365 Copilot Is Disappointing Enterprises, 2. Glean Is E
 Cohesion: 0.06
 Nodes (19): Lazy-loaded LLM backend. Only initialized when ask() is called., AzureOpenAIBackend, ClaudeBackend, get_backend(), LLMBackend, OllamaBackend, OpenAIBackend, Protocol (+11 more)
 
-### Community 6 - "SearchResult"
-Cohesion: 0.14
-Nodes (18): Hybrid BM25 + vector search. Auto-indexes if needed., _get_reranker(), _get_voyage_client(), hybrid_search(), Hybrid search: BM25 + vector + RRF + optional cross-encoder reranking.…, Lazy-load the cross-encoder model (cached for process lifetime)., Rerank results using a local cross-encoder model. Scores each (query,…, Route reranking to voyage API or local cross-encoder based on backend. (+10 more)
+### Community 6 - "search.py"
+Cohesion: 0.12
+Nodes (21): Configuration for the CodeSight search engine., Return expected embedding dimension for a model. Falls back to 384., resolve_embedding_dim(), get_embedder(), Embedding model wrapper — local (sentence-transformers) or API (OpenAI).…, Return a cached Embedder singleton. Args: model_name: Model identifier from the…, _get_reranker(), _get_voyage_client() (+13 more)
 
 ### Community 7 - "Playbook: Client Pitch — Questions, Objections, and Answers"
 Cohesion: 0.06
@@ -227,8 +227,8 @@ Cohesion: 0.07
 Nodes (26): Channel 1 — LinkedIn Outbound (Start Here), Channel 2 — Microsoft Partner Network, Channel 3 — Industry Events & Communities, Channel 4 — Clutch & Toptal (Credibility + Inbound), Channel 5 — Referral Network, Deployment Fees, First 90 Days Action Plan, License Tiers (+18 more)
 
 ### Community 12 - "TestPathTraversal"
-Cohesion: 0.25
-Nodes (5): Security tests for read-only invariant and input sanitization., Verify path traversal attacks are prevented., CodeSight rejects non-directory paths., CodeSight resolves symlinks and validates the real path., TestPathTraversal
+Cohesion: 0.17
+Nodes (8): Security tests for read-only invariant and input sanitization., Verify the engine never writes to the indexed folder., After indexing, the source folder should have no new files., Verify path traversal attacks are prevented., CodeSight rejects non-directory paths., CodeSight resolves symlinks and validates the real path., TestPathTraversal, TestReadOnlyInvariant
 
 ### Community 13 - "Research: Multi-Model Embedding Architecture for Maximum Retrieval Accuracy"
 Cohesion: 0.08
@@ -250,13 +250,13 @@ Nodes (23): Business Model, Category, Competitive Landscape, Deal Sizes, Growth 
 Cohesion: 0.09
 Nodes (22): 1. Data Sources & Connectors, 2. Ingestion Pipeline, 3. Vector Store Configuration, 4. Metadata Strategy, 5. Hybrid Search Strategy, 6. Background Job Infrastructure, Confluence (Optional Connector), Content Hashing for Skip Logic (+14 more)
 
-### Community 18 - "ServerConfig"
+### Community 18 - "SearchResult"
 Cohesion: 0.19
-Nodes (21): Public Python API for CodeSight. This is the single entry point for Streamlit,…, BaseModel, Runtime configuration., ServerConfig, CodeSight — AI-powered document search engine. Hybrid BM25 + vector retrieval…, Answer, ChunkRecord, IndexStats (+13 more)
+Nodes (25): Exception, Public Python API for CodeSight. This is the single entry point for Streamlit,…, CodeSight — AI-powered document search engine. Hybrid BM25 + vector retrieval…, Answer, ChunkRecord, IndexStats, BaseModel, Pydantic models for engine inputs and outputs. (+17 more)
 
 ### Community 19 - "_cnfb_boost"
 Cohesion: 0.06
-Nodes (33): _cnfb_boost(), Promote chunks from filename-matching files to the top of the list. DEPRECATED:…, Apply Query-Aware Multiplicative Filename Boost (CNFB, SPEC-009). Precomputes…, _reorder_by_filename_match(), _make_cnfb_result(), _make_result(), Tests for the search module (RRF merging + reranker routing)., _rerank() calls local cross-encoder when backend='local'. (+25 more)
+Nodes (30): _cnfb_boost(), Apply Query-Aware Multiplicative Filename Boost (CNFB, SPEC-009). Precomputes…, Reciprocal Rank Fusion across multiple ranked ID lists. Returns [(chunk_id,…, rrf_merge(), _make_cnfb_result(), _make_result(), Tests for the search module (RRF merging + reranker routing)., _rerank() calls local cross-encoder when backend='local'. (+22 more)
 
 ### Community 20 - "chunker.py"
 Cohesion: 0.13
@@ -271,12 +271,12 @@ Cohesion: 0.10
 Nodes (20): Acceptance Criteria, Alternative A: Language Server Protocol (LSP), Alternative B: Improved regex patterns, Alternative C: Concrete Syntax Tree (CST) via tree-sitter, Alternatives Considered, AST-Based Chunking Strategy, Code Sketch, Dependencies (+12 more)
 
 ### Community 23 - "Spec 007: Cross-Encoder Reranking"
-Cohesion: 0.10
-Nodes (20): Acceptance Criteria, Alternative A: API-based reranker (Cohere Rerank), Alternative B: Replace RRF with learned fusion, Alternative C: Always-on reranking, Alternatives Considered, Configuration, Dependencies, Edge Cases & Failure Modes (+12 more)
+Cohesion: 0.15
+Nodes (13): Acceptance Criteria, Alternative A: API-based reranker (Cohere Rerank), Alternative B: Replace RRF with learned fusion, Alternative C: Always-on reranking, Alternatives Considered, Edge Cases & Failure Modes, Goals, Non-Goals (+5 more)
 
 ### Community 24 - "CodeSight"
-Cohesion: 0.08
-Nodes (17): CodeSight, callable, Path, Ask a question — search + LLM answer synthesis. Retrieves the top matching…, Check index status for this folder., Auto-index if not indexed, auto-refresh if stale, rebuild on model mismatch., Check if the configured embedding model differs from the indexed one., Check if the index is older than the staleness threshold. (+9 more)
+Cohesion: 0.13
+Nodes (12): CodeSight, callable, Ask a question — search + LLM answer synthesis. Retrieves the top matching…, Check index status for this folder., Auto-index if not indexed, auto-refresh if stale, rebuild on model mismatch., Check if the configured embedding model differs from the indexed one., Check if the index is older than the staleness threshold., AI-powered document search engine. Usage: engine =… (+4 more)
 
 ### Community 25 - "Spec 001: Core Search Engine"
 Cohesion: 0.10
@@ -295,12 +295,12 @@ Cohesion: 0.10
 Nodes (30): PathSpec, chunk_document(), Split document pages into chunks by paragraph boundaries. Each page's text is…, changed_files(), current_commit(), deleted_files(), is_git_repo(), Path (+22 more)
 
 ### Community 29 - "Spec 006: Pluggable LLM Backend"
-Cohesion: 0.20
-Nodes (10): Acceptance Criteria, API Contract, Backend Adapter, Edge Cases & Failure Modes, Goals, Non-Goals, Open Questions, Problem (+2 more)
+Cohesion: 0.11
+Nodes (19): Acceptance Criteria, Alternative A: LiteLLM wrapper library, Alternative B: LangChain, Alternative C: Only support Claude + Ollama, Alternatives Considered, API Contract, Backend Adapter, Dependencies (+11 more)
 
-### Community 30 - "Implementation Notes"
-Cohesion: 0.40
-Nodes (5): Dependencies, File Changes, Implementation Notes, Key Parameters, Scaling per Backend
+### Community 30 - "TestMetadataBoost"
+Cohesion: 0.17
+Nodes (9): Tests for filename-based metadata boosting via _reorder_by_filename_match., Build a metadatas dict: chunk_id → {file_path: ...}., Chunk from a file whose name matches a query token is promoted., When no token matches any filename, original order is unchanged., Stopwords like 'how', 'does', 'the', 'is' are filtered out., Token that is a substring of the filename stem triggers boost., If all tokens are stopwords, original order is preserved., Chunks with missing metadata are placed after matched chunks. (+1 more)
 
 ### Community 31 - "AI-Powered Document Search for [Company Name]"
 Cohesion: 0.12
@@ -318,13 +318,9 @@ Nodes (8): FTSSidecar, Path, Delete all chunks belonging to a file. Returns coun
 Cohesion: 0.24
 Nodes (14): DocumentPage, _extract_docx(), _extract_pdf(), _extract_pptx(), extract_text(), is_document(), Path, Document text extraction — PDF, DOCX, PPTX. Converts business documents into… (+6 more)
 
-### Community 35 - "rrf_merge"
-Cohesion: 0.18
-Nodes (8): Reciprocal Rank Fusion across multiple ranked ID lists. Returns [(chunk_id,…, rrf_merge(), Single ranked list preserves order., Two identical lists: items appear once with doubled scores., Disjoint lists merge all items., Items appearing in both lists get higher scores., Higher k flattens score differences., TestRRFMerge
-
 ### Community 36 - "test_mcp.py"
 Cohesion: 0.12
-Nodes (12): doc_folder(), engine(), isolated_data_dir(), fixture, Tests for the CodeSight API surface that replaces the former MCP tools. The…, CodeSight.status() ↔ former MCP status tool., Minimal document folder with one searchable Python file., Route index storage to a temp dir (config.DATA_DIR is import-time bound). (+4 more)
+Nodes (12): doc_folder(), engine(), isolated_data_dir(), fixture, Tests for the CodeSight API surface that replaces the former MCP tools. The…, CodeSight.status() ↔ former MCP status tool., CodeSight.ask() — API extension beyond the original three MCP tools., Minimal document folder with one searchable Python file. (+4 more)
 
 ### Community 37 - "_auth_headers"
 Cohesion: 0.10
@@ -375,11 +371,11 @@ Cohesion: 0.18
 Nodes (11): Design Principles, Key Differentiators, Mode A (Local-Only), Mode B (Azure-Native), Target Customer, The Core Business, The Problem, The Solution (+3 more)
 
 ### Community 49 - "Spec 002: Embedding Model Configuration"
-Cohesion: 0.12
-Nodes (16): Acceptance Criteria, Alternative A: Always use API embeddings, Alternative B: Use Ollama for embeddings too, Alternatives Considered, Dependencies, Edge Cases & Failure Modes, Goals, Implementation Notes (+8 more)
+Cohesion: 0.18
+Nodes (11): Acceptance Criteria, Alternative A: Always use API embeddings, Alternative B: Use Ollama for embeddings too, Alternatives Considered, Edge Cases & Failure Modes, Goals, Non-Goals, Open Questions (+3 more)
 
 ### Community 50 - "Spec 003: Incremental Refresh"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Alternative A: Filesystem watcher (inotify/FSEvents), Alternative B: Hash all files on every check, Alternatives Considered, Dependencies, Edge Cases & Failure Modes, Goals, Implementation Notes (+7 more)
 
 ### Community 51 - "_detect_scope"
@@ -414,9 +410,9 @@ Nodes (10): Annual Summary, Annual Summary, Mode A: Local-Only, Mode B: Azure-Na
 Cohesion: 0.20
 Nodes (10): Annual Summary, Annual Summary, Mode A: Local-Only, Mode B: Azure-Native, Monthly Ongoing, Monthly Ongoing, Tier 4 — Enterprise (2,000+ employees, ~1M+ documents), Tier 4 Verdict (+2 more)
 
-### Community 59 - "Alternatives Considered"
-Cohesion: 0.50
-Nodes (4): Alternative A: LiteLLM wrapper library, Alternative B: LangChain, Alternative C: Only support Claude + Ollama, Alternatives Considered
+### Community 59 - "Implementation Notes"
+Cohesion: 0.29
+Nodes (7): Configuration, Dependencies, File Changes, Implementation, Implementation Notes, Key Parameters, Reranker Model Options
 
 ### Community 60 - "docs/README.md"
 Cohesion: 0.18
@@ -495,8 +491,8 @@ Cohesion: 0.29
 Nodes (7): Feature Specs, Implementation History, Specs — codesight, v0.1 — Hybrid Code Search (completed), v0.2 — Enterprise Document Search (completed), v0.3 — Pluggable LLM + Better Embeddings + Reranking (completed), v0.5 — Single-team Docker + FastAPI pilot (implemented)
 
 ### Community 79 - "test_deployment.py"
-Cohesion: 0.13
-Nodes (16): HTMLParser, _fetch_landing_page(), _load_vercel_config(), _PageContract, Deployment regression tests for holusight.com static site., Marketing copy must not claim planned or unverified capabilities., Docker Compose's normalized model must protect the customer boundary., Vercel must serve a static entry point or holusight.com returns 404. (+8 more)
+Cohesion: 0.12
+Nodes (16): HTMLParser, _fetch_landing_page(), _load_vercel_config(), _PageContract, Deployment regression tests for holusight.com static site., Key marketing/docs pages must exist for holusight.com navigation., Keep Vercel deploy as a static landing page, not a Streamlit/FastAPI build., Marketing copy must not claim planned or unverified capabilities. (+8 more)
 
 ### Community 80 - "Sales Process — Lead to Close"
 Cohesion: 0.33
@@ -606,9 +602,9 @@ Nodes (4): 0005 — Unified Consulting Repo into CodeSight, Consequences, Contex
 Cohesion: 0.40
 Nodes (4): Knowledge Base — codesight, Structure, Topic Index, Update Protocol
 
-### Community 109 - "TestReadOnlyInvariant"
-Cohesion: 0.50
-Nodes (3): Verify the engine never writes to the indexed folder., After indexing, the source folder should have no new files., TestReadOnlyInvariant
+### Community 109 - "Implementation Notes"
+Cohesion: 0.40
+Nodes (5): Dependencies, Implementation Notes, Implementation Steps, Key Parameters, Model Comparison
 
 ### Community 110 - "Closed Deals — Won & Lost"
 Cohesion: 0.50
@@ -626,9 +622,9 @@ Nodes (11): Acceptance metrics (pilot), Deployment options, Discovery checklist 
 Cohesion: 0.67
 Nodes (3): Mode A (Local-Only) Cost Drivers, Mode B (Azure-Native) Cost Drivers, Quick Reference — Cost Drivers
 
-### Community 124 - "server.py"
-Cohesion: 0.19
-Nodes (20): Exception, FastAPI, Request, api_key(), create_app(), documents_dir(), _env_bool(), _extract_key() (+12 more)
+### Community 124 - "require_auth"
+Cohesion: 0.20
+Nodes (15): FastAPI, Request, api_key(), create_app(), documents_dir(), _env_bool(), _extract_key(), get_engine() (+7 more)
 
 ### Community 125 - "Docker deployment playbook"
 Cohesion: 0.17
@@ -637,6 +633,10 @@ Nodes (12): Backup, Configuration, Docker deployment playbook, Health & operatio
 ### Community 126 - "app.js"
 Cohesion: 0.27
 Nodes (8): apiFetch(), escapeHtml(), getApiKey(), headers(), loadConfig(), locationLabel(), refreshHealth(), renderSources()
+
+### Community 127 - "ServerConfig"
+Cohesion: 0.11
+Nodes (11): field_validator, Path, BaseModel, Runtime configuration., Clamp CNFB alpha to [0.0, 2.0]. Logs a warning if clamping occurred., ServerConfig, indexed_engine(), fixture (+3 more)
 
 ### Community 128 - "CodeSight"
 Cohesion: 0.22
@@ -654,9 +654,9 @@ Nodes (3): _detect_language(), Detect language from file extension., TestDetectL
 Cohesion: 0.25
 Nodes (7): ADR 0010: Graphify Extension Contract (Not Integrated in v1), Context, Decision, Evaluation summary, Extension contract (future experiment), Marketing rule, Roadmap
 
-### Community 132 - "config.py"
-Cohesion: 0.13
-Nodes (14): Configuration for the CodeSight search engine., Return expected embedding dimension for a model. Falls back to 384., resolve_embedding_dim(), Embedder, get_embedder(), Protocol, Embedding model wrapper — local (sentence-transformers) or API (OpenAI).…, Return a cached Embedder singleton. Args: model_name: Model identifier from the… (+6 more)
+### Community 132 - "test_placeholder.py"
+Cohesion: 0.33
+Nodes (5): Public package export contract tests., The package root exposes a stable public import surface., Root exports point at the implementation classes callers should import., test_package_declares_expected_public_exports(), test_package_exports_resolve_to_canonical_objects()
 
 ### Community 134 - "auth_utils.py"
 Cohesion: 0.50
@@ -670,12 +670,12 @@ Nodes (3): Security utilities for the pilot deployment. JWT validation middlewar
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ChunkStore` connect `ChunkStore` to `FTSSidecar`, `EvalQuery`, `store.py`, `SearchResult`, `._delete_vectors_by_ids`, `.upsert_chunks`, `TestFTSQuerySanitization`, `TestPathTraversal`, `TestReadOnlyInvariant`, `.get_chunk_metadata`, `ServerConfig`, `CodeSight`, `indexer.py`, `.set_meta`?**
+- **Why does `ChunkStore` connect `ChunkStore` to `FTSSidecar`, `EvalQuery`, `store.py`, `search.py`, `._delete_vectors_by_ids`, `.upsert_chunks`, `TestFTSQuerySanitization`, `TestPathTraversal`, `.get_chunk_metadata`, `SearchResult`, `CodeSight`, `indexer.py`, `.set_meta`?**
   _High betweenness centrality (0.022) - this node is a cross-community bridge._
-- **Why does `ServerConfig` connect `ServerConfig` to `EvalQuery`, `config.py`, `test_mcp.py`, `SearchResult`, `TestMCPSearchTool`, `TestFTSQuerySanitization`, `TestPathTraversal`, `TestReadOnlyInvariant`, `ChunkStore`, `server.py`, `CodeSight`, `indexer.py`, `.clamp_cnfb_alpha`?**
+- **Why does `ServerConfig` connect `ServerConfig` to `EvalQuery`, `test_mcp.py`, `TestMCPIndexTool`, `search.py`, `TestMCPSearchTool`, `TestFTSQuerySanitization`, `indexer.py`, `TestPathTraversal`, `ChunkStore`, `SearchResult`, `CodeSight`, `require_auth`?**
   _High betweenness centrality (0.022) - this node is a cross-community bridge._
-- **Why does `SearchResult` connect `SearchResult` to `EvalQuery`, `rrf_merge`, `test_mcp.py`, `TestMCPSearchTool`, `vprf_enhance_query`, `ServerConfig`, `_cnfb_boost`, `CodeSight`, `server.py`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `SearchResult` connect `SearchResult` to `EvalQuery`, `test_mcp.py`, `TestMCPIndexTool`, `search.py`, `TestMCPSearchTool`, `vprf_enhance_query`, `_cnfb_boost`, `CodeSight`, `TestMetadataBoost`?**
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
 - **Are the 23 inferred relationships involving `CodeSight` (e.g. with `ServerConfig` and `LLMBackend`) actually correct?**
   _`CodeSight` has 23 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 7 inferred relationships involving `ChunkStore` (e.g. with `CodeSight` and `EvalQuery`) actually correct?**

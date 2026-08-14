@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "src/codesight/web/server.py": {
-    "mtime": 1786666050.7003055,
-    "ast_hash": "617bfea0ce0a8428ecd74a4c3b895a3d",
+    "mtime": 1786680497.74523,
+    "ast_hash": "a43e1101c589d396259243be355749fa",
     "semantic_hash": ""
   },
   "src/codesight/web/static/app.js": {
@@ -110,13 +110,13 @@
     "semantic_hash": ""
   },
   "tests/test_deployment.py": {
-    "mtime": 1786666056.0400608,
-    "ast_hash": "2a4cba703c818be7a960501584591151",
+    "mtime": 1786681151.7373834,
+    "ast_hash": "657b338433563e9b942a4d8de1398baf",
     "semantic_hash": ""
   },
   "tests/test_e2e.py": {
-    "mtime": 1786665789.9382877,
-    "ast_hash": "1b7eb0cb6c9edd00e76f60662b6a353c",
+    "mtime": 1786681151.737481,
+    "ast_hash": "5854d9ebc8b05116c7f4defb741a751c",
     "semantic_hash": ""
   },
   "tests/test_eval_harness.py": {
@@ -310,18 +310,18 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1786586316.3235145,
-    "ast_hash": "ebad957c17a9471054d4d1f3c07ba529",
+    "mtime": 1786681250.6201382,
+    "ast_hash": "6a9cb99ebf81c2e688da3e4eec2d372d",
     "semantic_hash": ""
   },
   "ARCHITECTURE.md": {
-    "mtime": 1786586316.3236268,
-    "ast_hash": "b61be7fc18046f8b83fbcfc10efe5741",
+    "mtime": 1786681250.6197429,
+    "ast_hash": "9142d3777da2d4004cbc9f6761497951",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1786586316.3235145,
-    "ast_hash": "ebad957c17a9471054d4d1f3c07ba529",
+    "mtime": 1786681250.6201382,
+    "ast_hash": "6a9cb99ebf81c2e688da3e4eec2d372d",
     "semantic_hash": ""
   },
   "COMPARISON.md": {
@@ -370,13 +370,13 @@
     "semantic_hash": ""
   },
   "business/playbooks/pitch-prep.md": {
-    "mtime": 1786586316.3247042,
-    "ast_hash": "b436333b9025bf5701b0cc5388fd8809",
+    "mtime": 1786681277.770983,
+    "ast_hash": "c6fcd328d61389fb48976a9fe4cba2bb",
     "semantic_hash": ""
   },
   "business/playbooks/sales-process.md": {
-    "mtime": 1786586316.3247592,
-    "ast_hash": "2adfc48d030e03edbd3efc45f8199567",
+    "mtime": 1786681250.619318,
+    "ast_hash": "0652b9c113a26e36b7a76ccfb488e85e",
     "semantic_hash": ""
   },
   "business/proposals/templates/one-pager.md": {
@@ -430,8 +430,8 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1786586573.8621762,
-    "ast_hash": "c0b89dc9fa93aa37baeff2f0f4bc224f",
+    "mtime": 1786680798.219875,
+    "ast_hash": "85f667eeda120bb83e9b7e4064377ad0",
     "semantic_hash": ""
   },
   "docs/README.md": {
@@ -490,8 +490,8 @@
     "semantic_hash": ""
   },
   "docs/playbooks/client-pitch.md": {
-    "mtime": 1786586820.0791924,
-    "ast_hash": "546d5c3ad62e21c529b3fe5d063a9a90",
+    "mtime": 1786681277.7713997,
+    "ast_hash": "fe79a1860b85f74bd6404a7e802395d9",
     "semantic_hash": ""
   },
   "docs/playbooks/development.md": {
@@ -510,13 +510,13 @@
     "semantic_hash": ""
   },
   "docs/playbooks/pitch-prep.md": {
-    "mtime": 1786586316.3274086,
-    "ast_hash": "b436333b9025bf5701b0cc5388fd8809",
+    "mtime": 1786681277.7711744,
+    "ast_hash": "c6fcd328d61389fb48976a9fe4cba2bb",
     "semantic_hash": ""
   },
   "docs/playbooks/sales-process.md": {
-    "mtime": 1786586316.3274677,
-    "ast_hash": "2adfc48d030e03edbd3efc45f8199567",
+    "mtime": 1786681300.0987873,
+    "ast_hash": "0652b9c113a26e36b7a76ccfb488e85e",
     "semantic_hash": ""
   },
   "docs/playbooks/ship-feature.md": {
@@ -540,8 +540,8 @@
     "semantic_hash": ""
   },
   "docs/roadmap.md": {
-    "mtime": 1786586316.3279638,
-    "ast_hash": "b42085ba9ba5506bb436933776e94d71",
+    "mtime": 1786680352.0050714,
+    "ast_hash": "27dd0825d8352b3c4e418377e30629df",
     "semantic_hash": ""
   },
   "docs/vision.md": {
@@ -550,8 +550,8 @@
     "semantic_hash": ""
   },
   "landing/docs.html": {
-    "mtime": 1786586316.3344178,
-    "ast_hash": "5fa25cf4e85352ed61d4c207b90602c7",
+    "mtime": 1786680646.752068,
+    "ast_hash": "24dfd1babccedc021b1698b9d39c4a37",
     "semantic_hash": ""
   },
   "landing/index.html": {

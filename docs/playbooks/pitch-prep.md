@@ -1,13 +1,13 @@
 # Pitch Prep — What to Know Before Every Meeting
 
 > Read this before any client meeting. Covers the 30-second pitch, every question they'll ask, and how to answer honestly.
-> Full technical Q&A reference: `codesight/docs/playbooks/client-pitch.md`
+> Full technical Q&A reference: `docs/playbooks/client-pitch.md`
 
 ---
 
 ## The 30-Second Pitch
 
-"I can make your company's documents searchable with AI in a day. Point me at a folder — contracts, policies, technical docs — and I'll set up a system where anyone on your team can ask questions in plain English and get precise answers with page-level citations. Search runs entirely on your machine. No data leaves your network."
+"I can make your team's customer-mounted documents searchable with AI in a focused two-week pilot. Point me at a read-only folder — contracts, policies, technical docs — and I'll set up a system where one team can ask questions in plain English and get precise answers with source citations. Search runs on your infrastructure; cloud answer providers are optional and customer-owned."
 
 ---
 
@@ -30,11 +30,11 @@
 | Time workers spend searching | 20%+ of work week (McKinsey) |
 | Average search time per query | 15-30 minutes |
 | CodeSight search time | < 5 seconds |
-| CodeSight monthly cost (50 users) | $50-200 |
+| Customer infrastructure | Typically $50-200/month for a small VM + disk |
 | Copilot monthly cost (50 users) | $1,500 |
 | Glean monthly cost (50 users) | $2,250+ |
 | Index speed (500 docs) | ~30 seconds |
-| Pilot price | $7,500-10,000 |
+| Pilot price | $1,000-$2,000 |
 | Pilot duration | 2 weeks |
 
 ---
@@ -47,7 +47,7 @@
 Your team opens a web chat, types a question, gets a direct answer with the source file and page number. Under the hood, we use two search methods — keyword (finds exact terms) and semantic (understands meaning). This hybrid catches what either alone would miss.
 
 **"How is this different from Copilot?"**
-Copilot searches everything across all of M365 — $30/user/month. CodeSight is scoped: "search only these 200 contracts." Cost: $50-200/month total. No M365 dependency. Privacy: search is 100% local.
+CodeSight is not an M365 replacement. It searches a focused customer-mounted folder or repository export. The recommended starting offer is a $1,000-$2,000 two-week pilot, with optional $500-$1,000/month support; customer infrastructure and LLM usage are separate.
 
 **"Can't we just upload to ChatGPT?"**
 File limits (20-30 docs max). No persistent index. No hybrid search. $20/user/month. Data goes to OpenAI/Anthropic. CodeSight handles thousands of documents, persistent index, local search.
@@ -58,10 +58,10 @@ SharePoint finds files by name. It can't answer "What are the payment terms acro
 ### About privacy
 
 **"Where does our data go?"**
-Search and indexing: nowhere. Runs on the machine. Answer synthesis: your choice — cloud API (you own the key) or 100% local with Ollama. We are never in the middle.
+Search and indexing run on the customer deployment. Answer synthesis is optional: a customer-owned cloud API or Ollama for local synthesis. We are never in the middle.
 
 **"Can we run this completely offline?"**
-Yes. Local embedding model + Ollama. Zero internet after initial setup. Works in airplane mode.
+Yes, when the local embedding model and Ollama model have been prepared in advance. Search is available without an LLM; fully local answers require Ollama.
 
 **"How do we verify?"**
 Open source. You can read every line. Search works with WiFi off — demonstrate this in the meeting.
@@ -69,7 +69,7 @@ Open source. You can read every line. Search works with WiFi off — demonstrate
 ### About cost
 
 **"How much?"**
-Software: free (open source). Search: free (local). AI answers: ~$0.01-0.03 per question via API, or free with local LLM. Consulting: $7,500-10K pilot (one project, two weeks), $3-5K per additional project, $1-2K/mo maintenance.
+Software: free (open source). Search: local. AI answers use the customer's configured provider. Consulting: $1,000-$2,000 pilot (one team, two weeks), with optional $500-$1,000/month support. See `business/pilot-offer.md` for the authoritative offer.
 
 **"Why pay for consulting if the software is free?"**
 Speed (deployed in hours, not weeks), configuration (right LLM/embedding for your requirements), customization (tuned for your document types), training, ongoing support.
@@ -77,7 +77,7 @@ Speed (deployed in hours, not weeks), configuration (right LLM/embedding for you
 ### About scaling
 
 **"How many users can it handle?"**
-1-10 users: laptop. 20-50: single VM with cloud API. 50+: Docker deployment (available soon). Bottleneck is LLM answers, not search.
+This release is scoped to one team on a single Docker or VM deployment. It does not claim a concurrent-user or uptime target; larger deployments require separate scoping.
 
 **"What documents can it handle?"**
 PDF, Word, PowerPoint, code (10 languages), text files. Excel and email planned. Scanned PDFs (OCR) planned.
@@ -90,7 +90,7 @@ PDF, Word, PowerPoint, code (10 languages), text files. Excel and email planned.
 
 Best closing lines:
 1. "Want to try a free 30-minute test with your actual documents? I'll index a folder right now."
-2. "Pick one project. I'll have it searchable in a week. $[X], money-back guarantee."
+2. "Pick one project. We'll run a focused two-week pilot for $1,000-$2,000 and review the agreed acceptance metrics."
 3. "I'll send the proposal tomorrow. When works to discuss it — Thursday or Friday?"
 
 **Never say:**

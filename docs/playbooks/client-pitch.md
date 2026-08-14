@@ -6,7 +6,7 @@
 
 ## The 30-Second Pitch
 
-"I can make your company's documents searchable with AI in a day. Point me at a folder — contracts, policies, technical docs — and I'll set up a system where anyone on your team can ask questions in plain English and get precise answers with page-level citations. Search runs entirely on your machine. No data leaves your network."
+"I can make your team's customer-mounted documents searchable with AI in a focused two-week pilot. Point me at a read-only folder — contracts, policies, technical docs — and I'll set up a system where one team can ask questions in plain English and get precise answers with source citations. Search runs on your infrastructure; cloud answer providers are optional and customer-owned."
 
 ---
 
@@ -28,13 +28,13 @@ Three problems with uploading documents to ChatGPT or Claude:
 
 ### "How is this different from Microsoft Copilot?"
 
-Copilot is great if you have it. It costs $30/user/month and searches across ALL of M365 — emails, Teams, SharePoint, everything.
+Copilot may already fit teams invested in M365. CodeSight is not an M365 replacement: it searches a focused customer-mounted folder or repository export.
 
 CodeSight is different:
 - **Scoped search.** You point it at a specific folder of documents. "Search only these 200 contracts." Copilot searches everything.
-- **Cost.** CodeSight costs ~$50-200/month total for the AI answers (API calls), not $30 per user per month.
-- **No M365 dependency.** Works with any documents, anywhere. Not tied to Microsoft.
-- **Privacy.** Search is 100% local. Nothing goes to Microsoft.
+- **Cost.** The recommended starting offer is a $1,000-$2,000 two-week pilot, with optional $500-$1,000/month support. Customer infrastructure and LLM usage are separate.
+- **No M365 dependency.** The pilot uses a customer-mounted folder or repository export, not a live connector.
+- **Privacy.** Search and indexing run on the customer deployment. Cloud answer providers receive context only when the customer configures them.
 
 If you already have Copilot and it's working for you, you don't need this. If you don't have Copilot, or you need scoped project search, or you can't send data to Microsoft — that's where CodeSight fits.
 
@@ -42,7 +42,7 @@ If you already have Copilot and it's working for you, you don't need this. If yo
 
 SharePoint and Google Drive are storage. They can find files by name. They can't answer "What are the payment terms across all vendor contracts?" or "Which policies mention data retention?"
 
-CodeSight doesn't replace your storage. It sits alongside it. Export or sync the documents you need searched, and CodeSight makes them answerable.
+CodeSight doesn't replace your storage. It sits alongside it. Mount or export the documents you need searched, and CodeSight makes them answerable.
 
 ---
 
@@ -50,7 +50,7 @@ CodeSight doesn't replace your storage. It sits alongside it. Export or sync the
 
 ### "Where does our data go?"
 
-**Search and indexing: nowhere.** Everything runs on the machine — your laptop, your server, your cloud VM. The embedding model is downloaded once and runs locally. The search index is local files. No internet connection needed for search.
+**Search and indexing run on your deployment.** The default embedding model and search index are local files. Search works without an LLM key; any cloud embedding configuration is customer-selected and should be treated as an external provider call.
 
 **Answer synthesis: your choice.** When someone asks a question and wants a written answer (not just search results), the relevant document chunks are sent to an AI model. You choose which one:
 
@@ -70,13 +70,13 @@ The software is open source — you can read every line of code. The architectur
 1. Documents are read from disk and indexed into local files. No network call.
 2. Search runs against local indexes. No network call.
 3. The ONLY external call is when `ask()` sends document chunks to the LLM you configured. That call goes directly from your machine to the AI provider. We don't proxy it, we don't log it, we don't see it.
-4. If you use Ollama (local LLM), there is zero network activity. Period.
+4. If you use local embeddings and Ollama, runtime retrieval and answer synthesis can remain on the deployment. Cloud providers require their own network access.
 
 You can verify this by running the tool with network monitoring. Search works with airplane mode on.
 
 ### "Can we run this completely offline / air-gapped?"
 
-Yes, after the image or embedding model has been prepared while connected. Use a local embedding model (default) + local LLM (Ollama). Runtime search and fully local answers then need no internet. Deploy on an air-gapped server with:
+Yes, after the image, embedding model, and Ollama model have been prepared while connected. Search is available without an LLM; fully local answers require Ollama. Deploy on an air-gapped server with:
 - The Python package (pre-downloaded)
 - The embedding model (pre-downloaded, ~270MB)
 - The LLM model (pre-downloaded via Ollama, ~4-8GB)
@@ -116,7 +116,7 @@ The software is the engine. The value is:
 
 | | CodeSight | Azure AI Search + Azure OpenAI |
 |--|-----------|-------------------------------|
-| Monthly cost (50 users) | $50-200 (API calls only) | $500-2,000 (search units + API) |
+| Monthly infrastructure | Typically $50-200 for a small customer VM + disk | Separate Azure estimate |
 | Setup time | Hours | Weeks |
 | Developer needed | No | Yes (Azure experience required) |
 | Vendor lock-in | None | Azure |
@@ -174,14 +174,12 @@ For automated updates: set up a cron job or scheduled task to re-index periodica
 
 ### "How many users can it handle?"
 
-| Users | Deployment | LLM backend | Works? |
-|-------|-----------|-------------|--------|
-| 1-5 | Laptop | Ollama (local) | Yes |
-| 5-10 | Single VM | Ollama or API | Yes |
-| 20-50 | VM or Docker on cloud | Claude/Azure OpenAI API | Yes |
-| 100+ | Docker + FastAPI + auth | Azure OpenAI | Yes (with production server, planned v0.4) |
+| Scope | Deployment | LLM backend | Status |
+|-------|------------|-------------|--------|
+| One team | Docker or VM + FastAPI + shared API key | Customer-selected provider | Supported within pilot scope |
+| Larger deployment | Separate design | Depends on deployment | Not claimed |
 
-Search scales easily (local computation). The bottleneck is LLM answer synthesis — API backends scale infinitely, local LLMs don't.
+No concurrent-user or uptime target is claimed. Larger deployments require separate scoping; this release is a single-team pilot shape.
 
 ---
 
