@@ -15,7 +15,6 @@ from threading import Thread
 from urllib.request import urlopen
 
 import pytest
-
 from markdown_it import MarkdownIt
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
