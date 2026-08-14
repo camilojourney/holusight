@@ -4,13 +4,9 @@ default:
 
 # ─── Development ──────────────────────────────────
 
-# Run the Streamlit demo app
+# Run the demo app
 dev:
     uv run --extra demo python -m codesight demo
-
-# Run FastAPI server against fixture docs (dev auth escape hatch)
-serve:
-    CODESIGHT_ALLOW_UNAUTHENTICATED=true uv run --extra server python -m codesight serve tests/fixtures/pilot_docs
 
 # Install dependencies (dev)
 install:
@@ -31,7 +27,11 @@ lint:
 
 # Run tests
 test:
-    uv run --extra dev --extra server pytest tests/ -x -v
+    uv run --extra dev pytest tests/ -x -v
+
+# Run holusight 20-query retrieval eval (task-plan harness)
+eval:
+    uv run --extra dev python tests/eval_holusight.py --top-k 10
 
 # ─── Autonomous Workers ──────────────────────────
 
@@ -45,4 +45,6 @@ audit:
 
 # Verify repo integrity before committing (checks duplicates, specs, schema, dead modules)
 verify:
-    python3 /Users/mini/github/fleet-system/system/shared/scripts/repo_verify.py --repo holusight --skip tests || [ $? -eq 2 ]
+    #!/usr/bin/env bash
+    script="${REPO_VERIFY_SCRIPT:-$HOME/github/fleet-system/system/shared/scripts/repo_verify.py}"
+    python3 "$script" --repo holusight --skip tests || [ $? -eq 2 ]

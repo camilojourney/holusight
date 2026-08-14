@@ -44,7 +44,7 @@ Push CodeSight's retrieval quality from MRR 0.793 (current best) to MRR 0.85+ on
 **Steps:**
 1. **write-spec** — Write spec for highest-priority technique from Phase 1 → Output: `specs/NNN-technique.md`
 2. **implement** — Implement the technique via `/code` (Codex + Gemini review) → source files changed, tests written
-3. **run-eval** — Run eval harness: `python tasks/2026-04-03/PLAN-20260403-df2d49dc/eval_holusight.py` → Output: `results/phase-02-step-03-eval.json`
+3. **run-eval** — Run eval harness: `uv run python tests/eval_holusight.py` (or `just eval`) → Output: `results/phase-02-step-03-eval.json`
 4. **check-gate** — If MRR ≥ 0.85: proceed to commit. Else: loop back to step 1 with next technique (max 3 iterations total)
 5. **sync-docs** — `/specs --sync` to update ARCHITECTURE.md + CLAUDE.md with new techniques → Output: updated docs
 

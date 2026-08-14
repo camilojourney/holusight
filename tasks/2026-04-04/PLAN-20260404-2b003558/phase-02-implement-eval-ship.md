@@ -82,11 +82,11 @@ INVOKE: Skill(skill="code", args="holusight implement [TECHNIQUE NAME] as specif
 ### Step 3: Run eval harness
 
 ```bash
-# Run the eval harness
-cd /Users/mini/.openclaw/workspace/github/holusight
-python tasks/2026-04-03/PLAN-20260403-df2d49dc/eval_holusight.py \
+# Run the eval harness (from repo root)
+uv run python tests/eval_holusight.py \
   --top-k 10 \
   --output tasks/2026-04-04/PLAN-20260404-2b003558/results/phase-02-step-03-eval.json
+# or: just eval
 ```
 
 **What Claude Code does:**
