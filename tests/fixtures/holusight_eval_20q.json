@@ -1,0 +1,22 @@
+[
+  {"id": "HQ-01", "query": "how does hybrid search RRF merge work", "expected_file": "search.py"},
+  {"id": "HQ-02", "query": "how is BM25 implemented", "expected_file": "store.py"},
+  {"id": "HQ-03", "query": "embedding model configuration voyage", "expected_file": "embeddings.py"},
+  {"id": "HQ-04", "query": "tree-sitter semantic chunking function boundaries", "expected_file": "chunker.py"},
+  {"id": "HQ-05", "query": "how does indexer walk files gitignore", "expected_file": "indexer.py"},
+  {"id": "HQ-06", "query": "git utils pathspec gitignore walk", "expected_file": "indexer.py"},
+  {"id": "HQ-07", "query": "what is the LLM backend interface", "expected_file": "llm.py"},
+  {"id": "HQ-08", "query": "ServerConfig environment variables defaults", "expected_file": "config.py"},
+  {"id": "HQ-09", "query": "CodeSight public API index search ask", "expected_file": "api.py"},
+  {"id": "HQ-10", "query": "document parsing PDF DOCX PPTX", "expected_file": "parsers.py"},
+  {"id": "HQ-11", "query": "SearchResult file_path start_line fields", "expected_file": "types.py"},
+  {"id": "HQ-12", "query": "voyage reranker rerank documents", "expected_file": "search.py"},
+  {"id": "HQ-13", "query": "LanceDB chunk storage FTS5", "expected_file": "store.py"},
+  {"id": "HQ-14", "query": "VPRF query enhancement pseudo relevance", "expected_file": "search.py"},
+  {"id": "HQ-15", "query": "index_repo walk chunk embed store", "expected_file": "indexer.py"},
+  {"id": "HQ-16", "query": "CNFB filename boost multiplicative", "expected_file": "search.py"},
+  {"id": "HQ-17", "query": "chunk_file_ast tree-sitter scope", "expected_file": "chunker.py"},
+  {"id": "HQ-18", "query": "git changed files since commit", "expected_file": "git_utils.py"},
+  {"id": "HQ-19", "query": "CLI argparse index search demo", "expected_file": "__main__.py"},
+  {"id": "HQ-20", "query": "how does rrf reciprocal rank fusion work", "expected_file": "search.py"}
+]
