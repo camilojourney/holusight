@@ -122,7 +122,7 @@ _Not everything is RAG. Auto-pick the right strategy per query._
 | Version | Date | Milestone |
 |---------|------|-----------|
 | v0.4 | Apr 2026 | Demo-ready, 100% hit rate, MRR 0.793 |
-| v0.5 | TBD | First consulting demo (multi-user, Docker, M365) |
+| v0.5 | 2026-08 | Single-team mounted-folder pilot with Docker and FastAPI |
 | v0.6 | TBD | Enterprise-grade (ACL, audit, SSO) |
 | v0.7 | TBD | Competitive edge (multi-strategy retrieval) |
 | v1.0 | TBD | Production deployments, first paying clients |
