@@ -51,9 +51,14 @@ class _PageContract(HTMLParser):
         self._heading_level: str | None = None
         self._in_card = False
         self._text: list[str] = []
+        self._visible_text: list[str] = []
+        self._ignored_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attrs_map = dict(attrs)
+        if tag in {"script", "style"}:
+            self._ignored_depth += 1
+            return
         if tag == "a" and attrs_map.get("href"):
             self.links.append(attrs_map["href"] or "")
         if tag in {"h2", "h3"}:
@@ -62,10 +67,17 @@ class _PageContract(HTMLParser):
             self._in_card = "card" in (attrs_map.get("class") or "")
 
     def handle_data(self, data: str) -> None:
+        if self._ignored_depth:
+            return
+        if data.strip():
+            self._visible_text.append(data)
         if self._heading_level:
             self._text.append(data)
 
     def handle_endtag(self, tag: str) -> None:
+        if tag in {"script", "style"}:
+            self._ignored_depth = max(0, self._ignored_depth - 1)
+            return
         if tag != self._heading_level:
             return
         heading = " ".join("".join(self._text).split())
@@ -74,6 +86,10 @@ class _PageContract(HTMLParser):
             self.card_headings.append(heading)
         self._heading_level = None
         self._in_card = False
+
+    @property
+    def visible_text(self) -> str:
+        return " ".join(" ".join(self._visible_text).split())
 
 
 def test_vercel_output_directory_contains_index_html():
@@ -139,7 +155,7 @@ def test_public_site_does_not_claim_unshipped_capabilities():
         parser = _PageContract()
         parser.feed(_fetch_landing_page(page))
         for claim in FORBIDDEN_AFFIRMATIVE_CLAIMS:
-            assert all(claim.lower() not in heading.lower() for heading in parser.headings)
+            assert claim.lower() not in parser.visible_text.lower(), f"{page} claims {claim!r}"
 
 
 def test_public_site_states_static_boundary_and_pilot_range():

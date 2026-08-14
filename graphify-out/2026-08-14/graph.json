@@ -117,7 +117,7 @@
       "_origin": "ast",
       "id": "src_codesight_init",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "codesight/__init__.py"
     },
     {
@@ -128,7 +128,7 @@
       "_origin": "ast",
       "id": "src_codesight_init_rationale_1",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "codesight \u2014 ai-powered document search engine. hybrid bm25 + vector retrieval..."
     },
     {
@@ -265,7 +265,7 @@
       "_origin": "ast",
       "id": "src_codesight_api",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "api.py"
     },
     {
@@ -289,8 +289,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_api_codesight_init",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".__init__()"
     },
     {
@@ -300,8 +300,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_codesight_api_py_path",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": "path"
     },
     {
@@ -324,8 +324,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_api_codesight_embedder",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": ".embedder()"
     },
     {
@@ -371,8 +371,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_api_codesight_search",
-      "community": 24,
-      "community_name": "CodeSight",
+      "community": 6,
+      "community_name": "SearchResult",
       "norm_label": ".search()"
     },
     {
@@ -443,7 +443,7 @@
       "_origin": "ast",
       "id": "src_codesight_api_rationale_1",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "public python api for codesight. this is the single entry point for streamlit,..."
     },
     {
@@ -486,8 +486,8 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "src_codesight_api_rationale_93",
-      "community": 24,
-      "community_name": "CodeSight",
+      "community": 6,
+      "community_name": "SearchResult",
       "norm_label": "hybrid bm25 + vector search. auto-indexes if needed."
     },
     {
@@ -943,8 +943,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_config",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "config.py"
     },
     {
@@ -990,8 +990,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_config_resolve_embedding_dim",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "resolve_embedding_dim()"
     },
     {
@@ -1003,7 +1003,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_config_serverconfig",
-      "community": 127,
+      "community": 18,
       "community_name": "ServerConfig",
       "norm_label": "serverconfig"
     },
@@ -1014,7 +1014,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_codesight_config_py_basemodel",
-      "community": 127,
+      "community": 18,
       "community_name": "ServerConfig",
       "norm_label": "basemodel"
     },
@@ -1026,7 +1026,7 @@
       "_origin": "ast",
       "id": "field_validator",
       "community": 127,
-      "community_name": "ServerConfig",
+      "community_name": ".clamp_cnfb_alpha",
       "norm_label": "field_validator"
     },
     {
@@ -1038,7 +1038,7 @@
       "_origin": "ast",
       "id": "src_codesight_config_serverconfig_clamp_cnfb_alpha",
       "community": 127,
-      "community_name": "ServerConfig",
+      "community_name": ".clamp_cnfb_alpha",
       "norm_label": ".clamp_cnfb_alpha()"
     },
     {
@@ -1048,8 +1048,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_config_rationale_1",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "configuration for the codesight search engine."
     },
     {
@@ -1081,8 +1081,8 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "src_codesight_config_rationale_76",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "return expected embedding dimension for a model. falls back to 384."
     },
     {
@@ -1092,7 +1092,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "src_codesight_config_rationale_172",
-      "community": 127,
+      "community": 18,
       "community_name": "ServerConfig",
       "norm_label": "runtime configuration."
     },
@@ -1104,7 +1104,7 @@
       "_origin": "ast",
       "id": "src_codesight_config_rationale_196",
       "community": 127,
-      "community_name": "ServerConfig",
+      "community_name": ".clamp_cnfb_alpha",
       "norm_label": "clamp cnfb alpha to [0.0, 2.0]. logs a warning if clamping occurred."
     },
     {
@@ -1114,8 +1114,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_embeddings",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "embeddings.py"
     },
     {
@@ -1127,8 +1127,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_embeddings_embedder",
-      "community": 1,
-      "community_name": "Embedder",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "embedder"
     },
     {
@@ -1138,8 +1138,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_codesight_embeddings_py_protocol",
-      "community": 1,
-      "community_name": "Embedder",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "protocol"
     },
     {
@@ -1151,7 +1151,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_embedder_embed",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".embed()"
     },
     {
@@ -1162,7 +1162,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_py_ndarray",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "ndarray"
     },
     {
@@ -1174,7 +1174,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_embedder_embed_query",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".embed_query()"
     },
     {
@@ -1186,7 +1186,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_normalize_rows",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "_normalize_rows()"
     },
     {
@@ -1199,7 +1199,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_localembedder",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "localembedder"
     },
     {
@@ -1211,7 +1211,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_localembedder_init",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".__init__()"
     },
     {
@@ -1223,7 +1223,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_localembedder_model",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".model()"
     },
     {
@@ -1235,7 +1235,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_localembedder_embed",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".embed()"
     },
     {
@@ -1247,7 +1247,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_localembedder_embed_query",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".embed_query()"
     },
     {
@@ -1260,7 +1260,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_apiembedder",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "apiembedder"
     },
     {
@@ -1272,7 +1272,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_apiembedder_init",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".__init__()"
     },
     {
@@ -1284,7 +1284,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_apiembedder_client",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".client()"
     },
     {
@@ -1296,7 +1296,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_apiembedder_embed",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".embed()"
     },
     {
@@ -1308,7 +1308,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_apiembedder_embed_query",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".embed_query()"
     },
     {
@@ -1321,7 +1321,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_voyageembedder",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "voyageembedder"
     },
     {
@@ -1333,7 +1333,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_voyageembedder_init",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".__init__()"
     },
     {
@@ -1345,7 +1345,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_voyageembedder_client",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".client()"
     },
     {
@@ -1357,7 +1357,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_voyageembedder_embed_with_input_type",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "._embed_with_input_type()"
     },
     {
@@ -1369,7 +1369,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_voyageembedder_embed",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".embed()"
     },
     {
@@ -1381,7 +1381,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_voyageembedder_embed_query",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": ".embed_query()"
     },
     {
@@ -1392,8 +1392,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_embeddings_get_embedder",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "get_embedder()"
     },
     {
@@ -1403,8 +1403,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_1",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "embedding model wrapper \u2014 local (sentence-transformers) or api (openai)...."
     },
     {
@@ -1414,8 +1414,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_28",
-      "community": 1,
-      "community_name": "Embedder",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "protocol for embedding backends."
     },
     {
@@ -1426,7 +1426,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_38",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "normalize embedding rows for cosine similarity search."
     },
     {
@@ -1437,7 +1437,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_50",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "wraps a sentence-transformers model for embedding. the model is lazily loaded..."
     },
     {
@@ -1448,7 +1448,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_66",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "lazy-load the model on first access."
     },
     {
@@ -1459,7 +1459,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_83",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "embed a list of texts, returning an (n, dim) float32 array."
     },
     {
@@ -1470,7 +1470,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_95",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "embed a single query string, returning a (dim,) float32 array."
     },
     {
@@ -1481,7 +1481,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_105",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "openai embedding api backend \u2014 best quality, requires api key."
     },
     {
@@ -1492,7 +1492,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_131",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "embed texts via openai api in batches of 512."
     },
     {
@@ -1503,7 +1503,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_151",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "embed a single query string."
     },
     {
@@ -1514,7 +1514,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_156",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "voyage embedding backend for code retrieval."
     },
     {
@@ -1525,7 +1525,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_208",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "embed code/document chunks for indexing."
     },
     {
@@ -1536,7 +1536,7 @@
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_212",
       "community": 1,
-      "community_name": "Embedder",
+      "community_name": "ndarray",
       "norm_label": "embed a single query for code search."
     },
     {
@@ -1546,8 +1546,8 @@
       "source_location": "L227",
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_227",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "return a cached embedder singleton. args: model_name: model identifier from the..."
     },
     {
@@ -2495,7 +2495,7 @@
       "_origin": "ast",
       "id": "src_codesight_search",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "search.py"
     },
     {
@@ -2529,8 +2529,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_search_rrf_merge",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": "rrf_merge()"
     },
     {
@@ -2542,7 +2542,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_get_voyage_client",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_get_voyage_client()"
     },
     {
@@ -2554,7 +2554,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rerank_voyage",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_rerank_voyage()"
     },
     {
@@ -2566,7 +2566,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_get_reranker",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_get_reranker()"
     },
     {
@@ -2578,7 +2578,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rerank_local",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_rerank_local()"
     },
     {
@@ -2590,7 +2590,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rerank",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_rerank()"
     },
     {
@@ -2601,8 +2601,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_search_reorder_by_filename_match",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "_reorder_by_filename_match()"
     },
     {
@@ -2626,7 +2626,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_hybrid_search",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "hybrid_search()"
     },
     {
@@ -2637,7 +2637,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_1",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "hybrid search: bm25 + vector + rrf + optional cross-encoder reranking...."
     },
     {
@@ -2658,8 +2658,8 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "src_codesight_search_rationale_61",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": "reciprocal rank fusion across multiple ranked id lists. returns [(chunk_id,..."
     },
     {
@@ -2670,7 +2670,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_82",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "lazy-load the voyage ai client (cached for process lifetime)."
     },
     {
@@ -2681,7 +2681,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_96",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "rerank results using the voyage ai reranker api. sends (query, documents) to..."
     },
     {
@@ -2692,7 +2692,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_138",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "lazy-load the cross-encoder model (cached for process lifetime)."
     },
     {
@@ -2703,7 +2703,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_153",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "rerank results using a local cross-encoder model. scores each (query,..."
     },
     {
@@ -2714,7 +2714,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_179",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "route reranking to voyage api or local cross-encoder based on backend."
     },
     {
@@ -2724,8 +2724,8 @@
       "source_location": "L205",
       "_origin": "ast",
       "id": "src_codesight_search_rationale_205",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "promote chunks from filename-matching files to the top of the list. deprecated:..."
     },
     {
@@ -2747,7 +2747,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_302",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "run hybrid bm25 + vector search with rrf merging. steps: 1. embed the query 2...."
     },
     {
@@ -2818,7 +2818,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_ftssidecar_upsert_chunk",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": ".upsert_chunk()"
     },
     {
@@ -2829,8 +2829,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_ftssidecar_delete_chunks_for_file",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": ".delete_chunks_for_file()"
     },
     {
@@ -2841,8 +2841,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_ftssidecar_get_chunk_hashes",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": ".get_chunk_hashes()"
     },
     {
@@ -3070,7 +3070,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_get_code_table",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": ".get_code_table()"
     },
     {
@@ -3094,7 +3094,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_upsert_code_chunks",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": ".upsert_code_chunks()"
     },
     {
@@ -3106,7 +3106,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_upsert_metadata",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "._upsert_metadata()"
     },
     {
@@ -3117,8 +3117,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_validate_chunk_id",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 71,
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "._validate_chunk_id()"
     },
     {
@@ -3129,8 +3129,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_delete_vectors_by_ids",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 71,
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "._delete_vectors_by_ids()"
     },
     {
@@ -3141,8 +3141,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_delete_file_chunks",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": ".delete_file_chunks()"
     },
     {
@@ -3366,7 +3366,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_rationale_94",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "insert or replace a chunk in the metadata store."
     },
     {
@@ -3376,8 +3376,8 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_106",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": "delete all chunks belonging to a file. returns count deleted."
     },
     {
@@ -3387,8 +3387,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_115",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": "return {chunk_id: content_hash} for all chunks of a file."
     },
     {
@@ -3487,7 +3487,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_rationale_326",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "open or create the code_chunks lancedb table with the voyage vector dimension."
     },
     {
@@ -3509,7 +3509,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_rationale_385",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "upsert code chunks into the code_chunks vector table and shared metadata store."
     },
     {
@@ -3520,7 +3520,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_rationale_405",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "upsert shared chunk metadata into the fts sidecar."
     },
     {
@@ -3530,8 +3530,8 @@
       "source_location": "L424",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_424",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 71,
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "validate a chunk_id against the allowlist regex. returns the chunk_id if valid,..."
     },
     {
@@ -3541,8 +3541,8 @@
       "source_location": "L434",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_434",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 71,
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "delete vectors from lancedb using validated chunk ids. each chunk_id is..."
     },
     {
@@ -3552,8 +3552,8 @@
       "source_location": "L455",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_455",
-      "community": 35,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": "remove all chunks for a file from both stores."
     },
     {
@@ -3630,7 +3630,7 @@
       "_origin": "ast",
       "id": "src_codesight_types",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "types.py"
     },
     {
@@ -3643,7 +3643,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_chunkrecord",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "chunkrecord"
     },
     {
@@ -3654,7 +3654,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_py_basemodel",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "basemodel"
     },
     {
@@ -3666,7 +3666,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_types_searchresult",
-      "community": 18,
+      "community": 6,
       "community_name": "SearchResult",
       "norm_label": "searchresult"
     },
@@ -3680,7 +3680,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_indexstats",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "indexstats"
     },
     {
@@ -3693,7 +3693,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_repostatus",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "repostatus"
     },
     {
@@ -3706,7 +3706,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_answer",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "answer"
     },
     {
@@ -3717,7 +3717,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_1",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "pydantic models for engine inputs and outputs."
     },
     {
@@ -3728,7 +3728,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_9",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "a single chunk stored in the index."
     },
     {
@@ -3738,7 +3738,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "src_codesight_types_rationale_23",
-      "community": 18,
+      "community": 6,
       "community_name": "SearchResult",
       "norm_label": "a single search result."
     },
@@ -3750,7 +3750,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_36",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "summary returned after indexing."
     },
     {
@@ -3761,7 +3761,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_48",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "status info for an indexed folder."
     },
     {
@@ -3772,7 +3772,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_60",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "llm-generated answer with source citations."
     },
     {
@@ -3804,8 +3804,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_web_server",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "server.py"
     },
     {
@@ -3817,7 +3817,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_env_bool",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "_env_bool()"
     },
     {
@@ -3829,7 +3829,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_documents_dir",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "documents_dir()"
     },
     {
@@ -3840,7 +3840,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_py_path",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "path"
     },
     {
@@ -3852,7 +3852,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_api_key",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "api_key()"
     },
     {
@@ -3864,7 +3864,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_require_auth",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "require_auth()"
     },
     {
@@ -3876,7 +3876,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_validate_startup",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "validate_startup()"
     },
     {
@@ -3888,7 +3888,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_get_engine",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "get_engine()"
     },
     {
@@ -3899,8 +3899,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_run_index",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "_run_index()"
     },
     {
@@ -3912,8 +3912,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_indexinprogresserror",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "indexinprogresserror"
     },
     {
@@ -3923,8 +3923,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "exception",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "exception"
     },
     {
@@ -3936,7 +3936,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_extract_key",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "_extract_key()"
     },
     {
@@ -3947,7 +3947,7 @@
       "_origin": "ast",
       "id": "request",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "request"
     },
     {
@@ -3959,7 +3959,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_verify_api_key",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "verify_api_key()"
     },
     {
@@ -3972,7 +3972,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_searchrequest",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "searchrequest"
     },
     {
@@ -3983,7 +3983,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_py_basemodel",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "basemodel"
     },
     {
@@ -3996,7 +3996,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_askrequest",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "askrequest"
     },
     {
@@ -4009,7 +4009,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_indexrequest",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "indexrequest"
     },
     {
@@ -4022,7 +4022,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_healthresponse",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "healthresponse"
     },
     {
@@ -4035,7 +4035,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_publicconfigresponse",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "publicconfigresponse"
     },
     {
@@ -4047,7 +4047,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_lifespan",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "lifespan()"
     },
     {
@@ -4058,7 +4058,7 @@
       "_origin": "ast",
       "id": "fastapi",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "fastapi"
     },
     {
@@ -4070,7 +4070,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_create_app",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "create_app()"
     },
     {
@@ -4080,8 +4080,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_web_server_rationale_1",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "fastapi production server for single-team codesight deployments. serves a..."
     },
     {
@@ -4092,7 +4092,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_rationale_43",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "folder mounted read-only for indexing (default /data in docker)."
     },
     {
@@ -4103,7 +4103,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_rationale_53",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "production-shaped deployments must authenticate api calls."
     },
     {
@@ -4113,8 +4113,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "src_codesight_web_server_rationale_115",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "raised when a second index request arrives while indexing runs."
     },
     {
@@ -5088,7 +5088,7 @@
       "label": ".handle_starttag()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L53",
+      "source_location": "L51",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_pagecontract_handle_starttag",
@@ -5100,7 +5100,7 @@
       "label": ".handle_data()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L65",
+      "source_location": "L60",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_pagecontract_handle_data",
@@ -5112,7 +5112,7 @@
       "label": ".handle_endtag()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L73",
+      "source_location": "L64",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_pagecontract_handle_endtag",
@@ -5121,22 +5121,10 @@
       "norm_label": ".handle_endtag()"
     },
     {
-      "label": ".visible_text()",
-      "file_type": "code",
-      "source_file": "tests/test_deployment.py",
-      "source_location": "L87",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "tests_test_deployment_pagecontract_visible_text",
-      "community": 79,
-      "community_name": "test_deployment.py",
-      "norm_label": ".visible_text()"
-    },
-    {
       "label": "test_vercel_output_directory_contains_index_html()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L91",
+      "source_location": "L75",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_vercel_output_directory_contains_index_html",
@@ -5148,7 +5136,7 @@
       "label": "test_landing_pages_exist()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L103",
+      "source_location": "L87",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_landing_pages_exist",
@@ -5160,7 +5148,7 @@
       "label": "test_vercel_config_is_static_site_not_python_build()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L112",
+      "source_location": "L96",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_vercel_config_is_static_site_not_python_build",
@@ -5172,7 +5160,7 @@
       "label": "test_public_site_does_not_claim_unshipped_capabilities()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L134",
+      "source_location": "L118",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_public_site_does_not_claim_unshipped_capabilities",
@@ -5184,7 +5172,7 @@
       "label": "test_public_site_states_static_boundary_and_pilot_range()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L144",
+      "source_location": "L128",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_public_site_states_static_boundary_and_pilot_range",
@@ -5196,7 +5184,7 @@
       "label": "test_compose_resolves_customer_mount_and_production_environment()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L158",
+      "source_location": "L142",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_compose_resolves_customer_mount_and_production_environment",
@@ -5219,9 +5207,9 @@
       "label": "Vercel must serve a static entry point or holusight.com returns 404.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L92",
+      "source_location": "L76",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_92",
+      "id": "tests_test_deployment_rationale_76",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "vercel must serve a static entry point or holusight.com returns 404."
@@ -5230,9 +5218,9 @@
       "label": "Key marketing/docs pages must exist for holusight.com navigation.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L104",
+      "source_location": "L88",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_104",
+      "id": "tests_test_deployment_rationale_88",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "key marketing/docs pages must exist for holusight.com navigation."
@@ -5241,9 +5229,9 @@
       "label": "Keep Vercel deploy as a static landing page, not a Streamlit/FastAPI build.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L113",
+      "source_location": "L97",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_113",
+      "id": "tests_test_deployment_rationale_97",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "keep vercel deploy as a static landing page, not a streamlit/fastapi build."
@@ -5252,9 +5240,9 @@
       "label": "Marketing copy must not claim planned or unverified capabilities.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L135",
+      "source_location": "L119",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_135",
+      "id": "tests_test_deployment_rationale_119",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "marketing copy must not claim planned or unverified capabilities."
@@ -5263,9 +5251,9 @@
       "label": "Docker Compose's normalized model must protect the customer boundary.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L159",
+      "source_location": "L143",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_159",
+      "id": "tests_test_deployment_rationale_143",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "docker compose's normalized model must protect the customer boundary."
@@ -5277,8 +5265,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_e2e",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": "test_e2e.py"
     },
     {
@@ -5288,8 +5276,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_e2e_py_fixture",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": "fixture"
     },
     {
@@ -5300,8 +5288,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_indexed_engine",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": "indexed_engine()"
     },
     {
@@ -5313,8 +5301,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": "teste2eretrieval"
     },
     {
@@ -5325,8 +5313,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_bm25_finds_exact_payment_terms",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".test_bm25_finds_exact_payment_terms()"
     },
     {
@@ -5337,8 +5325,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_semantic_search_finds_auth_topic",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".test_semantic_search_finds_auth_topic()"
     },
     {
@@ -5349,8 +5337,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_rrf_merges_keyword_and_semantic",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": ".test_rrf_merges_keyword_and_semantic()"
     },
     {
@@ -5361,8 +5349,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_citation_metadata_for_markdown",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".test_citation_metadata_for_markdown()"
     },
     {
@@ -5373,8 +5361,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_citation_metadata_for_code",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".test_citation_metadata_for_code()"
     },
     {
@@ -5385,8 +5373,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_empty_collection_returns_no_results",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".test_empty_collection_returns_no_results()"
     },
     {
@@ -5397,8 +5385,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_ask_without_llm_returns_graceful_or_mocked",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".test_ask_without_llm_returns_graceful_or_mocked()"
     },
     {
@@ -5409,8 +5397,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_index_persists_across_engine_restart",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".test_index_persists_across_engine_restart()"
     },
     {
@@ -5420,8 +5408,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_e2e_rationale_1",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": "end-to-end tests: index \u2192 hybrid search \u2192 api citations."
     },
     {
@@ -5431,8 +5419,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "tests_test_e2e_rationale_20",
-      "community": 127,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": "index pilot fixtures into an isolated data directory."
     },
     {
@@ -5864,8 +5852,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpindextool",
-      "community": 133,
-      "community_name": "TestMCPIndexTool",
+      "community": 36,
+      "community_name": "test_mcp.py",
       "norm_label": "testmcpindextool"
     },
     {
@@ -5876,8 +5864,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpindextool_test_index_returns_index_stats",
-      "community": 133,
-      "community_name": "TestMCPIndexTool",
+      "community": 36,
+      "community_name": "test_mcp.py",
       "norm_label": ".test_index_returns_index_stats()"
     },
     {
@@ -5888,8 +5876,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpindextool_test_index_model_dump_matches_mcp_contract",
-      "community": 133,
-      "community_name": "TestMCPIndexTool",
+      "community": 36,
+      "community_name": "test_mcp.py",
       "norm_label": ".test_index_model_dump_matches_mcp_contract()"
     },
     {
@@ -5900,8 +5888,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpindextool_test_force_rebuild_still_returns_stats",
-      "community": 133,
-      "community_name": "TestMCPIndexTool",
+      "community": 36,
+      "community_name": "test_mcp.py",
       "norm_label": ".test_force_rebuild_still_returns_stats()"
     },
     {
@@ -6035,8 +6023,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpaskextension",
-      "community": 36,
-      "community_name": "test_mcp.py",
+      "community": 6,
+      "community_name": "SearchResult",
       "norm_label": "testmcpaskextension"
     },
     {
@@ -6047,8 +6035,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpaskextension_test_ask_with_no_index_returns_helpful_message",
-      "community": 36,
-      "community_name": "test_mcp.py",
+      "community": 6,
+      "community_name": "SearchResult",
       "norm_label": ".test_ask_with_no_index_returns_helpful_message()"
     },
     {
@@ -6059,8 +6047,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpaskextension_test_ask_synthesizes_answer_from_search_results",
-      "community": 36,
-      "community_name": "test_mcp.py",
+      "community": 6,
+      "community_name": "SearchResult",
       "norm_label": ".test_ask_synthesizes_answer_from_search_results()"
     },
     {
@@ -6151,8 +6139,8 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "tests_test_mcp_rationale_82",
-      "community": 133,
-      "community_name": "TestMCPIndexTool",
+      "community": 36,
+      "community_name": "test_mcp.py",
       "norm_label": "codesight.index() \u2194 former mcp index tool."
     },
     {
@@ -6195,8 +6183,8 @@
       "source_location": "L183",
       "_origin": "ast",
       "id": "tests_test_mcp_rationale_183",
-      "community": 36,
-      "community_name": "test_mcp.py",
+      "community": 6,
+      "community_name": "SearchResult",
       "norm_label": "codesight.ask() \u2014 api extension beyond the original three mcp tools."
     },
     {
@@ -6218,7 +6206,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "test_placeholder.py"
     },
     {
@@ -6230,7 +6218,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_test_package_declares_expected_public_exports",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "test_package_declares_expected_public_exports()"
     },
     {
@@ -6242,7 +6230,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_test_package_exports_resolve_to_canonical_objects",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "test_package_exports_resolve_to_canonical_objects()"
     },
     {
@@ -6253,7 +6241,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_rationale_1",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "public package export contract tests."
     },
     {
@@ -6264,7 +6252,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_rationale_19",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "the package root exposes a stable public import surface."
     },
     {
@@ -6275,7 +6263,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_rationale_24",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "root exports point at the implementation classes callers should import."
     },
     {
@@ -6298,8 +6286,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_search_testrrfmerge",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": "testrrfmerge"
     },
     {
@@ -6310,8 +6298,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testrrfmerge_test_single_list",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": ".test_single_list()"
     },
     {
@@ -6322,8 +6310,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testrrfmerge_test_two_identical_lists",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": ".test_two_identical_lists()"
     },
     {
@@ -6334,8 +6322,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testrrfmerge_test_disjoint_lists",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": ".test_disjoint_lists()"
     },
     {
@@ -6346,8 +6334,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testrrfmerge_test_overlapping_lists_boost_shared",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": ".test_overlapping_lists_boost_shared()"
     },
     {
@@ -6358,8 +6346,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testrrfmerge_test_empty_lists",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": ".test_empty_lists()"
     },
     {
@@ -6370,8 +6358,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testrrfmerge_test_k_constant_affects_scores",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": ".test_k_constant_affects_scores()"
     },
     {
@@ -6529,8 +6517,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "testmetadataboost"
     },
     {
@@ -6541,8 +6529,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_make_metadatas",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "._make_metadatas()"
     },
     {
@@ -6553,8 +6541,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_filename_match_promoted_to_front",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_filename_match_promoted_to_front()"
     },
     {
@@ -6565,8 +6553,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_no_match_preserves_original_order",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_no_match_preserves_original_order()"
     },
     {
@@ -6577,8 +6565,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_stopwords_not_matched",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_stopwords_not_matched()"
     },
     {
@@ -6589,8 +6577,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_partial_filename_match",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_partial_filename_match()"
     },
     {
@@ -6601,8 +6589,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_empty_query_tokens_after_stopword_filter",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_empty_query_tokens_after_stopword_filter()"
     },
     {
@@ -6613,8 +6601,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_missing_metadata_goes_to_rest",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_missing_metadata_goes_to_rest()"
     },
     {
@@ -6768,8 +6756,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "tests_test_search_rationale_21",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": "single ranked list preserves order."
     },
     {
@@ -6779,8 +6767,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "tests_test_search_rationale_27",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": "two identical lists: items appear once with doubled scores."
     },
     {
@@ -6790,8 +6778,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "tests_test_search_rationale_33",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": "disjoint lists merge all items."
     },
     {
@@ -6801,8 +6789,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "tests_test_search_rationale_39",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": "items appearing in both lists get higher scores."
     },
     {
@@ -6812,8 +6800,8 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "tests_test_search_rationale_50",
-      "community": 19,
-      "community_name": "_cnfb_boost",
+      "community": 35,
+      "community_name": "rrf_merge",
       "norm_label": "higher k flattens score differences."
     },
     {
@@ -6944,8 +6932,8 @@
       "source_location": "L194",
       "_origin": "ast",
       "id": "tests_test_search_rationale_194",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "tests for filename-based metadata boosting via _reorder_by_filename_match."
     },
     {
@@ -6955,8 +6943,8 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "tests_test_search_rationale_197",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "build a metadatas dict: chunk_id \u2192 {file_path: ...}."
     },
     {
@@ -6966,8 +6954,8 @@
       "source_location": "L201",
       "_origin": "ast",
       "id": "tests_test_search_rationale_201",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "chunk from a file whose name matches a query token is promoted."
     },
     {
@@ -6977,8 +6965,8 @@
       "source_location": "L219",
       "_origin": "ast",
       "id": "tests_test_search_rationale_219",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "when no token matches any filename, original order is unchanged."
     },
     {
@@ -6988,8 +6976,8 @@
       "source_location": "L234",
       "_origin": "ast",
       "id": "tests_test_search_rationale_234",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "stopwords like 'how', 'does', 'the', 'is' are filtered out."
     },
     {
@@ -6999,8 +6987,8 @@
       "source_location": "L252",
       "_origin": "ast",
       "id": "tests_test_search_rationale_252",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "token that is a substring of the filename stem triggers boost."
     },
     {
@@ -7010,8 +6998,8 @@
       "source_location": "L268",
       "_origin": "ast",
       "id": "tests_test_search_rationale_268",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "if all tokens are stopwords, original order is preserved."
     },
     {
@@ -7021,8 +7009,8 @@
       "source_location": "L283",
       "_origin": "ast",
       "id": "tests_test_search_rationale_283",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "chunks with missing metadata are placed after matched chunks."
     },
     {
@@ -7313,8 +7301,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_security_testreadonlyinvariant",
-      "community": 12,
-      "community_name": "TestPathTraversal",
+      "community": 109,
+      "community_name": "TestReadOnlyInvariant",
       "norm_label": "testreadonlyinvariant"
     },
     {
@@ -7325,8 +7313,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_security_testreadonlyinvariant_test_index_does_not_write_to_source_folder",
-      "community": 12,
-      "community_name": "TestPathTraversal",
+      "community": 109,
+      "community_name": "TestReadOnlyInvariant",
       "norm_label": ".test_index_does_not_write_to_source_folder()"
     },
     {
@@ -7505,8 +7493,8 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "tests_test_security_rationale_137",
-      "community": 12,
-      "community_name": "TestPathTraversal",
+      "community": 109,
+      "community_name": "TestReadOnlyInvariant",
       "norm_label": "verify the engine never writes to the indexed folder."
     },
     {
@@ -7516,8 +7504,8 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "tests_test_security_rationale_140",
-      "community": 12,
-      "community_name": "TestPathTraversal",
+      "community": 109,
+      "community_name": "TestReadOnlyInvariant",
       "norm_label": "after indexing, the source folder should have no new files."
     },
     {
@@ -17395,8 +17383,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config",
-      "community": 94,
-      "community_name": "specs/README.md",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "002-embedding-model-config.md"
     },
     {
@@ -17461,8 +17449,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_implementation_notes",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "implementation notes"
     },
     {
@@ -17472,8 +17460,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_key_parameters",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "key parameters"
     },
     {
@@ -17483,8 +17471,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_model_comparison",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "model comparison"
     },
     {
@@ -17494,8 +17482,8 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_dependencies",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "dependencies"
     },
     {
@@ -17505,8 +17493,8 @@
       "source_location": "L80",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_implementation_steps",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "implementation steps"
     },
     {
@@ -17582,8 +17570,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "specs_003_incremental_refresh",
-      "community": 50,
-      "community_name": "Spec 003: Incremental Refresh",
+      "community": 94,
+      "community_name": "specs/README.md",
       "norm_label": "003-incremental-refresh.md"
     },
     {
@@ -18154,8 +18142,8 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_implementation_notes",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "implementation notes"
     },
     {
@@ -18165,8 +18153,8 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_key_parameters",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "key parameters"
     },
     {
@@ -18176,8 +18164,8 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_dependencies",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "dependencies"
     },
     {
@@ -18187,8 +18175,8 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_scaling_per_backend",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "scaling per backend"
     },
     {
@@ -18198,8 +18186,8 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_file_changes",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "file changes"
     },
     {
@@ -18209,8 +18197,8 @@
       "source_location": "L141",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_alternatives_considered",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 59,
+      "community_name": "Alternatives Considered",
       "norm_label": "alternatives considered"
     },
     {
@@ -18220,8 +18208,8 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_alternative_a_litellm_wrapper_library",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 59,
+      "community_name": "Alternatives Considered",
       "norm_label": "alternative a: litellm wrapper library"
     },
     {
@@ -18231,8 +18219,8 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_alternative_b_langchain",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 59,
+      "community_name": "Alternatives Considered",
       "norm_label": "alternative b: langchain"
     },
     {
@@ -18242,8 +18230,8 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_alternative_c_only_support_claude_ollama",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 59,
+      "community_name": "Alternatives Considered",
       "norm_label": "alternative c: only support claude + ollama"
     },
     {
@@ -18286,8 +18274,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "specs_007_cross_encoder_reranking",
-      "community": 94,
-      "community_name": "specs/README.md",
+      "community": 23,
+      "community_name": "Spec 007: Cross-Encoder Reranking",
       "norm_label": "007-cross-encoder-reranking.md"
     },
     {
@@ -18363,8 +18351,8 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "specs_007_cross_encoder_reranking_implementation_notes",
-      "community": 59,
-      "community_name": "Implementation Notes",
+      "community": 23,
+      "community_name": "Spec 007: Cross-Encoder Reranking",
       "norm_label": "implementation notes"
     },
     {
@@ -18374,8 +18362,8 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "specs_007_cross_encoder_reranking_key_parameters",
-      "community": 59,
-      "community_name": "Implementation Notes",
+      "community": 23,
+      "community_name": "Spec 007: Cross-Encoder Reranking",
       "norm_label": "key parameters"
     },
     {
@@ -18385,8 +18373,8 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "specs_007_cross_encoder_reranking_reranker_model_options",
-      "community": 59,
-      "community_name": "Implementation Notes",
+      "community": 23,
+      "community_name": "Spec 007: Cross-Encoder Reranking",
       "norm_label": "reranker model options"
     },
     {
@@ -18396,8 +18384,8 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "specs_007_cross_encoder_reranking_dependencies",
-      "community": 59,
-      "community_name": "Implementation Notes",
+      "community": 23,
+      "community_name": "Spec 007: Cross-Encoder Reranking",
       "norm_label": "dependencies"
     },
     {
@@ -18407,8 +18395,8 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "specs_007_cross_encoder_reranking_implementation",
-      "community": 59,
-      "community_name": "Implementation Notes",
+      "community": 23,
+      "community_name": "Spec 007: Cross-Encoder Reranking",
       "norm_label": "implementation"
     },
     {
@@ -18418,8 +18406,8 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "specs_007_cross_encoder_reranking_configuration",
-      "community": 59,
-      "community_name": "Implementation Notes",
+      "community": 23,
+      "community_name": "Spec 007: Cross-Encoder Reranking",
       "norm_label": "configuration"
     },
     {
@@ -18429,8 +18417,8 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "specs_007_cross_encoder_reranking_file_changes",
-      "community": 59,
-      "community_name": "Implementation Notes",
+      "community": 23,
+      "community_name": "Spec 007: Cross-Encoder Reranking",
       "norm_label": "file changes"
     },
     {
@@ -29985,7 +29973,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L158",
+      "source_location": "L142",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29996,7 +29984,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L103",
+      "source_location": "L87",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -30007,7 +29995,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L134",
+      "source_location": "L118",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -30018,7 +30006,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L144",
+      "source_location": "L128",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -30029,7 +30017,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L112",
+      "source_location": "L96",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -30040,7 +30028,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L91",
+      "source_location": "L75",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -30063,7 +30051,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L105",
+      "source_location": "L89",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_landing_pages_exist",
@@ -30075,7 +30063,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L114",
+      "source_location": "L98",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_vercel_config_is_static_site_not_python_build",
@@ -30087,7 +30075,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L93",
+      "source_location": "L77",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_vercel_output_directory_contains_index_html",
@@ -30099,7 +30087,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L139",
+      "source_location": "L123",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_public_site_does_not_claim_unshipped_capabilities",
@@ -30111,7 +30099,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L146",
+      "source_location": "L130",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_public_site_states_static_boundary_and_pilot_range",
@@ -30133,7 +30121,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L65",
+      "source_location": "L60",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_pagecontract",
@@ -30144,7 +30132,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L73",
+      "source_location": "L64",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_pagecontract",
@@ -30155,7 +30143,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L53",
+      "source_location": "L51",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_pagecontract",
@@ -30174,22 +30162,11 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "tests/test_deployment.py",
-      "source_location": "L87",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "tests_test_deployment_pagecontract",
-      "target": "tests_test_deployment_pagecontract_visible_text",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L138",
+      "source_location": "L122",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_public_site_does_not_claim_unshipped_capabilities",
@@ -30201,7 +30178,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L145",
+      "source_location": "L129",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_public_site_states_static_boundary_and_pilot_range",
@@ -30212,10 +30189,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L92",
+      "source_location": "L76",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_92",
+      "source": "tests_test_deployment_rationale_76",
       "target": "tests_test_deployment_test_vercel_output_directory_contains_index_html",
       "confidence_score": 1.0
     },
@@ -30223,10 +30200,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L104",
+      "source_location": "L88",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_104",
+      "source": "tests_test_deployment_rationale_88",
       "target": "tests_test_deployment_test_landing_pages_exist",
       "confidence_score": 1.0
     },
@@ -30234,10 +30211,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L113",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_113",
+      "source": "tests_test_deployment_rationale_97",
       "target": "tests_test_deployment_test_vercel_config_is_static_site_not_python_build",
       "confidence_score": 1.0
     },
@@ -30245,10 +30222,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L135",
+      "source_location": "L119",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_135",
+      "source": "tests_test_deployment_rationale_119",
       "target": "tests_test_deployment_test_public_site_does_not_claim_unshipped_capabilities",
       "confidence_score": 1.0
     },
@@ -30256,10 +30233,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L159",
+      "source_location": "L143",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_159",
+      "source": "tests_test_deployment_rationale_143",
       "target": "tests_test_deployment_test_compose_resolves_customer_mount_and_production_environment",
       "confidence_score": 1.0
     },
@@ -43743,5 +43720,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "0ff8970ebeea11d318256fc7e9037ff7ff9dcb51"
+  "built_at_commit": "eb62412b25830b5edb794f2aaa0e32292efed533"
 }

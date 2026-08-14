@@ -83,7 +83,7 @@ def validate_startup() -> None:
 
 _engine: CodeSight | None = None
 _index_lock = threading.Lock()
-_index_operation_lock = threading.Lock()
+_index_operation_lock = threading.RLock()
 _index_in_progress = False
 
 
@@ -265,11 +265,12 @@ def create_app() -> FastAPI:
         if not body.question.strip():
             raise HTTPException(status_code=400, detail="Question cannot be empty")
         try:
-            answer: Answer = get_engine().ask(
-                body.question.strip(),
-                top_k=body.top_k,
-                file_glob=body.file_glob,
-            )
+            with _index_operation_lock:
+                answer: Answer = get_engine().ask(
+                    body.question.strip(),
+                    top_k=body.top_k,
+                    file_glob=body.file_glob,
+                )
         except ValueError as exc:
             if "API_KEY" in str(exc) or "environment variable is required" in str(exc):
                 raise HTTPException(
