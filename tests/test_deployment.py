@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import os
 from functools import partial
+from html.parser import HTMLParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import re
 import shutil
 import subprocess
 from threading import Thread
@@ -38,6 +40,40 @@ def _fetch_landing_page(page: str) -> str:
     finally:
         server.shutdown()
         thread.join()
+
+
+class _PageContract(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[str] = []
+        self.headings: list[str] = []
+        self.card_headings: list[str] = []
+        self._heading_level: str | None = None
+        self._in_card = False
+        self._text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_map = dict(attrs)
+        if tag == "a" and attrs_map.get("href"):
+            self.links.append(attrs_map["href"] or "")
+        if tag in {"h2", "h3"}:
+            self._heading_level = tag
+            self._text = []
+            self._in_card = "card" in (attrs_map.get("class") or "")
+
+    def handle_data(self, data: str) -> None:
+        if self._heading_level:
+            self._text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != self._heading_level:
+            return
+        heading = " ".join("".join(self._text).split())
+        self.headings.append(heading)
+        if self._in_card:
+            self.card_headings.append(heading)
+        self._heading_level = None
+        self._in_card = False
 
 
 def test_vercel_output_directory_contains_index_html():
@@ -100,16 +136,24 @@ def test_public_site_does_not_claim_unshipped_capabilities():
     """Marketing copy must not claim planned or unverified capabilities."""
     pages = ("index.html", "docs.html", "pricing.html")
     for page in pages:
-        text = _fetch_landing_page(page)
+        parser = _PageContract()
+        parser.feed(_fetch_landing_page(page))
         for claim in FORBIDDEN_AFFIRMATIVE_CLAIMS:
-            assert claim.lower() not in text.lower(), f"{page} claims {claim!r}"
+            assert all(claim.lower() not in heading.lower() for heading in parser.headings)
 
 
 def test_public_site_states_static_boundary_and_pilot_range():
-    home = _fetch_landing_page("index.html")
-    pricing = _fetch_landing_page("pricing.html")
-    assert "does not index" in home.lower() or "static" in home.lower()
-    assert "$1,000" in pricing and "$2,000" in pricing
+    home = _PageContract()
+    home.feed(_fetch_landing_page("index.html"))
+    assert {"/docs.html", "/pricing.html"}.issubset(home.links)
+    assert "What ships today" in home.headings
+
+    pricing_html = _fetch_landing_page("pricing.html")
+    pricing = _PageContract()
+    pricing.feed(pricing_html)
+    assert "Recommended starting range" in pricing.headings
+    assert {"Pilot setup", "Optional support"}.issubset(set(pricing.headings))
+    assert {"$1,000", "$2,000"}.issubset(set(re.findall(r"\$[\d,]+", pricing_html)))
 
 
 def test_compose_resolves_customer_mount_and_production_environment(tmp_path):

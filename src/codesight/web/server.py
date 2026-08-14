@@ -83,6 +83,7 @@ def validate_startup() -> None:
 
 _engine: CodeSight | None = None
 _index_lock = threading.Lock()
+_index_operation_lock = threading.Lock()
 _index_in_progress = False
 
 
@@ -95,8 +96,11 @@ def get_engine() -> CodeSight:
 
 def _run_index(force_rebuild: bool = False) -> IndexStats:
     global _index_in_progress
+    if not _index_operation_lock.acquire(blocking=False):
+        raise IndexInProgressError()
     with _index_lock:
         if _index_in_progress:
+            _index_operation_lock.release()
             raise IndexInProgressError()
         _index_in_progress = True
     try:
@@ -104,6 +108,7 @@ def _run_index(force_rebuild: bool = False) -> IndexStats:
     finally:
         with _index_lock:
             _index_in_progress = False
+        _index_operation_lock.release()
 
 
 class IndexInProgressError(Exception):
@@ -247,11 +252,12 @@ def create_app() -> FastAPI:
     async def search(body: SearchRequest) -> dict[str, Any]:
         if not body.query.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
-        results: list[SearchResult] = get_engine().search(
-            body.query.strip(),
-            top_k=body.top_k,
-            file_glob=body.file_glob,
-        )
+        with _index_operation_lock:
+            results: list[SearchResult] = get_engine().search(
+                body.query.strip(),
+                top_k=body.top_k,
+                file_glob=body.file_glob,
+            )
         return {"results": [r.model_dump() for r in results]}
 
     @app.post("/api/ask", dependencies=[Depends(verify_api_key)])

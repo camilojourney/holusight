@@ -117,7 +117,7 @@
       "_origin": "ast",
       "id": "src_codesight_init",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "codesight/__init__.py"
     },
     {
@@ -128,7 +128,7 @@
       "_origin": "ast",
       "id": "src_codesight_init_rationale_1",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "codesight \u2014 ai-powered document search engine. hybrid bm25 + vector retrieval..."
     },
     {
@@ -265,7 +265,7 @@
       "_origin": "ast",
       "id": "src_codesight_api",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "api.py"
     },
     {
@@ -289,8 +289,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_api_codesight_init",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": ".__init__()"
     },
     {
@@ -300,8 +300,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_codesight_api_py_path",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 24,
+      "community_name": "CodeSight",
       "norm_label": "path"
     },
     {
@@ -324,8 +324,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_api_codesight_embedder",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": ".embedder()"
     },
     {
@@ -371,8 +371,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_api_codesight_search",
-      "community": 24,
-      "community_name": "CodeSight",
+      "community": 6,
+      "community_name": "SearchResult",
       "norm_label": ".search()"
     },
     {
@@ -443,7 +443,7 @@
       "_origin": "ast",
       "id": "src_codesight_api_rationale_1",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "public python api for codesight. this is the single entry point for streamlit,..."
     },
     {
@@ -486,8 +486,8 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "src_codesight_api_rationale_93",
-      "community": 24,
-      "community_name": "CodeSight",
+      "community": 6,
+      "community_name": "SearchResult",
       "norm_label": "hybrid bm25 + vector search. auto-indexes if needed."
     },
     {
@@ -943,8 +943,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_config",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "config.py"
     },
     {
@@ -956,7 +956,7 @@
       "_origin": "ast",
       "id": "src_codesight_config_repo_data_dir",
       "community": 70,
-      "community_name": "repo_data_dir",
+      "community_name": "store.py",
       "norm_label": "repo_data_dir()"
     },
     {
@@ -967,7 +967,7 @@
       "_origin": "ast",
       "id": "src_codesight_config_py_path",
       "community": 70,
-      "community_name": "repo_data_dir",
+      "community_name": "store.py",
       "norm_label": "path"
     },
     {
@@ -979,7 +979,7 @@
       "_origin": "ast",
       "id": "src_codesight_config_repo_fts_db_path",
       "community": 70,
-      "community_name": "repo_data_dir",
+      "community_name": "store.py",
       "norm_label": "repo_fts_db_path()"
     },
     {
@@ -990,8 +990,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_config_resolve_embedding_dim",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "resolve_embedding_dim()"
     },
     {
@@ -1003,7 +1003,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_config_serverconfig",
-      "community": 12,
+      "community": 18,
       "community_name": "ServerConfig",
       "norm_label": "serverconfig"
     },
@@ -1014,7 +1014,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_codesight_config_py_basemodel",
-      "community": 12,
+      "community": 18,
       "community_name": "ServerConfig",
       "norm_label": "basemodel"
     },
@@ -1025,8 +1025,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "field_validator",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 127,
+      "community_name": ".clamp_cnfb_alpha",
       "norm_label": "field_validator"
     },
     {
@@ -1037,8 +1037,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_config_serverconfig_clamp_cnfb_alpha",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 127,
+      "community_name": ".clamp_cnfb_alpha",
       "norm_label": ".clamp_cnfb_alpha()"
     },
     {
@@ -1048,8 +1048,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_config_rationale_1",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "configuration for the codesight search engine."
     },
     {
@@ -1060,7 +1060,7 @@
       "_origin": "ast",
       "id": "src_codesight_config_rationale_28",
       "community": 70,
-      "community_name": "repo_data_dir",
+      "community_name": "store.py",
       "norm_label": "return the data directory for a given folder, creating parent dirs if needed...."
     },
     {
@@ -1071,7 +1071,7 @@
       "_origin": "ast",
       "id": "src_codesight_config_rationale_42",
       "community": 70,
-      "community_name": "repo_data_dir",
+      "community_name": "store.py",
       "norm_label": "return the sqlite fts5 sidecar db path for a given folder."
     },
     {
@@ -1081,8 +1081,8 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "src_codesight_config_rationale_76",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "return expected embedding dimension for a model. falls back to 384."
     },
     {
@@ -1092,7 +1092,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "src_codesight_config_rationale_172",
-      "community": 12,
+      "community": 18,
       "community_name": "ServerConfig",
       "norm_label": "runtime configuration."
     },
@@ -1103,8 +1103,8 @@
       "source_location": "L196",
       "_origin": "ast",
       "id": "src_codesight_config_rationale_196",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 127,
+      "community_name": ".clamp_cnfb_alpha",
       "norm_label": "clamp cnfb alpha to [0.0, 2.0]. logs a warning if clamping occurred."
     },
     {
@@ -1114,8 +1114,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_embeddings",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "embeddings.py"
     },
     {
@@ -1127,8 +1127,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_embeddings_embedder",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "embedder"
     },
     {
@@ -1138,8 +1138,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_codesight_embeddings_py_protocol",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "protocol"
     },
     {
@@ -1392,8 +1392,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_embeddings_get_embedder",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "get_embedder()"
     },
     {
@@ -1403,8 +1403,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_1",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "embedding model wrapper \u2014 local (sentence-transformers) or api (openai)...."
     },
     {
@@ -1414,8 +1414,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_28",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "protocol for embedding backends."
     },
     {
@@ -1546,8 +1546,8 @@
       "source_location": "L227",
       "_origin": "ast",
       "id": "src_codesight_embeddings_rationale_227",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 132,
+      "community_name": "config.py",
       "norm_label": "return a cached embedder singleton. args: model_name: model identifier from the..."
     },
     {
@@ -2495,7 +2495,7 @@
       "_origin": "ast",
       "id": "src_codesight_search",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "search.py"
     },
     {
@@ -2542,7 +2542,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_get_voyage_client",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_get_voyage_client()"
     },
     {
@@ -2554,7 +2554,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rerank_voyage",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_rerank_voyage()"
     },
     {
@@ -2566,7 +2566,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_get_reranker",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_get_reranker()"
     },
     {
@@ -2578,7 +2578,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rerank_local",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_rerank_local()"
     },
     {
@@ -2590,7 +2590,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rerank",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "_rerank()"
     },
     {
@@ -2601,8 +2601,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_search_reorder_by_filename_match",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "_reorder_by_filename_match()"
     },
     {
@@ -2626,7 +2626,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_hybrid_search",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "hybrid_search()"
     },
     {
@@ -2637,7 +2637,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_1",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "hybrid search: bm25 + vector + rrf + optional cross-encoder reranking...."
     },
     {
@@ -2670,7 +2670,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_82",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "lazy-load the voyage ai client (cached for process lifetime)."
     },
     {
@@ -2681,7 +2681,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_96",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "rerank results using the voyage ai reranker api. sends (query, documents) to..."
     },
     {
@@ -2692,7 +2692,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_138",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "lazy-load the cross-encoder model (cached for process lifetime)."
     },
     {
@@ -2703,7 +2703,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_153",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "rerank results using a local cross-encoder model. scores each (query,..."
     },
     {
@@ -2714,7 +2714,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_179",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "route reranking to voyage api or local cross-encoder based on backend."
     },
     {
@@ -2724,8 +2724,8 @@
       "source_location": "L205",
       "_origin": "ast",
       "id": "src_codesight_search_rationale_205",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "promote chunks from filename-matching files to the top of the list. deprecated:..."
     },
     {
@@ -2747,7 +2747,7 @@
       "_origin": "ast",
       "id": "src_codesight_search_rationale_302",
       "community": 6,
-      "community_name": "search.py",
+      "community_name": "SearchResult",
       "norm_label": "run hybrid bm25 + vector search with rrf merging. steps: 1. embed the query 2...."
     },
     {
@@ -2757,8 +2757,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_store",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 70,
+      "community_name": "store.py",
       "norm_label": "store.py"
     },
     {
@@ -2818,7 +2818,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_ftssidecar_upsert_chunk",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": ".upsert_chunk()"
     },
     {
@@ -2829,8 +2829,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_ftssidecar_delete_chunks_for_file",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": ".delete_chunks_for_file()"
     },
     {
@@ -2841,8 +2841,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_ftssidecar_get_chunk_hashes",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": ".get_chunk_hashes()"
     },
     {
@@ -3011,7 +3011,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_init",
       "community": 70,
-      "community_name": "repo_data_dir",
+      "community_name": "store.py",
       "norm_label": ".__init__()"
     },
     {
@@ -3070,7 +3070,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_get_code_table",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": ".get_code_table()"
     },
     {
@@ -3094,7 +3094,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_upsert_code_chunks",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": ".upsert_code_chunks()"
     },
     {
@@ -3106,7 +3106,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_upsert_metadata",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "._upsert_metadata()"
     },
     {
@@ -3117,8 +3117,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_validate_chunk_id",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 71,
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "._validate_chunk_id()"
     },
     {
@@ -3129,8 +3129,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_delete_vectors_by_ids",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 71,
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "._delete_vectors_by_ids()"
     },
     {
@@ -3141,8 +3141,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_store_chunkstore_delete_file_chunks",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": ".delete_file_chunks()"
     },
     {
@@ -3343,8 +3343,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_1",
-      "community": 6,
-      "community_name": "search.py",
+      "community": 70,
+      "community_name": "store.py",
       "norm_label": "storage layer: lancedb for vectors + sqlite fts5 sidecar for bm25. this module..."
     },
     {
@@ -3366,7 +3366,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_rationale_94",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "insert or replace a chunk in the metadata store."
     },
     {
@@ -3376,8 +3376,8 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_106",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": "delete all chunks belonging to a file. returns count deleted."
     },
     {
@@ -3387,8 +3387,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_115",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": "return {chunk_id: content_hash} for all chunks of a file."
     },
     {
@@ -3487,7 +3487,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_rationale_326",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "open or create the code_chunks lancedb table with the voyage vector dimension."
     },
     {
@@ -3509,7 +3509,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_rationale_385",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "upsert code chunks into the code_chunks vector table and shared metadata store."
     },
     {
@@ -3520,7 +3520,7 @@
       "_origin": "ast",
       "id": "src_codesight_store_rationale_405",
       "community": 71,
-      "community_name": ".upsert_code_chunks",
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "upsert shared chunk metadata into the fts sidecar."
     },
     {
@@ -3530,8 +3530,8 @@
       "source_location": "L424",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_424",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 71,
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "validate a chunk_id against the allowlist regex. returns the chunk_id if valid,..."
     },
     {
@@ -3541,8 +3541,8 @@
       "source_location": "L434",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_434",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 71,
+      "community_name": "._delete_vectors_by_ids",
       "norm_label": "delete vectors from lancedb using validated chunk ids. each chunk_id is..."
     },
     {
@@ -3552,8 +3552,8 @@
       "source_location": "L455",
       "_origin": "ast",
       "id": "src_codesight_store_rationale_455",
-      "community": 59,
-      "community_name": ".delete_file_chunks",
+      "community": 33,
+      "community_name": "FTSSidecar",
       "norm_label": "remove all chunks for a file from both stores."
     },
     {
@@ -3630,7 +3630,7 @@
       "_origin": "ast",
       "id": "src_codesight_types",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "types.py"
     },
     {
@@ -3643,7 +3643,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_chunkrecord",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "chunkrecord"
     },
     {
@@ -3654,7 +3654,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_py_basemodel",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "basemodel"
     },
     {
@@ -3666,7 +3666,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_types_searchresult",
-      "community": 18,
+      "community": 6,
       "community_name": "SearchResult",
       "norm_label": "searchresult"
     },
@@ -3680,7 +3680,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_indexstats",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "indexstats"
     },
     {
@@ -3693,7 +3693,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_repostatus",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "repostatus"
     },
     {
@@ -3706,7 +3706,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_answer",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "answer"
     },
     {
@@ -3717,7 +3717,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_1",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "pydantic models for engine inputs and outputs."
     },
     {
@@ -3728,7 +3728,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_9",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "a single chunk stored in the index."
     },
     {
@@ -3738,7 +3738,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "src_codesight_types_rationale_23",
-      "community": 18,
+      "community": 6,
       "community_name": "SearchResult",
       "norm_label": "a single search result."
     },
@@ -3750,7 +3750,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_36",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "summary returned after indexing."
     },
     {
@@ -3761,7 +3761,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_48",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "status info for an indexed folder."
     },
     {
@@ -3772,7 +3772,7 @@
       "_origin": "ast",
       "id": "src_codesight_types_rationale_60",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "llm-generated answer with source citations."
     },
     {
@@ -3804,8 +3804,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_web_server",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "server.py"
     },
     {
@@ -3817,7 +3817,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_env_bool",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "_env_bool()"
     },
     {
@@ -3829,7 +3829,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_documents_dir",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "documents_dir()"
     },
     {
@@ -3840,7 +3840,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_py_path",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "path"
     },
     {
@@ -3852,7 +3852,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_api_key",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "api_key()"
     },
     {
@@ -3864,7 +3864,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_require_auth",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "require_auth()"
     },
     {
@@ -3876,44 +3876,44 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_validate_startup",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "validate_startup()"
     },
     {
       "label": "get_engine()",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L89",
+      "source_location": "L90",
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_get_engine",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "get_engine()"
     },
     {
       "label": "_run_index()",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L96",
+      "source_location": "L97",
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_run_index",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "_run_index()"
     },
     {
       "label": "IndexInProgressError",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L109",
+      "source_location": "L114",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_indexinprogresserror",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "indexinprogresserror"
     },
     {
@@ -3923,20 +3923,20 @@
       "source_location": "",
       "_origin": "ast",
       "id": "exception",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "exception"
     },
     {
       "label": "_extract_key()",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L118",
+      "source_location": "L123",
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_extract_key",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "_extract_key()"
     },
     {
@@ -3947,32 +3947,32 @@
       "_origin": "ast",
       "id": "request",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "request"
     },
     {
       "label": "verify_api_key()",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L128",
+      "source_location": "L133",
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_verify_api_key",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "verify_api_key()"
     },
     {
       "label": "SearchRequest",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L147",
+      "source_location": "L152",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_searchrequest",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "searchrequest"
     },
     {
@@ -3983,71 +3983,71 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_py_basemodel",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "basemodel"
     },
     {
       "label": "AskRequest",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L153",
+      "source_location": "L158",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_askrequest",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "askrequest"
     },
     {
       "label": "IndexRequest",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L159",
+      "source_location": "L164",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_indexrequest",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "indexrequest"
     },
     {
       "label": "HealthResponse",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L163",
+      "source_location": "L168",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_healthresponse",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "healthresponse"
     },
     {
       "label": "PublicConfigResponse",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L171",
+      "source_location": "L176",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_publicconfigresponse",
       "community": 18,
-      "community_name": "SearchResult",
+      "community_name": "ServerConfig",
       "norm_label": "publicconfigresponse"
     },
     {
       "label": "lifespan()",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L184",
+      "source_location": "L189",
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_lifespan",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "lifespan()"
     },
     {
@@ -4058,19 +4058,19 @@
       "_origin": "ast",
       "id": "fastapi",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "fastapi"
     },
     {
       "label": "create_app()",
       "file_type": "code",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L192",
+      "source_location": "L197",
       "_callable": true,
       "_origin": "ast",
       "id": "src_codesight_web_server_create_app",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "create_app()"
     },
     {
@@ -4080,8 +4080,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_codesight_web_server_rationale_1",
-      "community": 18,
-      "community_name": "SearchResult",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "fastapi production server for single-team codesight deployments. serves a..."
     },
     {
@@ -4092,7 +4092,7 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_rationale_43",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "folder mounted read-only for indexing (default /data in docker)."
     },
     {
@@ -4103,18 +4103,18 @@
       "_origin": "ast",
       "id": "src_codesight_web_server_rationale_53",
       "community": 124,
-      "community_name": "require_auth",
+      "community_name": "server.py",
       "norm_label": "production-shaped deployments must authenticate api calls."
     },
     {
       "label": "Raised when a second index request arrives while indexing runs.",
       "file_type": "rationale",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L110",
+      "source_location": "L115",
       "_origin": "ast",
-      "id": "src_codesight_web_server_rationale_110",
-      "community": 18,
-      "community_name": "SearchResult",
+      "id": "src_codesight_web_server_rationale_115",
+      "community": 124,
+      "community_name": "server.py",
       "norm_label": "raised when a second index request arrives while indexing runs."
     },
     {
@@ -5028,7 +5028,7 @@
       "label": "_load_vercel_config()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L21",
+      "source_location": "L23",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_load_vercel_config",
@@ -5040,7 +5040,7 @@
       "label": "_fetch_landing_page()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L25",
+      "source_location": "L27",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_fetch_landing_page",
@@ -5049,10 +5049,82 @@
       "norm_label": "_fetch_landing_page()"
     },
     {
+      "label": "_PageContract",
+      "file_type": "code",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L41",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "tests_test_deployment_pagecontract",
+      "community": 79,
+      "community_name": "test_deployment.py",
+      "norm_label": "_pagecontract"
+    },
+    {
+      "label": "HTMLParser",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "htmlparser",
+      "community": 79,
+      "community_name": "test_deployment.py",
+      "norm_label": "htmlparser"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L42",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_deployment_pagecontract_init",
+      "community": 79,
+      "community_name": "test_deployment.py",
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".handle_starttag()",
+      "file_type": "code",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L51",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_deployment_pagecontract_handle_starttag",
+      "community": 79,
+      "community_name": "test_deployment.py",
+      "norm_label": ".handle_starttag()"
+    },
+    {
+      "label": ".handle_data()",
+      "file_type": "code",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L60",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_deployment_pagecontract_handle_data",
+      "community": 79,
+      "community_name": "test_deployment.py",
+      "norm_label": ".handle_data()"
+    },
+    {
+      "label": ".handle_endtag()",
+      "file_type": "code",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L64",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_deployment_pagecontract_handle_endtag",
+      "community": 79,
+      "community_name": "test_deployment.py",
+      "norm_label": ".handle_endtag()"
+    },
+    {
       "label": "test_vercel_output_directory_contains_index_html()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L39",
+      "source_location": "L75",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_vercel_output_directory_contains_index_html",
@@ -5064,7 +5136,7 @@
       "label": "test_landing_pages_exist()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L51",
+      "source_location": "L87",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_landing_pages_exist",
@@ -5076,7 +5148,7 @@
       "label": "test_vercel_config_is_static_site_not_python_build()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L60",
+      "source_location": "L96",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_vercel_config_is_static_site_not_python_build",
@@ -5088,7 +5160,7 @@
       "label": "test_public_site_does_not_claim_unshipped_capabilities()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L82",
+      "source_location": "L118",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_public_site_does_not_claim_unshipped_capabilities",
@@ -5100,7 +5172,7 @@
       "label": "test_public_site_states_static_boundary_and_pilot_range()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L91",
+      "source_location": "L128",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_public_site_states_static_boundary_and_pilot_range",
@@ -5112,7 +5184,7 @@
       "label": "test_compose_resolves_customer_mount_and_production_environment()",
       "file_type": "code",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L98",
+      "source_location": "L142",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_deployment_test_compose_resolves_customer_mount_and_production_environment",
@@ -5135,9 +5207,9 @@
       "label": "Vercel must serve a static entry point or holusight.com returns 404.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L40",
+      "source_location": "L76",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_40",
+      "id": "tests_test_deployment_rationale_76",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "vercel must serve a static entry point or holusight.com returns 404."
@@ -5146,9 +5218,9 @@
       "label": "Key marketing/docs pages must exist for holusight.com navigation.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L52",
+      "source_location": "L88",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_52",
+      "id": "tests_test_deployment_rationale_88",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "key marketing/docs pages must exist for holusight.com navigation."
@@ -5157,9 +5229,9 @@
       "label": "Keep Vercel deploy as a static landing page, not a Streamlit/FastAPI build.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L61",
+      "source_location": "L97",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_61",
+      "id": "tests_test_deployment_rationale_97",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "keep vercel deploy as a static landing page, not a streamlit/fastapi build."
@@ -5168,9 +5240,9 @@
       "label": "Marketing copy must not claim planned or unverified capabilities.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L83",
+      "source_location": "L119",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_83",
+      "id": "tests_test_deployment_rationale_119",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "marketing copy must not claim planned or unverified capabilities."
@@ -5179,9 +5251,9 @@
       "label": "Docker Compose's normalized model must protect the customer boundary.",
       "file_type": "rationale",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L99",
+      "source_location": "L143",
       "_origin": "ast",
-      "id": "tests_test_deployment_rationale_99",
+      "id": "tests_test_deployment_rationale_143",
       "community": 79,
       "community_name": "test_deployment.py",
       "norm_label": "docker compose's normalized model must protect the customer boundary."
@@ -5273,7 +5345,7 @@
       "label": ".test_citation_metadata_for_markdown()",
       "file_type": "code",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L57",
+      "source_location": "L58",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_citation_metadata_for_markdown",
@@ -5285,7 +5357,7 @@
       "label": ".test_citation_metadata_for_code()",
       "file_type": "code",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L66",
+      "source_location": "L67",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_citation_metadata_for_code",
@@ -5297,7 +5369,7 @@
       "label": ".test_empty_collection_returns_no_results()",
       "file_type": "code",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L73",
+      "source_location": "L74",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_empty_collection_returns_no_results",
@@ -5309,7 +5381,7 @@
       "label": ".test_ask_without_llm_returns_graceful_or_mocked()",
       "file_type": "code",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L82",
+      "source_location": "L83",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_ask_without_llm_returns_graceful_or_mocked",
@@ -5321,7 +5393,7 @@
       "label": ".test_index_persists_across_engine_restart()",
       "file_type": "code",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L93",
+      "source_location": "L94",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_e2e_teste2eretrieval_test_index_persists_across_engine_restart",
@@ -5951,7 +6023,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpaskextension",
-      "community": 18,
+      "community": 6,
       "community_name": "SearchResult",
       "norm_label": "testmcpaskextension"
     },
@@ -5963,7 +6035,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpaskextension_test_ask_with_no_index_returns_helpful_message",
-      "community": 18,
+      "community": 6,
       "community_name": "SearchResult",
       "norm_label": ".test_ask_with_no_index_returns_helpful_message()"
     },
@@ -5975,7 +6047,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_mcp_testmcpaskextension_test_ask_synthesizes_answer_from_search_results",
-      "community": 18,
+      "community": 6,
       "community_name": "SearchResult",
       "norm_label": ".test_ask_synthesizes_answer_from_search_results()"
     },
@@ -6111,7 +6183,7 @@
       "source_location": "L183",
       "_origin": "ast",
       "id": "tests_test_mcp_rationale_183",
-      "community": 18,
+      "community": 6,
       "community_name": "SearchResult",
       "norm_label": "codesight.ask() \u2014 api extension beyond the original three mcp tools."
     },
@@ -6134,7 +6206,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "test_placeholder.py"
     },
     {
@@ -6146,7 +6218,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_test_package_declares_expected_public_exports",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "test_package_declares_expected_public_exports()"
     },
     {
@@ -6158,7 +6230,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_test_package_exports_resolve_to_canonical_objects",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "test_package_exports_resolve_to_canonical_objects()"
     },
     {
@@ -6169,7 +6241,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_rationale_1",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "public package export contract tests."
     },
     {
@@ -6180,7 +6252,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_rationale_19",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "the package root exposes a stable public import surface."
     },
     {
@@ -6191,7 +6263,7 @@
       "_origin": "ast",
       "id": "tests_test_placeholder_rationale_24",
       "community": 132,
-      "community_name": "test_placeholder.py",
+      "community_name": "config.py",
       "norm_label": "root exports point at the implementation classes callers should import."
     },
     {
@@ -6445,8 +6517,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "testmetadataboost"
     },
     {
@@ -6457,8 +6529,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_make_metadatas",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "._make_metadatas()"
     },
     {
@@ -6469,8 +6541,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_filename_match_promoted_to_front",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_filename_match_promoted_to_front()"
     },
     {
@@ -6481,8 +6553,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_no_match_preserves_original_order",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_no_match_preserves_original_order()"
     },
     {
@@ -6493,8 +6565,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_stopwords_not_matched",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_stopwords_not_matched()"
     },
     {
@@ -6505,8 +6577,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_partial_filename_match",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_partial_filename_match()"
     },
     {
@@ -6517,8 +6589,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_empty_query_tokens_after_stopword_filter",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_empty_query_tokens_after_stopword_filter()"
     },
     {
@@ -6529,8 +6601,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_search_testmetadataboost_test_missing_metadata_goes_to_rest",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": ".test_missing_metadata_goes_to_rest()"
     },
     {
@@ -6860,8 +6932,8 @@
       "source_location": "L194",
       "_origin": "ast",
       "id": "tests_test_search_rationale_194",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "tests for filename-based metadata boosting via _reorder_by_filename_match."
     },
     {
@@ -6871,8 +6943,8 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "tests_test_search_rationale_197",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "build a metadatas dict: chunk_id \u2192 {file_path: ...}."
     },
     {
@@ -6882,8 +6954,8 @@
       "source_location": "L201",
       "_origin": "ast",
       "id": "tests_test_search_rationale_201",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "chunk from a file whose name matches a query token is promoted."
     },
     {
@@ -6893,8 +6965,8 @@
       "source_location": "L219",
       "_origin": "ast",
       "id": "tests_test_search_rationale_219",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "when no token matches any filename, original order is unchanged."
     },
     {
@@ -6904,8 +6976,8 @@
       "source_location": "L234",
       "_origin": "ast",
       "id": "tests_test_search_rationale_234",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "stopwords like 'how', 'does', 'the', 'is' are filtered out."
     },
     {
@@ -6915,8 +6987,8 @@
       "source_location": "L252",
       "_origin": "ast",
       "id": "tests_test_search_rationale_252",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "token that is a substring of the filename stem triggers boost."
     },
     {
@@ -6926,8 +6998,8 @@
       "source_location": "L268",
       "_origin": "ast",
       "id": "tests_test_search_rationale_268",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "if all tokens are stopwords, original order is preserved."
     },
     {
@@ -6937,8 +7009,8 @@
       "source_location": "L283",
       "_origin": "ast",
       "id": "tests_test_search_rationale_283",
-      "community": 30,
-      "community_name": "TestMetadataBoost",
+      "community": 19,
+      "community_name": "_cnfb_boost",
       "norm_label": "chunks with missing metadata are placed after matched chunks."
     },
     {
@@ -7059,7 +7131,7 @@
       "_origin": "ast",
       "id": "tests_test_security",
       "community": 12,
-      "community_name": "ServerConfig",
+      "community_name": "TestPathTraversal",
       "norm_label": "test_security.py"
     },
     {
@@ -7156,8 +7228,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_security_testchunkidsanitization",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 15,
+      "community_name": "ChunkStore",
       "norm_label": "testchunkidsanitization"
     },
     {
@@ -7229,8 +7301,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_security_testreadonlyinvariant",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 109,
+      "community_name": "TestReadOnlyInvariant",
       "norm_label": "testreadonlyinvariant"
     },
     {
@@ -7241,8 +7313,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_security_testreadonlyinvariant_test_index_does_not_write_to_source_folder",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 109,
+      "community_name": "TestReadOnlyInvariant",
       "norm_label": ".test_index_does_not_write_to_source_folder()"
     },
     {
@@ -7255,7 +7327,7 @@
       "_origin": "ast",
       "id": "tests_test_security_testpathtraversal",
       "community": 12,
-      "community_name": "ServerConfig",
+      "community_name": "TestPathTraversal",
       "norm_label": "testpathtraversal"
     },
     {
@@ -7267,7 +7339,7 @@
       "_origin": "ast",
       "id": "tests_test_security_testpathtraversal_test_folder_must_be_directory",
       "community": 12,
-      "community_name": "ServerConfig",
+      "community_name": "TestPathTraversal",
       "norm_label": ".test_folder_must_be_directory()"
     },
     {
@@ -7279,7 +7351,7 @@
       "_origin": "ast",
       "id": "tests_test_security_testpathtraversal_test_folder_must_be_real_directory",
       "community": 12,
-      "community_name": "ServerConfig",
+      "community_name": "TestPathTraversal",
       "norm_label": ".test_folder_must_be_real_directory()"
     },
     {
@@ -7290,7 +7362,7 @@
       "_origin": "ast",
       "id": "tests_test_security_rationale_1",
       "community": 12,
-      "community_name": "ServerConfig",
+      "community_name": "TestPathTraversal",
       "norm_label": "security tests for read-only invariant and input sanitization."
     },
     {
@@ -7355,8 +7427,8 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "tests_test_security_rationale_72",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 15,
+      "community_name": "ChunkStore",
       "norm_label": "verify that chunk ids with injection attempts are rejected."
     },
     {
@@ -7421,8 +7493,8 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "tests_test_security_rationale_137",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 109,
+      "community_name": "TestReadOnlyInvariant",
       "norm_label": "verify the engine never writes to the indexed folder."
     },
     {
@@ -7432,8 +7504,8 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "tests_test_security_rationale_140",
-      "community": 12,
-      "community_name": "ServerConfig",
+      "community": 109,
+      "community_name": "TestReadOnlyInvariant",
       "norm_label": "after indexing, the source folder should have no new files."
     },
     {
@@ -7444,7 +7516,7 @@
       "_origin": "ast",
       "id": "tests_test_security_rationale_170",
       "community": 12,
-      "community_name": "ServerConfig",
+      "community_name": "TestPathTraversal",
       "norm_label": "verify path traversal attacks are prevented."
     },
     {
@@ -7455,7 +7527,7 @@
       "_origin": "ast",
       "id": "tests_test_security_rationale_173",
       "community": 12,
-      "community_name": "ServerConfig",
+      "community_name": "TestPathTraversal",
       "norm_label": "codesight rejects non-directory paths."
     },
     {
@@ -7466,7 +7538,7 @@
       "_origin": "ast",
       "id": "tests_test_security_rationale_180",
       "community": 12,
-      "community_name": "ServerConfig",
+      "community_name": "TestPathTraversal",
       "norm_label": "codesight resolves symlinks and validates the real path."
     },
     {
@@ -17311,8 +17383,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config",
-      "community": 94,
-      "community_name": "specs/README.md",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "002-embedding-model-config.md"
     },
     {
@@ -17377,8 +17449,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_implementation_notes",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "implementation notes"
     },
     {
@@ -17388,8 +17460,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_key_parameters",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "key parameters"
     },
     {
@@ -17399,8 +17471,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_model_comparison",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "model comparison"
     },
     {
@@ -17410,8 +17482,8 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_dependencies",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "dependencies"
     },
     {
@@ -17421,8 +17493,8 @@
       "source_location": "L80",
       "_origin": "ast",
       "id": "specs_002_embedding_model_config_implementation_steps",
-      "community": 109,
-      "community_name": "Implementation Notes",
+      "community": 49,
+      "community_name": "Spec 002: Embedding Model Configuration",
       "norm_label": "implementation steps"
     },
     {
@@ -17564,8 +17636,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "specs_003_incremental_refresh_implementation_notes",
-      "community": 127,
-      "community_name": "Implementation Notes",
+      "community": 50,
+      "community_name": "Spec 003: Incremental Refresh",
       "norm_label": "implementation notes"
     },
     {
@@ -17575,8 +17647,8 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "specs_003_incremental_refresh_key_parameters",
-      "community": 127,
-      "community_name": "Implementation Notes",
+      "community": 50,
+      "community_name": "Spec 003: Incremental Refresh",
       "norm_label": "key parameters"
     },
     {
@@ -17586,8 +17658,8 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "specs_003_incremental_refresh_dependencies",
-      "community": 127,
-      "community_name": "Implementation Notes",
+      "community": 50,
+      "community_name": "Spec 003: Incremental Refresh",
       "norm_label": "dependencies"
     },
     {
@@ -17597,8 +17669,8 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "specs_003_incremental_refresh_implementation_steps",
-      "community": 127,
-      "community_name": "Implementation Notes",
+      "community": 50,
+      "community_name": "Spec 003: Incremental Refresh",
       "norm_label": "implementation steps"
     },
     {
@@ -17982,8 +18054,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 94,
+      "community_name": "specs/README.md",
       "norm_label": "006-pluggable-llm-backend.md"
     },
     {
@@ -18070,8 +18142,8 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_implementation_notes",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "implementation notes"
     },
     {
@@ -18081,8 +18153,8 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_key_parameters",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "key parameters"
     },
     {
@@ -18092,8 +18164,8 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_dependencies",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "dependencies"
     },
     {
@@ -18103,8 +18175,8 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_scaling_per_backend",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "scaling per backend"
     },
     {
@@ -18114,8 +18186,8 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_file_changes",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 30,
+      "community_name": "Implementation Notes",
       "norm_label": "file changes"
     },
     {
@@ -18125,8 +18197,8 @@
       "source_location": "L141",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_alternatives_considered",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 59,
+      "community_name": "Alternatives Considered",
       "norm_label": "alternatives considered"
     },
     {
@@ -18136,8 +18208,8 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_alternative_a_litellm_wrapper_library",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 59,
+      "community_name": "Alternatives Considered",
       "norm_label": "alternative a: litellm wrapper library"
     },
     {
@@ -18147,8 +18219,8 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_alternative_b_langchain",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 59,
+      "community_name": "Alternatives Considered",
       "norm_label": "alternative b: langchain"
     },
     {
@@ -18158,8 +18230,8 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "specs_006_pluggable_llm_backend_alternative_c_only_support_claude_ollama",
-      "community": 29,
-      "community_name": "Spec 006: Pluggable LLM Backend",
+      "community": 59,
+      "community_name": "Alternatives Considered",
       "norm_label": "alternative c: only support claude + ollama"
     },
     {
@@ -19979,7 +20051,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L89",
+      "source_location": "L90",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_get_engine",
@@ -20082,7 +20154,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_e2e.py",
-      "source_location": "L77",
+      "source_location": "L78",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval_test_empty_collection_returns_no_results",
@@ -20094,7 +20166,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_e2e.py",
-      "source_location": "L96",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval_test_index_persists_across_engine_restart",
@@ -22204,7 +22276,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L221",
+      "source_location": "L226",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_create_app",
@@ -22216,7 +22288,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L92",
+      "source_location": "L93",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_get_engine",
@@ -22329,7 +22401,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_e2e.py",
-      "source_location": "L77",
+      "source_location": "L78",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval_test_empty_collection_returns_no_results",
@@ -22341,7 +22413,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_e2e.py",
-      "source_location": "L96",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval_test_index_persists_across_engine_restart",
@@ -27636,7 +27708,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L96",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_run_index",
@@ -28047,7 +28119,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L153",
+      "source_location": "L158",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28058,7 +28130,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L192",
+      "source_location": "L197",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28091,7 +28163,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L118",
+      "source_location": "L123",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28102,7 +28174,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L89",
+      "source_location": "L90",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28113,7 +28185,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L163",
+      "source_location": "L168",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28124,7 +28196,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L109",
+      "source_location": "L114",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28135,7 +28207,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L159",
+      "source_location": "L164",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28146,7 +28218,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L184",
+      "source_location": "L189",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28157,7 +28229,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L171",
+      "source_location": "L176",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28179,7 +28251,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L96",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28190,7 +28262,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L147",
+      "source_location": "L152",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28212,7 +28284,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L128",
+      "source_location": "L133",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server",
@@ -28259,7 +28331,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L92",
+      "source_location": "L93",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_get_engine",
@@ -28271,7 +28343,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L186",
+      "source_location": "L191",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_lifespan",
@@ -28330,7 +28402,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L134",
+      "source_location": "L139",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_verify_api_key",
@@ -28342,7 +28414,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L187",
+      "source_location": "L192",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_lifespan",
@@ -28377,7 +28449,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L129",
+      "source_location": "L134",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_verify_api_key",
@@ -28389,7 +28461,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L185",
+      "source_location": "L190",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_lifespan",
@@ -28401,7 +28473,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L103",
+      "source_location": "L107",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_run_index",
@@ -28424,7 +28496,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L109",
+      "source_location": "L114",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_indexinprogresserror",
@@ -28435,10 +28507,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L110",
+      "source_location": "L115",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "src_codesight_web_server_rationale_110",
+      "source": "src_codesight_web_server_rationale_115",
       "target": "src_codesight_web_server_indexinprogresserror",
       "confidence_score": 1.0
     },
@@ -28447,7 +28519,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L118",
+      "source_location": "L123",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_extract_key",
@@ -28459,7 +28531,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L137",
+      "source_location": "L142",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_verify_api_key",
@@ -28471,7 +28543,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L128",
+      "source_location": "L133",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_verify_api_key",
@@ -28483,7 +28555,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L242",
+      "source_location": "L247",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_create_app",
@@ -28494,7 +28566,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L147",
+      "source_location": "L152",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_searchrequest",
@@ -28505,7 +28577,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L153",
+      "source_location": "L158",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_askrequest",
@@ -28516,7 +28588,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L163",
+      "source_location": "L168",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_healthresponse",
@@ -28527,7 +28599,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L159",
+      "source_location": "L164",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_indexrequest",
@@ -28538,7 +28610,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L171",
+      "source_location": "L176",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_publicconfigresponse",
@@ -28550,7 +28622,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L197",
+      "source_location": "L202",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_create_app",
@@ -28562,7 +28634,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L184",
+      "source_location": "L189",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_lifespan",
@@ -28574,7 +28646,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "src/codesight/web/server.py",
-      "source_location": "L192",
+      "source_location": "L197",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_codesight_web_server_create_app",
@@ -29868,7 +29940,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L25",
+      "source_location": "L27",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29879,7 +29951,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L21",
+      "source_location": "L23",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29890,7 +29962,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L98",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_deployment",
+      "target": "tests_test_deployment_pagecontract",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L142",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29901,7 +29984,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L51",
+      "source_location": "L87",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29912,7 +29995,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L82",
+      "source_location": "L118",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29923,7 +30006,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L91",
+      "source_location": "L128",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29934,7 +30017,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L60",
+      "source_location": "L96",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29945,7 +30028,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L39",
+      "source_location": "L75",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment",
@@ -29968,7 +30051,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L53",
+      "source_location": "L89",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_landing_pages_exist",
@@ -29980,7 +30063,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L62",
+      "source_location": "L98",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_vercel_config_is_static_site_not_python_build",
@@ -29992,7 +30075,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L41",
+      "source_location": "L77",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_vercel_output_directory_contains_index_html",
@@ -30004,7 +30087,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L86",
+      "source_location": "L123",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_public_site_does_not_claim_unshipped_capabilities",
@@ -30016,7 +30099,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L92",
+      "source_location": "L130",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_deployment_test_public_site_states_static_boundary_and_pilot_range",
@@ -30024,13 +30107,92 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_deployment_pagecontract",
+      "target": "htmlparser",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L60",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_deployment_pagecontract",
+      "target": "tests_test_deployment_pagecontract_handle_data",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L64",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_deployment_pagecontract",
+      "target": "tests_test_deployment_pagecontract_handle_endtag",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_deployment_pagecontract",
+      "target": "tests_test_deployment_pagecontract_handle_starttag",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_deployment_pagecontract",
+      "target": "tests_test_deployment_pagecontract_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L122",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_deployment_test_public_site_does_not_claim_unshipped_capabilities",
+      "target": "tests_test_deployment_pagecontract",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_deployment.py",
+      "source_location": "L129",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_deployment_test_public_site_states_static_boundary_and_pilot_range",
+      "target": "tests_test_deployment_pagecontract",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L40",
+      "source_location": "L76",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_40",
+      "source": "tests_test_deployment_rationale_76",
       "target": "tests_test_deployment_test_vercel_output_directory_contains_index_html",
       "confidence_score": 1.0
     },
@@ -30038,10 +30200,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L52",
+      "source_location": "L88",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_52",
+      "source": "tests_test_deployment_rationale_88",
       "target": "tests_test_deployment_test_landing_pages_exist",
       "confidence_score": 1.0
     },
@@ -30049,10 +30211,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L61",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_61",
+      "source": "tests_test_deployment_rationale_97",
       "target": "tests_test_deployment_test_vercel_config_is_static_site_not_python_build",
       "confidence_score": 1.0
     },
@@ -30060,10 +30222,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L83",
+      "source_location": "L119",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_83",
+      "source": "tests_test_deployment_rationale_119",
       "target": "tests_test_deployment_test_public_site_does_not_claim_unshipped_capabilities",
       "confidence_score": 1.0
     },
@@ -30071,10 +30233,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_deployment.py",
-      "source_location": "L99",
+      "source_location": "L143",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_deployment_rationale_99",
+      "source": "tests_test_deployment_rationale_143",
       "target": "tests_test_deployment_test_compose_resolves_customer_mount_and_production_environment",
       "confidence_score": 1.0
     },
@@ -30138,7 +30300,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L82",
+      "source_location": "L83",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval",
@@ -30160,7 +30322,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L66",
+      "source_location": "L67",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval",
@@ -30171,7 +30333,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L57",
+      "source_location": "L58",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval",
@@ -30182,7 +30344,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L73",
+      "source_location": "L74",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval",
@@ -30193,7 +30355,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_e2e.py",
-      "source_location": "L93",
+      "source_location": "L94",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e2e_teste2eretrieval",
@@ -43558,5 +43720,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "25a3bc3e4f14e2826c4d4f308b533ce7760a2072"
+  "built_at_commit": "eb62412b25830b5edb794f2aaa0e32292efed533"
 }
