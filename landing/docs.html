@@ -62,12 +62,10 @@ python -m codesight status ./your-documents</pre>
         <h2>Docker deployment</h2>
         <p>Single-team pilot: FastAPI on port 8000, read-only <code>/data</code>, persistent <code>/index</code> volume, API key required.</p>
         <pre>export CODESIGHT_API_KEY=$(openssl rand -hex 24)
+export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/customer/docs
 docker compose up --build -d
 # Open http://localhost:8000 — enter API key, Re-index, then search</pre>
-        <p>Mount customer documents by editing <code>docker-compose.yml</code>:</p>
-        <pre>volumes:
-  - /path/to/customer/docs:/data:ro
-  - holusight-index:/index</pre>
+        <p>The compose file mounts <code>CODESIGHT_DOCUMENTS_HOST_DIR</code> at <code>/data:ro</code>; replace the example path with the customer document folder.</p>
         <div class="callout">Search works offline. Configure <code>ANTHROPIC_API_KEY</code> (or Azure/OpenAI/Ollama) only if you need Ask mode.</div>
       </section>
 
