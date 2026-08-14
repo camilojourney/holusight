@@ -19,7 +19,7 @@
 
 We propose deploying an AI-powered search system that makes your existing documents instantly searchable. Your team asks questions in plain English and gets precise answers with source citations — in seconds instead of minutes.
 
-**Investment:** $[pilot price] for a 2-week pilot on [one project/department].
+**Investment:** $[1,000–2,000 recommended starting range] for a 2-week single-team pilot. See `business/pilot-offer.md`.
 
 ---
 
@@ -39,7 +39,7 @@ We deploy **CodeSight** — a hybrid AI search engine that combines keyword matc
 
 - **Answers questions**, not just finds files — "What are the payment terms in the Acme contract?" returns the actual answer with the page number
 - **Searches across documents** — finds information scattered across multiple files
-- **Runs on your infrastructure** — no data leaves your network
+- **Runs on your infrastructure** — document indexing and search stay on your deployment
 
 ### What gets indexed
 
@@ -116,15 +116,14 @@ Your team member opens web chat
 
 | Phase | What | Timeline | Investment |
 |-------|------|----------|-----------|
-| **Pilot** | [1 project], web chat, training | 2 weeks | $[3,000-5,000] |
-| **Scale** | [X] additional projects | [2-4 weeks] | $[1,000-2,000] per project |
-| **Maintenance** | Monitoring, reindexing, support | Monthly | $[500-1,500]/month |
-| **Ongoing AI cost** | LLM API for answers | Monthly | ~$[50-200]/month |
+| **Pilot** | Single team, Docker/VM deploy, training | 2 weeks | **$1,000–$2,000** (recommended starting range) |
+| **Scale** | Additional teams / corpora | Separate SOW | Quote after pilot |
+| **Optional support** | Updates, index health, minor config | Monthly | **$500–$1,000**/month |
+| **Customer infra + LLM** | VM/cloud + API usage | Monthly | Customer-owned (typical small VM $50–200; LLM billed to their account) |
 
-**Total Year 1 estimate:** $[X]
-**Compared to:** Microsoft Copilot at $30/user/month = $[X × 12]/year
+Do not publish unverified Copilot/Glean ROI or per-user comparisons in the client-facing copy unless the client supplies their own numbers.
 
-**Terms:** 50% upfront, 50% on delivery. Money-back guarantee on pilot phase.
+**Terms:** 50% upfront, 50% on delivery. Any guarantee must be explicitly negotiated in the SOW.
 
 ---
 
@@ -132,7 +131,7 @@ Your team member opens web chat
 
 1. **Working product.** CodeSight is built and deployed — not a prototype. We demo with your actual documents.
 2. **Speed.** Working system in days, not months.
-3. **Privacy.** Your data never leaves your infrastructure. Open source, fully auditable.
+3. **Privacy.** Document indexing and search run on your infrastructure; cloud answer providers may receive retrieved context. Open source, fully auditable.
 4. **Cost.** Fraction of enterprise alternatives (Glean: $45-50/user/month, Copilot: $30/user/month).
 5. **No lock-in.** Open source tool. If you stop working with us, the system keeps running.
 

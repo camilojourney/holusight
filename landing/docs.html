@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Holusight documentation — quick start, Docker deployment, security, limitations." />
+  <title>Documentation — Holusight</title>
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="/" class="logo">Holusight</a>
+    <nav class="nav" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/docs.html" class="active">Docs</a>
+      <a href="/pricing.html">Pilot</a>
+      <a href="https://github.com/camilojourney/holusight">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="container docs-layout">
+    <nav class="docs-nav" aria-label="Documentation sections">
+      <a href="#quickstart">Quick start</a>
+      <a href="#formats">Supported files</a>
+      <a href="#docker">Docker deployment</a>
+      <a href="#operations">Operations</a>
+      <a href="#security">Security</a>
+      <a href="#citations">Citations</a>
+      <a href="#limitations">Limitations</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <main>
+      <section id="quickstart">
+        <h2>Quick start (local)</h2>
+        <p>Install the Python package, index a folder, and search — no LLM required.</p>
+        <pre>pip install -e ".[dev]"
+python -m codesight index ./your-documents
+python -m codesight search "payment terms" ./your-documents
+python -m codesight status ./your-documents</pre>
+        <p>Optional Streamlit demo: <code>pip install -e ".[demo]" &amp;&amp; python -m codesight demo</code></p>
+        <p>Production browser UI: <code>pip install -e ".[server]"</code> then see Docker below.</p>
+      </section>
+
+      <section id="formats">
+        <h2>Supported files</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Type</th><th>Extensions</th><th>Citation metadata</th></tr></thead>
+            <tbody>
+              <tr><td>PDF</td><td><code>.pdf</code></td><td>Page numbers</td></tr>
+              <tr><td>Word</td><td><code>.docx</code></td><td>Section + page index</td></tr>
+              <tr><td>PowerPoint</td><td><code>.pptx</code></td><td>Slide numbers</td></tr>
+              <tr><td>Markdown / text</td><td><code>.md</code>, <code>.txt</code>, …</td><td>Line ranges</td></tr>
+              <tr><td>Code</td><td><code>.py</code>, <code>.js</code>, <code>.ts</code>, …</td><td>Line ranges; function/class scope with <code>[ast]</code> extra</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="docker">
+        <h2>Docker deployment</h2>
+        <p>Single-team pilot: FastAPI on port 8000, read-only <code>/data</code>, persistent <code>/index</code> volume, API key required.</p>
+        <pre>export CODESIGHT_API_KEY=$(openssl rand -hex 24)
+export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/customer/docs
+docker compose up --build -d
+# Open http://localhost:8000 — enter API key, Re-index, then search</pre>
+        <p>The compose file mounts <code>CODESIGHT_DOCUMENTS_HOST_DIR</code> at <code>/data:ro</code>; replace the example path with the customer document folder.</p>
+        <div class="callout">Search works offline. Configure <code>ANTHROPIC_API_KEY</code> (or Azure/OpenAI/Ollama) only if you need Ask mode.</div>
+      </section>
+
+      <section id="operations">
+        <h2>Operations</h2>
+        <h3 style="font-size:16px;margin:16px 0 8px;color:var(--accent)">Health</h3>
+        <pre>curl -s http://localhost:8000/api/health | jq</pre>
+        <h3 style="font-size:16px;margin:16px 0 8px;color:var(--accent)">Backup index volume</h3>
+        <pre>docker run --rm -v holusight-index:/index -v $(pwd):/backup alpine \
+  tar czf /backup/holusight-index.tar.gz -C /index .</pre>
+        <h3 style="font-size:16px;margin:16px 0 8px;color:var(--accent)">Upgrade</h3>
+        <pre>git pull &amp;&amp; docker compose build &amp;&amp; docker compose up -d</pre>
+        <p>Stopping the container stops the API; the index remains on the volume until you <code>docker compose down -v</code>.</p>
+      </section>
+
+      <section id="security">
+        <h2>Security model (v1)</h2>
+        <ul style="color:var(--muted);margin-left:20px;font-size:14px">
+          <li>Shared API key per deployment (<code>X-API-Key</code> or Bearer token)</li>
+          <li>Source documents mounted read-only — engine never writes to <code>/data</code></li>
+          <li>Path validation on folder roots; FTS query sanitization</li>
+          <li><span class="planned">Planned:</span> SSO, per-document ACLs — not in v1 pilot</li>
+        </ul>
+      </section>
+
+      <section id="citations">
+        <h2>Citations</h2>
+        <p>Every search result includes <code>file_path</code>, <code>start_line</code>, <code>end_line</code>, <code>scope</code>, and <code>snippet</code>. Document pages use page numbers in line fields; code uses line numbers.</p>
+      </section>
+
+      <section id="limitations">
+        <h2>Limitations &amp; roadmap</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>Hybrid BM25 + vector + RRF</td><td>Shipped</td></tr>
+              <tr><td>FastAPI + Docker pilot</td><td>Shipped</td></tr>
+              <tr><td>SSO / SAML</td><td class="planned">Planned</td></tr>
+              <tr><td>M365 connectors</td><td class="planned">Planned</td></tr>
+              <tr><td>Graphify graph enrichment</td><td class="planned">Planned — see ADR 0010</td></tr>
+              <tr><td>50-user concurrency SLA</td><td class="planned">Not claimed</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="faq">
+        <h2>FAQ</h2>
+        <div class="card" style="margin-bottom:12px">
+          <h3>Does holusight.com search my files?</h3>
+          <p>No. This site is static marketing and documentation. Your deployment runs on your infrastructure.</p>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <h3>Do I need an LLM API key?</h3>
+          <p>No for Search. Yes for Ask (unless you use local Ollama).</p>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <h3>Is this production-hardened multi-tenant SaaS?</h3>
+          <p>No. v1 is a single-team pilot deployment with shared API key auth.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <p><a href="/pricing.html">Pilot pricing &amp; contact</a></p>
+  </footer>
+</body>
+</html>

@@ -303,11 +303,9 @@ Measured on the holusight codebase (96 files, 20 representative queries):
 
 | Tier | Users | Deployment | Embedding | Reranker |
 |------|-------|-----------|-----------|----------|
-| Demo/pilot | 1-5 | Laptop | all-MiniLM (local) | off |
-| Small team | 5-10 | Single VM | voyage-code-3 (API) | voyage rerank-2 |
-| Department | 20-50 | Docker on cloud | voyage-code-3 (API) | voyage rerank-2 |
-| Company | 100+ | Docker + FastAPI + auth | voyage-code-3 (API) | voyage rerank-2 |
-| Air-gapped | Any | On-prem server | nomic-embed (local) | off |
+| Single-team pilot | One team | Docker/VM + FastAPI + shared API key | local default or customer-selected API | optional |
+| Future larger deployment | Not claimed | Requires separate design | Depends on deployment | Depends on deployment |
+| Air-gapped pilot | One team | On-prem server | local model | off |
 
 ---
 

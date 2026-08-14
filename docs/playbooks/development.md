@@ -29,10 +29,15 @@ python -m codesight ask "What are the payment terms?" /path/to/documents
 # Check index status
 python -m codesight status /path/to/documents
 
-# Launch the web chat UI
+# Launch the Streamlit demo UI
 uv run --extra demo python -m codesight demo
 # or directly:
 uv run --extra demo streamlit run demo/app.py
+
+# Production-shaped FastAPI server (requires API key unless unauthenticated dev)
+export CODESIGHT_API_KEY=dev-key
+export CODESIGHT_DOCUMENTS_DIR=./tests/fixtures/pilot_docs
+uv run --extra server python -m codesight serve ./tests/fixtures/pilot_docs
 ```
 
 ## Python API

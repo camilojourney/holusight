@@ -19,11 +19,15 @@ Project documentation index.
 | [playbooks/client-pitch.md](playbooks/client-pitch.md) | Client meeting prep: FAQ, objections, demo script |
 | [playbooks/ship-feature.md](playbooks/ship-feature.md) | Process for shipping new features |
 | [playbooks/investigate-bug.md](playbooks/investigate-bug.md) | Bug investigation workflow |
+| [playbooks/docker-deployment.md](playbooks/docker-deployment.md) | Single-team Docker / FastAPI pilot ops |
 
 ## Rules
 
 **Only these categories belong in `docs/`.**
 Do not create new top-level docs files without a corresponding ADR justifying it.
+
+Shipped-vs-planned capability matrix: [specs/010-capability-inventory.md](../specs/010-capability-inventory.md).
+Recommended SMB offer: [business/pilot-offer.md](../business/pilot-offer.md).
 
 For feature specifications, use `specs/` instead.
 For research and market analysis, use numbered specs in `specs/` or existing business docs outside `docs/`.

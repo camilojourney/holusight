@@ -1,29 +1,29 @@
 # Spec 008: Docker Deployment + FastAPI Production Server
 
-**Status:** planned
-**Phase:** v0.4
+**Status:** implemented (single-team subset)
+**Phase:** v0.5 SMB pilot
 **Author:** Juan Martinez
 **Created:** 2026-02-28
-**Updated:** 2026-02-28
+**Updated:** 2026-08-13
 
 ## Problem
 
-The current Streamlit web chat UI works for demos and small teams (1-5 users) but has limitations for production consulting deployments:
+The current Streamlit web chat UI works for demos and small teams but has limitations for the single-team pilot deployment:
 
-- Streamlit is single-threaded — can't serve 20+ concurrent users without lag
+- Streamlit is not the deployment surface for the pilot
 - No REST API — other tools can't call CodeSight programmatically
 - No authentication — anyone who can reach the URL can search all documents
 - No standard deployment package — each client deployment is manual setup
 
-When a consultant deploys CodeSight for a 50-person team on the client's cloud (Azure, AWS, GCP), they need a Docker image they can `docker run` and a proper HTTP server that handles concurrent users.
+When a consultant deploys CodeSight for one team on the client's cloud (Azure, AWS, GCP), they need a Docker image they can `docker run` and a guarded HTTP server.
 
-The end product for clients is still the **web chat UI** — they type questions, get answers. FastAPI is the backend that serves this UI and handles multiple users simultaneously.
+The end product for clients is still the **web chat UI** — they type questions, get answers. FastAPI is the backend that serves this UI for the pilot.
 
 ## Goals
 
 - Dockerfile for single-command deployment: `docker run codesight`
 - FastAPI backend serving the CodeSight API over HTTP + web chat UI
-- Handle 50 concurrent users without degradation
+- Support the focused single-team pilot without promising a concurrency target
 - Basic auth (API key) for access control
 - Documents mounted as a read-only volume — container can never modify source files
 - Index persists across container restarts (Docker volume)
@@ -155,7 +155,7 @@ GET /
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
 | Server port | 8000 | Standard for FastAPI/uvicorn |
-| Workers | 4 | Handles ~50 concurrent requests on 4-core VM |
+| Workers | 1 | Smallest pilot deployment shape; no concurrency SLA |
 | Request timeout | 60s | `ask()` can take 5-10s for LLM call |
 | Max request body | 1MB | Queries are small, prevent abuse |
 | API key header | `X-API-Key` or `Authorization: Bearer` | Industry standard |
@@ -196,7 +196,7 @@ RUN python -c "from sentence_transformers import SentenceTransformer; \
 EXPOSE 8000
 ENV CODESIGHT_DATA_DIR=/index
 
-CMD ["uvicorn", "codesight.web.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "codesight.web.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 ```
 
 ### Web Chat UI
@@ -207,7 +207,7 @@ A minimal HTML/JS page served as a FastAPI static file. No build step, no React,
 - "Indexing..." spinner when re-index is triggered
 - Responsive design (works on mobile)
 
-This replaces Streamlit for production. Streamlit stays for local development (`python -m codesight demo`).
+This replaces Streamlit for the single-team pilot deployment. Streamlit stays for local development (`python -m codesight demo`).
 
 ### Auth Middleware
 
@@ -247,7 +247,7 @@ Rejected because: A minimal HTML/JS chat UI is sufficient for v0.4. The main int
 
 - Documents folder empty → `/api/index` returns 0 chunks, `/api/search` returns empty, `/api/ask` says "no documents indexed"
 - Large PDF (100MB) → skip with warning, configurable max file size
-- API key not set (`CODESIGHT_API_KEY` missing) → auth disabled, log warning "Running without auth — set CODESIGHT_API_KEY for production"
+- API key not set (`CODESIGHT_API_KEY` missing) → production startup fails; unauthenticated mode is limited to explicit local development configuration
 - Docker volume not mounted → clear error on startup: "No documents found at /data. Mount your documents: -v /path/to/docs:/data:ro"
 - Multiple concurrent `/api/index` requests → lock to prevent double-indexing, return "indexing in progress" to second request
 - Container restart → index persists in `/index` volume, no re-indexing needed
@@ -277,7 +277,7 @@ Rejected because: A minimal HTML/JS chat UI is sufficient for v0.4. The main int
 - [ ] `POST /api/index` triggers indexing of mounted document folder
 - [ ] `GET /api/status` returns index stats as JSON (also serves as health check)
 - [ ] Requests without valid `X-API-Key` return 401
-- [ ] 50 concurrent `/api/search` requests complete within 500ms each
+- [x] Pilot search and citation behavior covered by executable API tests
 - [ ] Documents mounted read-only — container cannot modify source files
 - [ ] Index persists across container restarts via Docker volume
 - [ ] Embedding model pre-downloaded in image (no internet needed on first run)

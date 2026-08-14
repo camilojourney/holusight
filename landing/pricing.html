@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Holusight pilot pricing and engagement — recommended starting range for SMB teams." />
+  <title>Pilot &amp; Pricing — Holusight</title>
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="/" class="logo">Holusight</a>
+    <nav class="nav" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/docs.html">Docs</a>
+      <a href="/pricing.html" class="active">Pilot</a>
+      <a href="https://github.com/camilojourney/holusight">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <section>
+      <h2>Two-week pilot</h2>
+      <p>A focused consulting engagement — deploy Holusight on your infrastructure, index your corpus, and validate search quality with real questions. Not a self-serve SaaS subscription.</p>
+    </section>
+
+    <section>
+      <h2>Recommended starting range</h2>
+      <p style="font-size:14px;color:var(--dim)">Indicative USD pricing for a single team (10–75 users). Final SOW depends on scope.</p>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Pilot setup</h3>
+          <p style="font-size:28px;font-weight:800;color:var(--accent);margin:12px 0">$1,000 – $2,000</p>
+          <p>Discovery, Docker deployment, indexing, golden-question validation, champion training, handoff runbook.</p>
+        </div>
+        <div class="card">
+          <h3>Optional support</h3>
+          <p style="font-size:28px;font-weight:800;color:var(--accent);margin:12px 0">$500 – $1,000/mo</p>
+          <p>Post-pilot: upgrade assistance, index health checks, minor configuration changes.</p>
+        </div>
+      </div>
+      <div class="callout">
+        Customer pays their own cloud/VM costs and LLM API usage (if not using local Ollama).
+        No per-seat license for v1 single-team deployments.
+      </div>
+    </section>
+
+    <section>
+      <h2>What you get</h2>
+      <ul style="color:var(--muted);margin-left:20px;font-size:14px;line-height:1.8">
+        <li>Hybrid BM25 + vector search with RRF — proven in automated tests</li>
+        <li>Browser UI + REST API with visible citations</li>
+        <li>Read-only document mount; persistent index volume</li>
+        <li>Operator documentation for backup, upgrade, and credential rotation</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's excluded from v1 pilot</h2>
+      <div class="grid-3">
+        <div class="card"><p>SSO / SAML</p></div>
+        <div class="card"><p>Per-document ACLs</p></div>
+        <div class="card"><p>M365 live sync</p></div>
+        <div class="card"><p>Multi-tenant SaaS</p></div>
+        <div class="card"><p>Compliance certifications</p></div>
+        <div class="card"><p>Uptime / concurrency SLAs</p></div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <h2>Start a pilot</h2>
+      <p>Email us with your document types, approximate file count, and 5 example questions your team asks today.</p>
+      <div class="cta-row" style="justify-content:flex-start;margin-top:20px">
+        <a class="btn btn-primary" href="mailto:juan@camilomartinez.co?subject=Holusight%20pilot%20inquiry">juan@camilomartinez.co</a>
+        <a class="btn btn-secondary" href="https://github.com/camilojourney/holusight">Evaluate the open-source engine</a>
+      </div>
+    </section>
+  </div>
+
+  <footer class="site-footer">
+    <p>Full offer details: <code>business/pilot-offer.md</code> in the repository.</p>
+  </footer>
+</body>
+</html>

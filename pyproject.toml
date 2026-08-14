@@ -36,9 +36,17 @@ dev = [
     "tree-sitter>=0.21",
     "tree-sitter-python>=0.21",
     "tree-sitter-javascript>=0.21",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
 ]
 demo = [
     "streamlit>=1.40",
+]
+server = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
 ]
 
 [build-system]

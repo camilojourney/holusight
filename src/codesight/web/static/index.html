@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Holusight — Search</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">Holusight</span>
+      <span class="badge">local deployment</span>
+    </div>
+    <div class="topbar-actions">
+      <span id="status-pill" class="pill pill-muted">checking…</span>
+      <button type="button" id="index-btn" class="btn btn-secondary" title="Re-index documents">Re-index</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar" aria-label="Settings">
+      <section>
+        <h2>API key</h2>
+        <p class="hint">Required when authentication is enabled on this deployment.</p>
+        <input type="password" id="api-key" autocomplete="off" placeholder="X-API-Key value" />
+        <button type="button" id="save-key" class="btn btn-secondary btn-block">Save key</button>
+      </section>
+      <section>
+        <h2>Mode</h2>
+        <div class="mode-toggle" role="radiogroup" aria-label="Search mode">
+          <label><input type="radio" name="mode" value="search" checked /> Search (local)</label>
+          <label><input type="radio" name="mode" value="ask" /> Ask (needs LLM)</label>
+        </div>
+        <p class="hint" id="mode-hint">Search uses hybrid BM25 + vector retrieval on this server. No LLM required.</p>
+      </section>
+      <section>
+        <h2>Filter</h2>
+        <input type="text" id="file-glob" placeholder="Optional glob, e.g. *.md" />
+      </section>
+    </aside>
+
+    <div class="chat-panel">
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <form id="query-form" class="query-form">
+        <label class="sr-only" for="query-input">Query</label>
+        <input type="text" id="query-input" placeholder="Search your documents…" autocomplete="off" required />
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
