@@ -6,6 +6,7 @@ querying full-text, and managing repo metadata.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import sqlite3
@@ -138,28 +139,29 @@ class FTSSidecar:
         terms = sanitized.split()
         return ' '.join(f'"{t}"' for t in terms)
 
-    def bm25_search(self, query: str, top_k: int = 20, file_glob: str | None = None) -> list[str]:
+    def bm25_search(
+        self,
+        query: str,
+        top_k: int = 20,
+        file_glob: str | None = None,
+        source: str | None = None,
+    ) -> list[str]:
         """Run BM25 search, returning chunk_ids ranked by relevance."""
         safe_query = self._sanitize_fts_query(query)
+        conditions = ["chunks_fts MATCH ?"]
+        values: list[object] = [safe_query]
         if file_glob:
-            # Convert glob to SQL LIKE pattern
-            like_pattern = file_glob.replace("*", "%").replace("?", "_")
-            cursor = self.conn.execute(
-                """SELECT chunk_id FROM chunks_fts
-                   WHERE chunks_fts MATCH ?
-                   AND chunk_id IN (SELECT chunk_id FROM chunks WHERE file_path LIKE ?)
-                   ORDER BY rank
-                   LIMIT ?""",
-                (safe_query, like_pattern, top_k),
-            )
-        else:
-            cursor = self.conn.execute(
-                """SELECT chunk_id FROM chunks_fts
-                   WHERE chunks_fts MATCH ?
-                   ORDER BY rank
-                   LIMIT ?""",
-                (safe_query, top_k),
-            )
+            conditions.append("chunk_id IN (SELECT chunk_id FROM chunks WHERE file_path LIKE ?)")
+            values.append(file_glob.replace("*", "%").replace("?", "_"))
+        if source == "holus":
+            conditions.append("chunk_id LIKE 'holus:%'")
+        values.append(top_k)
+        cursor = self.conn.execute(
+            "SELECT chunk_id FROM chunks_fts WHERE "
+            + " AND ".join(conditions)
+            + " ORDER BY rank LIMIT ?",
+            values,
+        )
         return [row[0] for row in cursor.fetchall()]
 
     def get_chunk_by_id(self, chunk_id: str) -> dict | None:
@@ -227,6 +229,22 @@ class FTSSidecar:
         cursor = self.conn.execute("SELECT value FROM repo_meta WHERE key = ?", (key,))
         row = cursor.fetchone()
         return row[0] if row else None
+
+    def set_lineage_metadata(self, chunk_id: str, provenance: dict) -> None:
+        """Persist source-specific provenance without changing the chunk schema."""
+        self.set_meta(f"lineage:{chunk_id}", json.dumps(provenance, sort_keys=True))
+
+    def get_lineage_metadata(self, chunk_id: str) -> dict | None:
+        """Return previously stored safe provenance for a lineage chunk."""
+        raw = self.get_meta(f"lineage:{chunk_id}")
+        if raw is None:
+            return None
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.warning("Ignoring malformed stored lineage metadata for %s", chunk_id)
+            return None
+        return value if isinstance(value, dict) else None
 
     def commit(self) -> None:
         self.conn.commit()
@@ -478,18 +496,20 @@ class ChunkStore:
         return count
 
     def vector_search(
-        self, query_vector: np.ndarray, top_k: int = 20, file_glob: str | None = None
+        self,
+        query_vector: np.ndarray,
+        top_k: int = 20,
+        file_glob: str | None = None,
+        source: str | None = None,
     ) -> list[str]:
         """Search LanceDB by vector similarity, returning ranked chunk_ids."""
         if self.lance_table is None:
             return []
 
-        results = (
-            self.lance_table
-            .search(query_vector.tolist())
-            .limit(top_k)
-            .to_pandas()
-        )
+        search = self.lance_table.search(query_vector.tolist())
+        if source == "holus":
+            search = search.where("chunk_id LIKE 'holus:%'")
+        results = search.limit(top_k).to_pandas()
 
         if results.empty:
             return []
@@ -508,9 +528,15 @@ class ChunkStore:
 
         return chunk_ids
 
-    def bm25_search(self, query: str, top_k: int = 20, file_glob: str | None = None) -> list[str]:
+    def bm25_search(
+        self,
+        query: str,
+        top_k: int = 20,
+        file_glob: str | None = None,
+        source: str | None = None,
+    ) -> list[str]:
         """BM25 search via FTS sidecar."""
-        return self.fts.bm25_search(query, top_k, file_glob)
+        return self.fts.bm25_search(query, top_k, file_glob, source)
 
     def vector_search_code(
         self, query_vector: np.ndarray, top_k: int = 20, file_glob: str | None = None

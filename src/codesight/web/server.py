@@ -12,7 +12,7 @@ import os
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from codesight.api import CodeSight
 from codesight.config import ServerConfig
+from codesight.holus import HolusImportStats
 from codesight.types import Answer, IndexStats, RepoStatus, SearchResult
 
 logger = logging.getLogger(__name__)
@@ -153,12 +154,20 @@ class SearchRequest(BaseModel):
     query: str
     top_k: int = Field(default=8, ge=1, le=50)
     file_glob: str | None = None
+    source: Literal["holus"] | None = None
 
 
 class AskRequest(BaseModel):
     question: str
     top_k: int = Field(default=5, ge=1, le=20)
     file_glob: str | None = None
+    source: Literal["holus"] | None = None
+
+
+class HolusImportRequest(BaseModel):
+    """An already-fetched, read-only Holus export snapshot."""
+
+    payload: dict[str, Any]
 
 
 class IndexRequest(BaseModel):
@@ -257,6 +266,7 @@ def create_app() -> FastAPI:
                 body.query.strip(),
                 top_k=body.top_k,
                 file_glob=body.file_glob,
+                source=body.source,
             )
         return {"results": [r.model_dump() for r in results]}
 
@@ -270,6 +280,7 @@ def create_app() -> FastAPI:
                     body.question.strip(),
                     top_k=body.top_k,
                     file_glob=body.file_glob,
+                    source=body.source,
                 )
         except ValueError as exc:
             if "API_KEY" in str(exc) or "environment variable is required" in str(exc):
@@ -295,6 +306,19 @@ def create_app() -> FastAPI:
             "model": answer.model,
             "synthesis": "llm",
         }
+
+    @app.post(
+        "/api/sources/holus/import",
+        response_model=HolusImportStats,
+        dependencies=[Depends(verify_api_key)],
+    )
+    async def import_holus_lineage(body: HolusImportRequest) -> HolusImportStats:
+        """Import a validated Holus export without accessing producer storage."""
+        try:
+            with _index_operation_lock:
+                return get_engine().import_holus_lineage(body.payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/index", dependencies=[Depends(verify_api_key)])
     async def index_documents(body: IndexRequest) -> dict[str, Any]:
