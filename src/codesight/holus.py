@@ -226,7 +226,9 @@ def _validate_safe_metadata(value: Any, label: str) -> None:
     if not isinstance(value, Mapping):
         raise ValueError(f"{label} must be an object")
     for key, item in value.items():
-        if _PRIVATE_KEY.search(str(key)):
+        if not isinstance(key, str):
+            raise ValueError(f"{label} keys must be strings")
+        if _PRIVATE_KEY.search(key):
             raise ValueError(f"{label} contains a private field: {key}")
         if not isinstance(item, (str, int, float, bool)) and item is not None:
             raise ValueError(f"{label} values must be scalar")

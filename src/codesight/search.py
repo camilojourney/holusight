@@ -390,7 +390,7 @@ def hybrid_search(
         if len(snippet) > 1500:
             snippet = snippet[:1500] + "\n... (truncated)"
 
-        provenance = store.fts.get_lineage_metadata(cid) if cid.startswith("holus:") else {}
+        provenance = (store.fts.get_lineage_metadata(cid) or {}) if cid.startswith("holus:") else {}
         results.append(SearchResult(
             file_path=meta["file_path"],
             start_line=meta["start_line"],

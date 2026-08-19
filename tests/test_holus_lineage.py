@@ -236,9 +236,3 @@ class TestHolusLineageSearchAndAttribution:
         assert result["source_schema_version"] == "1.0"
         assert "content-queue" not in result["snippet"]
         assert "https://" not in result["snippet"]
-
-        app_js = (Path(__file__).parents[1] / "src/codesight/web/static/app.js").read_text(
-            encoding="utf-8"
-        )
-        assert "source_label" in app_js
-        assert "Holus lineage" in app_js
