@@ -296,6 +296,7 @@ def hybrid_search(
     query: str,
     top_k: int = DEFAULT_TOP_K,
     file_glob: str | None = None,
+    source: str | None = None,
     code_embedder: Embedder | None = None,
     config: ServerConfig | None = None,
 ) -> list[SearchResult]:
@@ -310,6 +311,9 @@ def hybrid_search(
     6. Apply CNFB (optional)
     7. (Optional) Rerank with cross-encoder
     """
+    if source not in {None, "holus"}:
+        raise ValueError(f"Unsupported source filter: {source!r}")
+
     reranker_enabled = config.reranker if config else DEFAULT_RERANKER_ENABLED
     reranker_top_n = config.reranker_top_n if config else DEFAULT_RERANKER_TOP_N
     reranker_model = (
@@ -332,7 +336,7 @@ def hybrid_search(
 
     # 2. Vector search
     vec_ids = store.vector_search(
-        query_vector, top_k=candidate_count, file_glob=file_glob,
+        query_vector, top_k=candidate_count, file_glob=file_glob, source=source,
     )
     logger.debug("Vector search returned %d candidates", len(vec_ids))
 
@@ -342,7 +346,7 @@ def hybrid_search(
         if feedback_vecs:
             query_vector = vprf_enhance_query(query_vector, feedback_vecs)
             vec_ids = store.vector_search(
-                query_vector, top_k=candidate_count, file_glob=file_glob,
+                query_vector, top_k=candidate_count, file_glob=file_glob, source=source,
             )
             logger.debug("VPRF re-search returned %d candidates", len(vec_ids))
 
@@ -350,7 +354,7 @@ def hybrid_search(
     if code_embedder is None and VOYAGE_API_KEY and store.code_lance_table is not None:
         code_embedder = get_embedder("voyage-code-3", 1024, backend="voyage")
 
-    if code_embedder is not None and store.code_lance_table is not None:
+    if source is None and code_embedder is not None and store.code_lance_table is not None:
         code_query_vector = code_embedder.embed_query(query)
         code_vec_ids = store.vector_search_code(
             code_query_vector,
@@ -361,7 +365,7 @@ def hybrid_search(
 
     # 3. BM25 search
     bm25_ids = store.bm25_search(
-        query, top_k=candidate_count, file_glob=file_glob,
+        query, top_k=candidate_count, file_glob=file_glob, source=source,
     )
     logger.debug("BM25 search returned %d candidates", len(bm25_ids))
 
@@ -386,6 +390,7 @@ def hybrid_search(
         if len(snippet) > 1500:
             snippet = snippet[:1500] + "\n... (truncated)"
 
+        provenance = (store.fts.get_lineage_metadata(cid) or {}) if cid.startswith("holus:") else {}
         results.append(SearchResult(
             file_path=meta["file_path"],
             start_line=meta["start_line"],
@@ -395,6 +400,11 @@ def hybrid_search(
             scope=meta["scope"],
             chunk_id=cid,
             tokens_used=len(snippet) // 4,
+            source=provenance.get("source", "indexed_files"),
+            source_label=provenance.get("source_label", "Indexed files"),
+            source_schema_version=provenance.get("source_schema_version"),
+            lineage_node_id=provenance.get("lineage_node_id"),
+            lineage_edge_ids=provenance.get("lineage_edge_ids", []),
         ))
 
     # 5.5 CNFB: multiplicative filename boost (pre-reranker so reranker can correct)

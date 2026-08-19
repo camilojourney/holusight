@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ChunkRecord(BaseModel):
@@ -30,6 +30,11 @@ class SearchResult(BaseModel):
     scope: str
     chunk_id: str
     tokens_used: int | None = None  # approximate token count of snippet (len//4)
+    source: str = "indexed_files"
+    source_label: str = "Indexed files"
+    source_schema_version: str | None = None
+    lineage_node_id: str | None = None
+    lineage_edge_ids: list[str] = Field(default_factory=list)
 
 
 class IndexStats(BaseModel):

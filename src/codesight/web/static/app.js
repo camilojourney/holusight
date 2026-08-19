@@ -9,6 +9,7 @@
   const statusPill = document.getElementById("status-pill");
   const modeHint = document.getElementById("mode-hint");
   const fileGlobInput = document.getElementById("file-glob");
+  const sourceFilter = document.getElementById("source-filter");
 
   let publicConfig = { auth_required: true, llm_backend: "claude" };
 
@@ -53,8 +54,10 @@
       .map((s, i) => {
         const loc = locationLabel(s);
         const snippet = (s.snippet || "").slice(0, 600);
+        const sourceLabel = s.source_label || (s.source === "holus" ? "Holus lineage" : "Indexed files");
+        const lineage = s.lineage_node_id ? ` · ${escapeHtml(s.lineage_node_id)}` : "";
         return `<details class="source-card">
-          <summary>[${i + 1}] ${escapeHtml(s.file_path)} (${loc}) — ${escapeHtml(s.scope)}</summary>
+          <summary>[${i + 1}] ${escapeHtml(sourceLabel)} · ${escapeHtml(s.file_path)} (${loc}) — ${escapeHtml(s.scope)}${lineage}</summary>
           <pre>${escapeHtml(snippet)}</pre>
         </details>`;
       })
@@ -161,13 +164,14 @@
 
     const mode = getMode();
     const glob = fileGlobInput.value.trim() || null;
+    const source = sourceFilter.value || null;
 
     try {
       if (mode === "search") {
         const data = await apiFetch("/api/search", {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ query: text, top_k: 8, file_glob: glob }),
+          body: JSON.stringify({ query: text, top_k: 8, file_glob: glob, source }),
         });
         const results = data.results || [];
         if (!results.length) {
@@ -183,7 +187,7 @@
         const data = await apiFetch("/api/ask", {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ question: text, top_k: 5, file_glob: glob }),
+          body: JSON.stringify({ question: text, top_k: 5, file_glob: glob, source }),
         });
         appendMessage(
           `<div class="msg-meta">Ask — synthesized by ${escapeHtml(data.model || "LLM")}</div>

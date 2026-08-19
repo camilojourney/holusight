@@ -96,17 +96,27 @@ engine.index(force_rebuild: bool = False) -> IndexStats
 # Returns: IndexStats(total_files, total_chunks, duration_seconds)
 
 # Hybrid search — always local, always free
-engine.search(query: str, top_k: int = 8, file_glob: str | None = None) -> list[SearchResult]
+engine.search(query: str, top_k: int = 8, file_glob: str | None = None,
+              source: str | None = None) -> list[SearchResult]
 # Returns: list of SearchResult(content, file_path, start_line, end_line, scope, score)
+# source: optional filter — "holus" restricts results to imported Holus lineage chunks
 
 # Search + LLM answer synthesis
-engine.ask(question: str, top_k: int = 5, file_glob: str | None = None) -> Answer
+engine.ask(question: str, top_k: int = 5, file_glob: str | None = None,
+           source: str | None = None) -> Answer
 # Returns: Answer(text, sources: list[SearchResult], model: str)
 # Errors: ValueError if ANTHROPIC_API_KEY not set (or equivalent for chosen backend)
 
 # Index freshness check
 engine.status() -> RepoStatus
 # Returns: RepoStatus(indexed, total_files, total_chunks, last_indexed_at, is_stale)
+
+# Import one already-fetched, validated Holus v1 lineage export
+engine.import_holus_lineage(payload: Mapping[str, Any]) -> HolusImportStats
+# Returns: HolusImportStats(source, source_schema_version, records_imported,
+#                           records_skipped_unchanged, total_records)
+# Read-only: never accesses Holus storage, packages, or producer endpoints
+# Errors: ValueError on malformed, unsupported, or unsafe export content
 ```
 
 ## Implementation Notes

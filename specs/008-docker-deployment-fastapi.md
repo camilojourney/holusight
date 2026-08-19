@@ -50,6 +50,7 @@ Client opens browser → https://codesight.client.com
    |  GET  /              → web chat UI (HTML/JS)      |
    |  POST /api/search    → engine.search()            |
    |  POST /api/ask       → engine.ask()               |
+   |  POST /api/sources/holus/import → engine.import_holus_lineage() |
    |  POST /api/index     → engine.index()             |
    |  GET  /api/status    → engine.status()            |
    |                                                   |
@@ -94,6 +95,7 @@ POST /api/search
     query: str — search query
     top_k: int (default 8) — number of results
     file_glob: str | null — optional file filter
+    source: str | null — optional source filter ("holus" only)
 
   Response (200):
     results: list[SearchResult] — ranked chunks with file path, page, score, content
@@ -107,6 +109,7 @@ POST /api/ask
   Request:
     question: str — natural language question
     top_k: int (default 5) — chunks to use for context
+    source: str | null — optional source filter ("holus" only)
 
   Response (200):
     text: str — LLM-generated answer
@@ -142,6 +145,22 @@ GET /api/status
 
   Errors:
     401 — missing or invalid API key
+
+
+POST /api/sources/holus/import
+  Request:
+    payload: object — one already-fetched, validated Holus v1 lineage export
+
+  Response (200):
+    source: str
+    source_schema_version: str
+    records_imported: int
+    records_skipped_unchanged: int
+    total_records: int
+
+  Errors:
+    401 — missing or invalid API key
+    400 — malformed, unsupported, or unsafe export content
 
 
 GET /

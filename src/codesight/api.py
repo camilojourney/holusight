@@ -8,9 +8,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Mapping
 
 from .config import ServerConfig
 from .embeddings import get_embedder
+from .holus import HolusImportStats, parse_holus_lineage_export
 from .indexer import index_repo
 from .llm import SYSTEM_PROMPT, LLMBackend, get_backend
 from .search import hybrid_search
@@ -87,18 +89,77 @@ class CodeSight:
         self._store = None
         return stats
 
+    def import_holus_lineage(self, payload: Mapping[str, Any]) -> HolusImportStats:
+        """Import one already-fetched, read-only Holus lineage export.
+
+        The export is fully validated before any local index write. Holus source
+        files, databases, packages, and network endpoints are never accessed.
+        """
+        records = parse_holus_lineage_export(payload)
+        self._ensure_indexed()
+
+        records_to_store = []
+        skipped = 0
+        for record in records:
+            existing_hashes = self.store.fts.get_chunk_hashes(record.file_path)
+            existing_provenance = self.store.fts.get_lineage_metadata(record.chunk_id)
+            if (
+                existing_hashes.get(record.chunk_id) == record.content_hash
+                and existing_provenance is not None
+            ):
+                skipped += 1
+                continue
+            records_to_store.append(record)
+
+        if records_to_store:
+            vectors = self.embedder.embed([record.summary for record in records_to_store])
+            self.store.upsert_chunks(
+                [record.chunk_id for record in records_to_store],
+                vectors,
+                [
+                    {
+                        "file_path": record.file_path,
+                        "start_line": 1,
+                        "end_line": 1,
+                        "scope": "Holus lineage",
+                        "language": "holus-lineage",
+                        "content_hash": record.content_hash,
+                        "content": record.summary,
+                    }
+                    for record in records_to_store
+                ],
+            )
+            for record in records_to_store:
+                self.store.fts.set_lineage_metadata(record.chunk_id, record.provenance)
+
+        return HolusImportStats(
+            records_imported=len(records_to_store),
+            records_skipped_unchanged=skipped,
+            total_records=len(records),
+        )
+
     def search(
-        self, query: str, top_k: int = 8, file_glob: str | None = None,
+        self,
+        query: str,
+        top_k: int = 8,
+        file_glob: str | None = None,
+        source: str | None = None,
     ) -> list[SearchResult]:
         """Hybrid BM25 + vector search. Auto-indexes if needed."""
         self._ensure_indexed()
         return hybrid_search(
             self.store, self.embedder, query,
-            top_k=top_k, file_glob=file_glob,
+            top_k=top_k, file_glob=file_glob, source=source,
             config=self.config,
         )
 
-    def ask(self, question: str, top_k: int = 5, file_glob: str | None = None) -> Answer:
+    def ask(
+        self,
+        question: str,
+        top_k: int = 5,
+        file_glob: str | None = None,
+        source: str | None = None,
+    ) -> Answer:
         """Ask a question — search + LLM answer synthesis.
 
         Retrieves the top matching chunks, sends them as context to the
@@ -107,7 +168,7 @@ class CodeSight:
 
         Backend is selected via CODESIGHT_LLM_BACKEND env var (default: claude).
         """
-        results = self.search(question, top_k=top_k, file_glob=file_glob)
+        results = self.search(question, top_k=top_k, file_glob=file_glob, source=source)
 
         if not results:
             return Answer(

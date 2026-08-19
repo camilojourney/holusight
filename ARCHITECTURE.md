@@ -87,6 +87,7 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `store.py`      | LanceDB + SQLite FTS5 dual-write. Content hash deduplication.            |
 | `config.py`     | Pydantic settings from env vars. Auto-detects Voyage API capabilities.   |
 | `git_utils.py`  | .gitignore-aware file walking via `pathspec`.                            |
+| `holus.py`      | Read-only Holus v1 lineage export adapter: validation + safe provenance. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
 
