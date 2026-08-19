@@ -55,6 +55,16 @@
 | Docker single-team deployment | **Shipped** | `Dockerfile`, `docker-compose.yml` |
 | Public marketing site (holusight.com) | **Shipped** | `landing/`, `tests/test_deployment.py` — static only, no customer data |
 
+## Lineage import & provenance
+
+| Capability | Status | Evidence |
+|------------|--------|----------|
+| Holus v1 lineage export import (validated, idempotent, read-only) | **Shipped** | `src/codesight/holus.py`, `tests/test_holus_lineage.py` |
+| Source filtering (`source=holus` on search/ask, API, browser UI) | **Shipped** | `search.py`, `web/server.py`, `web/static/index.html` |
+| Provenance attribution in results + UI | **Shipped** | `types.py` SearchResult, `web/static/app.js` |
+
+**Not claimed:** reading Holus storage/databases, importing Holus packages, or fetching producer endpoints — the engine only consumes already-fetched, validated v1 exports.
+
 ## Authentication & security
 
 | Capability | Status | Notes |
@@ -98,5 +108,10 @@ Each `SearchResult` includes:
 - `scope` — human label (`function foo`, `page 3`, `section Introduction`, …)
 - `snippet` — chunk text (truncated in UI)
 - `score`, `chunk_id`
+- `source` — `indexed_files` (default) or `holus`
+- `source_label` — human-readable source name (`Indexed files`, `Holus lineage`)
+- `source_schema_version` — export schema version (`1.0` for Holus); null otherwise
+- `lineage_node_id`, `lineage_edge_ids` — stable Holus lineage identity; present only for Holus chunks
 
 Tests proving end-to-end citations: `tests/test_e2e.py`, `tests/test_server.py`.
+Lineage provenance fields are covered by `tests/test_holus_lineage.py`.
