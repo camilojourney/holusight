@@ -81,6 +81,7 @@ _REQUIRED_EDGE_FIELDS = frozenset(
         "run_id",
     }
 )
+_EDGE_DESCRIPTOR_KEYS = ("edge_id", "from_node_id", "to_node_id", "relation")
 
 
 class HolusImportStats(BaseModel):
@@ -147,14 +148,17 @@ def parse_holus_lineage_export(payload: Mapping[str, Any]) -> list[HolusLineageR
         if edge["from_node_id"] not in node_ids or edge["to_node_id"] not in node_ids:
             raise ValueError(f"edge {edge['edge_id']} references an unknown lineage node")
 
-    edge_ids_by_node: dict[str, list[str]] = {node_id: [] for node_id in node_ids}
+    edge_descriptors_by_node: dict[str, list[dict[str, str]]] = {
+        node_id: [] for node_id in node_ids
+    }
     for edge in edges:
-        edge_ids_by_node[edge["from_node_id"]].append(edge["edge_id"])
+        descriptor = _normalize_edge_descriptor(edge)
+        edge_descriptors_by_node[edge["from_node_id"]].append(descriptor)
         if edge["to_node_id"] != edge["from_node_id"]:
-            edge_ids_by_node[edge["to_node_id"]].append(edge["edge_id"])
+            edge_descriptors_by_node[edge["to_node_id"]].append(descriptor)
 
     return [
-        _to_lineage_record(node, sorted(edge_ids_by_node[node["node_id"]]))
+        _to_lineage_record(node, edge_descriptors_by_node[node["node_id"]])
         for node in nodes
     ]
 
@@ -242,7 +246,25 @@ def _validate_safe_metadata(value: Any, label: str) -> None:
                 raise ValueError(f"{label} contains an unsafe value")
 
 
-def _to_lineage_record(node: dict[str, Any], edge_ids: list[str]) -> HolusLineageRecord:
+def _normalize_edge_descriptor(edge: Mapping[str, Any]) -> dict[str, str]:
+    return {key: edge[key] for key in _EDGE_DESCRIPTOR_KEYS}
+
+
+def _sort_edge_descriptors(descriptors: list[dict[str, str]]) -> list[dict[str, str]]:
+    return sorted(
+        descriptors,
+        key=lambda item: (
+            item["edge_id"],
+            item["from_node_id"],
+            item["to_node_id"],
+            item["relation"],
+        ),
+    )
+
+
+def _to_lineage_record(
+    node: dict[str, Any], incident_edges: list[dict[str, str]]
+) -> HolusLineageRecord:
     node_id = node["node_id"]
     identity_hash = hashlib.sha256(node_id.encode("utf-8")).hexdigest()[:32]
     safe_node = {
@@ -250,9 +272,15 @@ def _to_lineage_record(node: dict[str, Any], edge_ids: list[str]) -> HolusLineag
         for key, value in node.items()
         if key != "artifact_ref"
     }
+    edge_descriptors = _sort_edge_descriptors(incident_edges)
+    edge_ids = sorted({descriptor["edge_id"] for descriptor in edge_descriptors})
     content_hash = hashlib.sha256(
         json.dumps(
-            {"schema_version": HOLUS_SCHEMA_VERSION, "node": safe_node, "edge_ids": edge_ids},
+            {
+                "schema_version": HOLUS_SCHEMA_VERSION,
+                "node": safe_node,
+                "edge_descriptors": edge_descriptors,
+            },
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -271,6 +299,7 @@ def _to_lineage_record(node: dict[str, Any], edge_ids: list[str]) -> HolusLineag
             "source_schema_version": HOLUS_SCHEMA_VERSION,
             "lineage_node_id": node_id,
             "lineage_edge_ids": edge_ids,
+            "lineage_edge_descriptors": edge_descriptors,
             "artifact_type": node["artifact_type"],
             "artifact_id": node["artifact_id"],
             "producer": node["producer"],
