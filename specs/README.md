@@ -17,6 +17,8 @@ Feature specifications for codesight.
 | 008 | [Docker + FastAPI Deployment](008-docker-deployment-fastapi.md) | Implemented (single-team) | v0.5 |
 | 009 | [CNFB — Multiplicative Filename Boost](009-cnfb-multiplicative-filename-boost.md) | Approved | v0.5 |
 | 010 | [Capability Truth Inventory](010-capability-inventory.md) | Implemented | v0.5 |
+| 011 | [Holusight Product Architecture Research](011-holusight-product-architecture-research.md) | Research/reference | Not implementation authorization |
+| 012 | [Holusight Overnight Benchmark & Continuous Evaluation Research](012-holusight-overnight-benchmark-continuous-evaluation-research.md) | Research/reference | Not implementation authorization |
 
 ## Implementation History
 
