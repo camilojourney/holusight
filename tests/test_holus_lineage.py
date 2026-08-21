@@ -10,6 +10,7 @@ import pytest
 from codesight import config as config_module
 from codesight.api import CodeSight
 from codesight.config import ServerConfig
+from codesight.holus import parse_holus_lineage_export
 
 
 class StaticEmbedder:
@@ -161,6 +162,18 @@ class TestHolusLineageImport:
             ),
             (
                 lambda export: export["records"][1]["edges"][0].update(
+                    metadata={"url": "https://private.example"}
+                ),
+                "metadata",
+            ),
+            (
+                lambda export: export["records"][1]["edges"][0].update(
+                    relation="https://evil.example/path"
+                ),
+                "unsafe value",
+            ),
+            (
+                lambda export: export["records"][1]["edges"][0].update(
                     to_node_id="content:missing"
                 ),
                 "unknown lineage node",
@@ -180,6 +193,124 @@ class TestHolusLineageImport:
             engine.import_holus_lineage(export)
 
         assert engine.store.chunk_count == 0
+
+
+class TestHolusSafeEdgeProvenance:
+    def test_content_hash_includes_normalized_edge_descriptors(self) -> None:
+        baseline = parse_holus_lineage_export(_holus_export())
+        by_node = {record.node_id: record for record in baseline}
+
+        relation_changed = _holus_export()
+        relation_changed["records"][1]["edges"][0]["relation"] = "derived_from"
+        changed = {
+            record.node_id: record
+            for record in parse_holus_lineage_export(relation_changed)
+        }
+
+        direction_changed = _holus_export()
+        direction_changed["records"][1]["edges"][0].update(
+            from_node_id="content:checkout-linkedin",
+            to_node_id="content-set:checkout",
+        )
+        reversed_edges = {
+            record.node_id: record for record in parse_holus_lineage_export(direction_changed)
+        }
+
+        assert changed["content:checkout-linkedin"].content_hash != by_node[
+            "content:checkout-linkedin"
+        ].content_hash
+        assert reversed_edges["content:checkout-linkedin"].content_hash != by_node[
+            "content:checkout-linkedin"
+        ].content_hash
+        assert reversed_edges["content-set:checkout"].content_hash != by_node[
+            "content-set:checkout"
+        ].content_hash
+
+    def test_edge_list_reorder_is_idempotent(self) -> None:
+        export = _holus_export()
+        export["records"][1]["edges"].append(
+            {
+                "schema_version": "1.0",
+                "edge_id": "edge:checkout-references-linkedin",
+                "from_node_id": "content-set:checkout",
+                "to_node_id": "content:checkout-linkedin",
+                "relation": "references",
+                "created_at": "2026-08-15T00:02:00+00:00",
+                "run_id": "run:checkout",
+            }
+        )
+        reordered = _holus_export()
+        reordered["records"][1]["edges"] = [
+            {
+                "schema_version": "1.0",
+                "edge_id": "edge:checkout-references-linkedin",
+                "from_node_id": "content-set:checkout",
+                "to_node_id": "content:checkout-linkedin",
+                "relation": "references",
+                "created_at": "2026-08-15T00:02:00+00:00",
+                "run_id": "run:checkout",
+            },
+            reordered["records"][1]["edges"][0],
+        ]
+
+        baseline = {record.node_id: record for record in parse_holus_lineage_export(export)}
+        shuffled = {record.node_id: record for record in parse_holus_lineage_export(reordered)}
+
+        assert shuffled["content:checkout-linkedin"].content_hash == baseline[
+            "content:checkout-linkedin"
+        ].content_hash
+        assert shuffled["content-set:checkout"].content_hash == baseline[
+            "content-set:checkout"
+        ].content_hash
+
+    def test_changed_edge_topology_updates_existing_record(self, engine: CodeSight) -> None:
+        first = engine.import_holus_lineage(_holus_export())
+        assert first.records_imported == 2
+
+        changed = _holus_export()
+        changed["records"][1]["edges"][0]["relation"] = "derived_from"
+        second = engine.import_holus_lineage(changed)
+
+        assert second.records_imported == 2
+        assert second.records_skipped_unchanged == 0
+
+        linkedin = next(
+            record
+            for record in parse_holus_lineage_export(changed)
+            if record.node_id == "content:checkout-linkedin"
+        )
+        stored = engine.store.fts.get_lineage_metadata(linkedin.chunk_id)
+        assert stored is not None
+        assert stored["lineage_edge_descriptors"] == [
+            {
+                "edge_id": "edge:checkout-contains-linkedin",
+                "from_node_id": "content-set:checkout",
+                "to_node_id": "content:checkout-linkedin",
+                "relation": "derived_from",
+            }
+        ]
+        assert "metadata" not in stored["lineage_edge_descriptors"][0]
+
+    def test_legacy_provenance_without_descriptors_remains_readable(
+        self, engine: CodeSight
+    ) -> None:
+        imported = engine.import_holus_lineage(_holus_export())
+        assert imported.records_imported == 2
+
+        linkedin = next(
+            record
+            for record in parse_holus_lineage_export(_holus_export())
+            if record.node_id == "content:checkout-linkedin"
+        )
+        legacy = engine.store.fts.get_lineage_metadata(linkedin.chunk_id)
+        assert legacy is not None
+        legacy.pop("lineage_edge_descriptors", None)
+        engine.store.fts.set_lineage_metadata(linkedin.chunk_id, legacy)
+
+        results = engine.search("checkout approval", source="holus", top_k=5)
+        result = next(item for item in results if item.lineage_node_id == linkedin.node_id)
+        assert result.lineage_edge_ids == ["edge:checkout-contains-linkedin"]
+        assert result.source == "holus"
 
 
 class TestHolusLineageSearchAndAttribution:
