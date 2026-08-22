@@ -300,6 +300,8 @@ Measured on the holusight codebase (96 files, 20 representative queries):
 
 **Key finding:** AST chunking was the single largest lever (+0.224 MRR). The local ms-marco cross-encoder *hurts* code retrieval. voyage rerank-2 adds +0.43 MRR on top of voyage-code-3 embeddings alone.
 
+The 20-query table above is the original harness (`just eval`, still the default). An expanded local eval harness (`just eval-taxonomy`, 85 queries across 7 families) adds exact/BM25-only/Graphify-structural baselines, Recall@K/nDCG/evidence-completeness/latency metrics, and an opt-in embedding-model variant runner — see `specs/014-retrieval-evaluation-harness-expansion.md`. It is a bounded local vertical slice, not a production benchmark; see that spec's Limitations section before citing its numbers.
+
 ---
 
 ## Deployment Tiers

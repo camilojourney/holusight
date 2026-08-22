@@ -151,6 +151,14 @@ Rules:
 - Test: `uv run --extra dev pytest tests/ -x -v`
 - Lint: `uv run --extra dev ruff check src/ tests/`
 - Install: `pip install -e ".[dev]"`
+- Retrieval eval: `just eval` (20q, hybrid only) or `just eval-taxonomy` (85q
+  taxonomy across hybrid/bm25/exact/graphify baselines). See
+  `specs/014-retrieval-evaluation-harness-expansion.md` and
+  `docs/playbooks/run-retrieval-eval.md`. The `graphify`/`fleet_graphify.py`/
+  `agy` tooling this file references elsewhere is not present on every
+  execution host — code that depends on it (the eval harness's Graphify
+  baseline, `consistency.py`'s structural provider) must degrade to an
+  explicit "unavailable" result rather than fail, and does.
 
 ## Parallelism & Skills
 
@@ -286,6 +294,14 @@ Rules:
 - Test: `uv run --extra dev pytest tests/ -x -v`
 - Lint: `uv run --extra dev ruff check src/ tests/`
 - Install: `pip install -e ".[dev]"`
+- Retrieval eval: `just eval` (20q, hybrid only) or `just eval-taxonomy` (85q
+  taxonomy across hybrid/bm25/exact/graphify baselines). See
+  `specs/014-retrieval-evaluation-harness-expansion.md` and
+  `docs/playbooks/run-retrieval-eval.md`. The `graphify`/`fleet_graphify.py`/
+  `agy` tooling this file references elsewhere is not present on every
+  execution host — code that depends on it (the eval harness's Graphify
+  baseline, `consistency.py`'s structural provider) must degrade to an
+  explicit "unavailable" result rather than fail, and does.
 
 ## Parallelism & Skills
 
