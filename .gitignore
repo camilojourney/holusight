@@ -23,6 +23,11 @@ env/
 # Data (index databases — never commit these)
 data/
 
+# Holusight-AXI consistency cache — gitignored derived state, never canonical
+# truth. Safe to delete; rebuilt via `python -m codesight consistency refresh`.
+# See specs/013-holusight-axi-consistency-architecture.md.
+.holusight/
+
 # OS
 .DS_Store
 Thumbs.db

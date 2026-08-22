@@ -7,6 +7,10 @@ Usage:
     python -m codesight status [path]            Check index status
     python -m codesight demo                     Launch Streamlit web chat
     python -m codesight serve                    Launch FastAPI production server
+    python -m codesight consistency refresh [path]        Refresh consistency cache
+    python -m codesight consistency evidence <concept> [path]  Pre-change evidence packet
+    python -m codesight consistency check <concept> [path]     Post-change consistency check
+    python -m codesight consistency status [path]         Concepts + open health flags
 """
 
 from __future__ import annotations
@@ -74,6 +78,38 @@ def main():
     p_status = sub.add_parser("status", help="Check index status")
     p_status.add_argument("path", nargs="?", default=".", help="Folder path (default: .)")
 
+    # consistency (Holusight-AXI documentation-code consistency system, Phase 1)
+    p_consistency = sub.add_parser(
+        "consistency", help="Documentation-code consistency cache (Phase 1)"
+    )
+    consistency_sub = p_consistency.add_subparsers(dest="consistency_command")
+
+    p_c_refresh = consistency_sub.add_parser(
+        "refresh", help="Refresh the .holusight/consistency.db cache"
+    )
+    p_c_refresh.add_argument("path", nargs="?", default=".", help="Repo path (default: .)")
+    p_c_refresh.add_argument(
+        "--semantic", action="store_true",
+        help="Also compute local-embedding semantic edges (opt-in, no network)",
+    )
+
+    p_c_evidence = consistency_sub.add_parser(
+        "evidence", help="Print the pre-change evidence packet for a concept"
+    )
+    p_c_evidence.add_argument("concept_id", help="Concept ID (canonical spec/ADR path)")
+    p_c_evidence.add_argument("path", nargs="?", default=".", help="Repo path (default: .)")
+
+    p_c_check = consistency_sub.add_parser(
+        "check", help="Post-change consistency check for a concept"
+    )
+    p_c_check.add_argument("concept_id", help="Concept ID (canonical spec/ADR path)")
+    p_c_check.add_argument("path", nargs="?", default=".", help="Repo path (default: .)")
+
+    p_c_status = consistency_sub.add_parser(
+        "status", help="Print cached concepts and open health flags"
+    )
+    p_c_status.add_argument("path", nargs="?", default=".", help="Repo path (default: .)")
+
     # demo
     sub.add_parser("demo", help="Launch Streamlit web chat UI")
 
@@ -99,6 +135,10 @@ def main():
 
     if args.command == "serve":
         _launch_serve(args)
+        return
+
+    if args.command == "consistency":
+        _run_consistency(args)
         return
 
     # Lazy import to avoid loading heavy deps for --help
@@ -248,6 +288,52 @@ def _launch_serve(args) -> None:
         port=args.port,
         reload=False,
     )
+
+
+def _run_consistency(args) -> None:
+    """Dispatch `python -m codesight consistency <action> ...` (Phase 1)."""
+    from pathlib import Path as _Path
+
+    action = getattr(args, "consistency_command", None)
+    if not action:
+        print(
+            "Error: missing consistency subcommand (refresh|evidence|check|status)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    repo_path = _Path(args.path).expanduser().resolve()
+    if not repo_path.is_dir():
+        print(f"Error: Not a directory: {args.path}", file=sys.stderr)
+        sys.exit(1)
+
+    from . import consistency
+
+    try:
+        if action == "refresh":
+            result = consistency.refresh(repo_path, run_semantic=args.semantic)
+            print(json.dumps(result.model_dump(), indent=2))
+        elif action == "evidence":
+            packet = consistency.build_evidence_packet(repo_path, args.concept_id)
+            print(json.dumps(packet.model_dump(), indent=2))
+        elif action == "check":
+            report = consistency.check_consistency(repo_path, args.concept_id)
+            print(json.dumps(report.model_dump(), indent=2))
+        elif action == "status":
+            from .consistency_store import ConsistencyStore
+
+            store = ConsistencyStore(consistency.consistency_db_path(repo_path))
+            try:
+                payload = {
+                    "concepts": store.all_concepts(),
+                    "health_flags": store.all_health_flags(),
+                }
+            finally:
+                store.close()
+            print(json.dumps(payload, indent=2))
+    except KeyError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
