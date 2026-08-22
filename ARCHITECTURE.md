@@ -88,6 +88,8 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `config.py`     | Pydantic settings from env vars. Auto-detects Voyage API capabilities.   |
 | `git_utils.py`  | .gitignore-aware file walking via `pathspec`.                            |
 | `holus.py`      | Read-only Holus v1 lineage export adapter: validation + safe provenance. |
+| `consistency.py` | Holusight-AXI documentation-code consistency engine (Phase 1) — classification, concept registry, claim/relationship provenance, evidence packets, consistency checks. See spec 013. |
+| `consistency_store.py` | SQLite storage for the consistency cache (`.holusight/consistency.db`). |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
 
@@ -307,6 +309,76 @@ Measured on the holusight codebase (96 files, 20 representative queries):
 | Single-team pilot | One team | Docker/VM + FastAPI + shared API key | local default or customer-selected API | optional |
 | Future larger deployment | Not claimed | Requires separate design | Depends on deployment | Depends on deployment |
 | Air-gapped pilot | One team | On-prem server | local model | off |
+
+---
+
+## Holusight-AXI Consistency Layer (Phase 1, added 2026-08-22)
+
+A separate, self-referential subsystem that keeps this repository's own
+specs/ADRs/architecture docs consistent with the code they describe. Full
+architecture is `specs/013-holusight-axi-consistency-architecture.md`; the
+one-database storage decision is
+`docs/decisions/0011-single-sqlite-consistency-store.md`. Summary:
+
+```
+python -m codesight consistency refresh .        (rebuild the cache)
+python -m codesight consistency evidence <id> .   (pre-change evidence packet)
+python -m codesight consistency check <id> .      (post-change consistency check)
+python -m codesight consistency status .          (concepts + open health flags)
+```
+
+- **Purpose-aware classification**: every tracked file is classified by
+  *why it exists* (specification, decision, architecture, implementation,
+  test, devlog, report, ...), derived from this repo's own directory
+  contract (`.claude/rules/structure.md`), not from its words.
+- **Concept registry**: one concept per canonical `specs/NNN-*.md` or
+  `docs/decisions/NNNN-*.md` file — this repo already enforces
+  one-feature-per-numbered-spec, so the file *is* the concept scope.
+- **Three distinguishable evidence providers**, each carrying an explicit
+  `confidence` and `evidence` payload: `exact` (deterministic path-token
+  extraction from spec/ADR prose, resolved against the filesystem —
+  including flagging *dangling* references that don't resolve), `structural`
+  (sourced from the tracked `graphify-out/graph.json`, with an explicit
+  staleness flag against current `HEAD`), and `semantic` (local
+  sentence-transformers similarity, **opt-in only**, never called by
+  default, never used to establish canonical authority).
+- **Claim registry**: a small, explicit, hand-registered set of named
+  invariants already called out in this file's "What NOT to Change Without
+  Discussion" section below (RRF `k`, AST `min_lines`, content-hash length,
+  data directory location) — each claim's doc-side and code-side values are
+  regex-extracted and compared. This is intentionally not a general
+  natural-language claim extractor.
+- **Incremental cache**: `.holusight/consistency.db`, one atomic SQLite
+  file. **`.holusight/` is gitignored derived state, never canonical
+  truth** — delete it any time; the next `refresh` rebuilds it. Only
+  artifact classification is content-hash-gated today; edge/claim/health
+  recomputation is a full pass each refresh (acceptable at this
+  repository's ~125-file scale — see spec 013 §5 for the scale-out
+  trigger).
+- **Evidence packet / consistency check**: `evidence` assembles everything
+  known about one concept before a change (repo snapshot, canonical
+  artifact, edges/claims, open health flags) without modifying anything.
+  `check` compares current on-disk content hashes against the cache's
+  last-refreshed hashes and classifies the result (`up_to_date`,
+  `spec_changed_awaiting_implementation`, `possible_undocumented_drift`,
+  `coordinated_change`) — deterministic hash-diffing, not semantic value
+  comparison.
+- **Known limitation**: exact-reference extraction cannot distinguish a
+  real path reference from a fictional illustrative path inside research
+  prose (e.g. specs 011/012 cite invented paths like `src/payments/service.py`
+  as worked examples) — both surface as `DANGLING_REFERENCE`. The first real
+  run also found two genuine pre-existing dangling references:
+  `docs/decisions/0010-graphify-extension-contract.md` pointed at
+  `docs/capabilities.md` (fixed in this PR — repointed to the real
+  `specs/010-capability-inventory.md`), and
+  `docs/decisions/0006-two-deployment-modes.md` points at
+  `specs/002-deployment-modes.md` (left unfixed — the ADR describes an
+  architecture, Qdrant/PostgreSQL/MinIO/Azure AI Search, that doesn't match
+  anything currently implemented; the right fix is a human product
+  decision, not a guessed repoint).
+- **Out of scope for Phase 1**: no change planner, no artifact-creation
+  governance, no CI enforcement/merge blocking. See spec 013 §4 for the
+  full non-goals list.
 
 ---
 

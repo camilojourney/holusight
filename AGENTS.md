@@ -33,6 +33,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `tasks/` | Temporary session task files (delete when done). |
 | `.claude/` | Claude Code configuration, rules, agents. |
 | `.self-improvement/` | Autonomous improvement system. |
+| `.holusight/` | Holusight-AXI consistency cache. Gitignored derived state, never canonical truth — safe to delete, rebuilt via `python -m codesight consistency refresh`. See spec 013. |
 
 **Never create files at root** unless they are one of the above.
 
@@ -51,6 +52,8 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/parsers.py` | Language parsers (tree-sitter). |
 | `src/codesight/search.py` | Search and retrieval. |
 | `src/codesight/store.py` | Vector store (LanceDB). |
+| `src/codesight/consistency.py` | Holusight-AXI documentation-code consistency engine (Phase 1). See spec 013. |
+| `src/codesight/consistency_store.py` | SQLite storage for `.holusight/consistency.db`. |
 | `src/codesight/types.py` | Shared type definitions. |
 | `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |
 | `src/codesight/web/static/` | Browser UI assets for the FastAPI pilot server. |

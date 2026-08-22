@@ -33,7 +33,7 @@ Optional enhancement behind `CODESIGHT_GRAPHIFY_PATH` (not implemented):
 
 1. Prototype read-only graph enrichment in a feature branch
 2. Measure whether operators run `graphify update` reliably in client environments
-3. Only promote to **Shipped** in `docs/capabilities.md` after automated tests cover graph-present and graph-absent paths
+3. Only promote to **Shipped** in `specs/010-capability-inventory.md` after automated tests cover graph-present and graph-absent paths
 
 ## Marketing rule
 

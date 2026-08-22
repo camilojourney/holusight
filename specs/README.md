@@ -19,6 +19,7 @@ Feature specifications for codesight.
 | 010 | [Capability Truth Inventory](010-capability-inventory.md) | Implemented | v0.5 |
 | 011 | [Holusight Product Architecture Research](011-holusight-product-architecture-research.md) | Research/reference | Not implementation authorization |
 | 012 | [Holusight Overnight Benchmark & Continuous Evaluation Research](012-holusight-overnight-benchmark-continuous-evaluation-research.md) | Research/reference | Not implementation authorization |
+| 013 | [Holusight-AXI Documentation-Code Consistency Architecture](013-holusight-axi-consistency-architecture.md) | Phase 1 implemented | Direct-PR |
 
 ## Implementation History
 
