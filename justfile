@@ -33,6 +33,12 @@ test:
 eval:
     uv run --extra dev python tests/eval_holusight.py --top-k 10
 
+# Run the expanded ~85-query taxonomy across local baselines (hybrid/bm25/exact/graphify)
+eval-taxonomy:
+    uv run --extra dev python tests/eval_holusight.py \
+        --queries tests/fixtures/holusight_eval_taxonomy.json \
+        --baselines hybrid,bm25,exact,graphify --top-k 10
+
 # ─── Autonomous Workers ──────────────────────────
 
 # Run self-improvement cycle
