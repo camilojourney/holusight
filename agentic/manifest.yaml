@@ -1,0 +1,62 @@
+# Fleet repository-evaluation-adapter manifest for holusight.
+#
+# This file is Holusight-owned DATA conforming to a schema Holusight does
+# not own, define, or vendor a copy of. The canonical schema this file must
+# validate against lives in the Fleet repository:
+#
+#   github.com/camilojourney/fleet-system @ 7d396b30f0250a414f9115964c945e29b7afb267
+#   system/shared/contracts/agentic/repo-agent-manifest.schema.json
+#   ($id: fleet.repo-agent-manifest.v1, PR #58)
+#
+# See docs/decisions/0012-fleet-v1.2-protocol-wiring.md and
+# specs/016-fleet-v1.2-protocol-pilot.md for the full provenance chain,
+# scope, and boundaries (no telemetry, no autonomous promotion, no change
+# to the semantic-provider default).
+schema: fleet.repo_agent_manifest.v1.2
+repo: holusight
+owner: holusight
+skills: []
+agents:
+  - source: AGENTS.md
+    purpose: human-readable agent authority and repo boundary
+  - source: .self-improvement/workers.yaml
+    purpose: repo-local self-improvement worker registry
+  - source: .claude/agents/
+    purpose: Claude Code agent definitions
+
+# The one canonical command Fleet's runner would invoke. Runs the local,
+# no-spend smoke suite (tests/test_fleet_smoke.py) limited to the exact and
+# structural consistency providers, then prints Fleet's expected minimal
+# domain-result JSON object as its last stdout line (see
+# run_repo_eval.py's parse_domain_result contract, and
+# src/codesight/fleet_scorecard.py::domain_result_summary).
+eval_entrypoint:
+  command: just fleet-smoke
+  working_dir: .
+  timeout_seconds: 300
+  declared_in: justfile (fleet-smoke recipe)
+
+# Must match agentic/memory.yaml's fleet_visibility exactly (field-for-field
+# set equality), per run_repo_eval.py's validate_agentic_privacy_config.
+privacy:
+  exported_to_fleet:
+    - agentic/manifest.yaml
+    - agentic/memory.yaml
+    - fleet.eval_scorecard.v1.2 documents produced by src/codesight/fleet_scorecard.py for the holusight-axi consistency evaluator's four outcomes
+  not_exported_to_fleet:
+    - secrets and credentials (API keys, .env, Voyage/Claude/OpenAI/Azure tokens)
+    - raw agent outputs and transcripts
+    - repository source code beyond this manifest and generated scorecards
+    - customer data (any document under an indexed customer folder; holusight's read-only invariant already forbids writing to those folders, this boundary additionally forbids exporting their content to Fleet)
+    - private fixtures and golden files not marked for export (tests/fixtures/, .claude/agent-memory/)
+
+# default_training_eligibility is schema-fixed to false at the manifest
+# level (repo-agent-manifest.schema.json's provenancePolicy $def) -- this
+# repo cannot opt itself into training eligibility by default. A specific
+# payload could only become training-eligible via its own
+# fleet.agent_trace.v1.2 provenance block, which nothing in this repo
+# currently produces.
+provenance_policy:
+  default_training_eligibility: false
+  default_retention_class: standard
+  default_rights_class: owned

@@ -34,6 +34,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `.claude/` | Claude Code configuration, rules, agents. |
 | `.self-improvement/` | Autonomous improvement system. |
 | `.holusight/` | Holusight-AXI consistency cache. Gitignored derived state, never canonical truth — safe to delete, rebuilt via `python -m codesight consistency refresh`. See spec 013. |
+| `agentic/` | Fleet repository-evaluation-adapter manifest (`fleet.repo_agent_manifest.v1.2`) and memory policy (`fleet.memory_policy.v1.1`). Committed, Holusight-owned data conforming to schemas owned by the Fleet repository, not vendored here. See spec 016. |
 
 **Never create files at root** unless they are one of the above.
 
@@ -59,6 +60,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/cli_axi.py` | `holus` CLI entry point (`[project.scripts] holus`). |
 | `src/codesight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
+| `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
 | `src/codesight/types.py` | Shared type definitions. |
 | `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |
 | `src/codesight/web/static/` | Browser UI assets for the FastAPI pilot server. |
@@ -165,6 +167,10 @@ Rules:
   execution host — code that depends on it (the eval harness's Graphify
   baseline, `consistency.py`'s structural provider) must degrade to an
   explicit "unavailable" result rather than fail, and does.
+- Fleet v1.2 protocol pilot smoke suite: `just fleet-smoke` (20 tasks,
+  exact + structural providers only, no network, no spend). This is
+  `agentic/manifest.yaml`'s declared `eval_entrypoint`. See
+  `specs/016-fleet-v1.2-protocol-pilot.md`.
 
 ## Parallelism & Skills
 
@@ -308,6 +314,10 @@ Rules:
   execution host — code that depends on it (the eval harness's Graphify
   baseline, `consistency.py`'s structural provider) must degrade to an
   explicit "unavailable" result rather than fail, and does.
+- Fleet v1.2 protocol pilot smoke suite: `just fleet-smoke` (20 tasks,
+  exact + structural providers only, no network, no spend). This is
+  `agentic/manifest.yaml`'s declared `eval_entrypoint`. See
+  `specs/016-fleet-v1.2-protocol-pilot.md`.
 
 ## Parallelism & Skills
 

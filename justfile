@@ -49,6 +49,14 @@ holus-skill:
 holus-skill-check:
     uv run --extra dev pytest tests/test_axi_skill_drift.py -q
 
+# ─── Fleet v1.2 protocol pilot ────────────────────
+
+# Canonical eval_entrypoint declared in agentic/manifest.yaml: runs the
+# local, no-spend smoke suite (exact + structural providers only) and
+# prints Fleet's expected domain-result JSON object as the last stdout line.
+fleet-smoke:
+    uv run --extra dev python -m codesight.fleet_scorecard smoke
+
 # ─── Autonomous Workers ──────────────────────────
 
 # Run self-improvement cycle
