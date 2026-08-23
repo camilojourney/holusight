@@ -468,6 +468,46 @@ def _cmd_providers(repo_root: Path, values: dict, positionals: list[str]) -> tup
     return payload, 0
 
 
+def _select_display_items(
+    results: list[axi_providers.ProviderResult], cap: int
+) -> list[axi_providers.EvidenceItem]:
+    """Bounded, deterministic per-provider display quota for `evidence`'s
+    merged item list.
+
+    This is an anti-starvation *display* safeguard only - not provider
+    routing or promotion (spec 015 SS8 still applies unchanged: which
+    providers run, and in what fixed order, is untouched here; so are
+    `evidence_total`/`truncated`, which always cover every item every
+    provider found, not just what ends up displayed). Without it, one
+    provider's own scan budget - e.g. `exact_provider`'s 30-match cap,
+    which a single early-alphabetical file can exhaust on its own - could
+    by itself exceed `cap` and silently push every other provider's items
+    out of the displayed list, even ones that reported state "ok".
+
+    Providers are visited round-robin in `results`' order (the same fixed
+    order `MODE_PROVIDERS` declares - `exact, structural, consistency,
+    semantic` for auto mode), taking at most one item per provider per
+    round. A provider with no items left is simply skipped that round,
+    letting the next provider in the fixed order use the slot instead -
+    this is how "unused slots" get filled deterministically. Items are
+    never sorted, scored, or ranked across providers; only their arrival
+    order within a round-robin over a fixed provider sequence decides
+    which appear first. With a single nonempty provider (or a single
+    explicit `--provider`) this degenerates exactly to the prior slicing
+    behavior: that provider's own items, in its own order, up to `cap`.
+    """
+    queues = [list(r.items) for r in results]
+    displayed: list[axi_providers.EvidenceItem] = []
+    while len(displayed) < cap and any(queues):
+        for queue in queues:
+            if not queue:
+                continue
+            displayed.append(queue.pop(0))
+            if len(displayed) >= cap:
+                break
+    return displayed
+
+
 def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
     cmd = command_by_name("evidence")
     if not positionals:
@@ -521,7 +561,7 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
 
     all_items = [item for r in results for item in r.items]
     total_items = len(all_items)
-    displayed = all_items[:_MAX_DISPLAY_ITEMS]
+    displayed = _select_display_items(results, _MAX_DISPLAY_ITEMS)
     list_truncated = total_items > _MAX_DISPLAY_ITEMS
     excerpt_truncated = any(item.excerpt_truncated for item in displayed)
 
