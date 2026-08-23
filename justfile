@@ -39,6 +39,16 @@ eval-taxonomy:
         --queries tests/fixtures/holusight_eval_taxonomy.json \
         --baselines hybrid,bm25,exact,graphify --top-k 10
 
+# ─── Holusight-AXI (holus) ────────────────────────
+
+# Regenerate .claude/skills/holus/SKILL.md from src/codesight/axi_schema.py
+holus-skill:
+    uv run --extra dev python -m codesight.axi_skill_gen
+
+# Check that the committed /holus skill matches the schema (CI drift gate)
+holus-skill-check:
+    uv run --extra dev pytest tests/test_axi_skill_drift.py -q
+
 # ─── Autonomous Workers ──────────────────────────
 
 # Run self-improvement cycle

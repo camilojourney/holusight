@@ -21,6 +21,7 @@ Feature specifications for codesight.
 | 012 | [Holusight Overnight Benchmark & Continuous Evaluation Research](012-holusight-overnight-benchmark-continuous-evaluation-research.md) | Research/reference | Not implementation authorization |
 | 013 | [Holusight-AXI Documentation-Code Consistency Architecture](013-holusight-axi-consistency-architecture.md) | Phase 1 implemented | Direct-PR |
 | 014 | [Retrieval Evaluation Harness Expansion](014-retrieval-evaluation-harness-expansion.md) | Vertical slice implemented | Direct-PR |
+| 015 | [Holusight-AXI Command Surface](015-holusight-axi-command-surface.md) | Phase 1 implemented | Direct-PR |
 
 ## Implementation History
 

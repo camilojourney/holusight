@@ -54,6 +54,11 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/store.py` | Vector store (LanceDB). |
 | `src/codesight/consistency.py` | Holusight-AXI documentation-code consistency engine (Phase 1). See spec 013. |
 | `src/codesight/consistency_store.py` | SQLite storage for `.holusight/consistency.db`. |
+| `src/codesight/axi_schema.py` | Versioned `holus` command/output schema - single source of truth for the CLI and the generated skill. See spec 015. |
+| `src/codesight/axi_providers.py` | `holus` evidence providers (exact/structural/consistency/semantic) - thin wrappers over `consistency.py` and `search.py`. |
+| `src/codesight/cli_axi.py` | `holus` CLI entry point (`[project.scripts] holus`). |
+| `src/codesight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
+| `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `src/codesight/types.py` | Shared type definitions. |
 | `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |
 | `src/codesight/web/static/` | Browser UI assets for the FastAPI pilot server. |
@@ -101,6 +106,7 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 | `.claude/rules/*.md` | Behavioral rules (structure, workflow). |
 | `.claude/agents/*.md` | Agent definitions. |
 | `.claude/agent-memory/<agent>/` | Per-agent runtime memory (gitignored). |
+| `.claude/skills/holus/SKILL.md` | Generated `/holus` agent skill (see `src/codesight/axi_skill_gen.py`, spec 015). Do not hand-edit - regenerate via `python -m codesight.axi_skill_gen`. |
 
 ### `.self-improvement/`
 
