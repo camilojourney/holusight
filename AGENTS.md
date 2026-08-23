@@ -61,6 +61,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
+| `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See spec 017. |
 | `src/codesight/types.py` | Shared type definitions. |
 | `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |
 | `src/codesight/web/static/` | Browser UI assets for the FastAPI pilot server. |

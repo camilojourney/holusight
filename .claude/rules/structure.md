@@ -52,6 +52,7 @@
 | `src/codesight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only). |
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents. Local, no-spend. See spec 016. |
+| `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See spec 017. |
 | `src/codesight/types.py` | Shared type definitions. |
 
 ## Demo (`demo/`)

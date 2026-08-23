@@ -57,6 +57,14 @@ holus-skill-check:
 fleet-smoke:
     uv run --extra dev python -m codesight.fleet_scorecard smoke
 
+# ─── Safe continuous-evaluation pilot ─────────────
+
+# Run the frozen eval-pilot case corpus (local, no-spend, advisory only).
+# Not agentic/manifest.yaml's declared eval_entrypoint -- that stays
+# `just fleet-smoke`, unchanged. See specs/017-holusight-safe-continuous-evaluation-pilot.md.
+eval-pilot:
+    uv run --extra dev python -m codesight.eval_pilot run --scorecard
+
 # ─── Autonomous Workers ──────────────────────────
 
 # Run self-improvement cycle
