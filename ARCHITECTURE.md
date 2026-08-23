@@ -96,6 +96,7 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `toon.py`       | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
+| `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See spec 017. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
 
@@ -481,6 +482,57 @@ src/codesight/fleet_scorecard.py
 - **Does not duplicate `holus`**: calls `consistency.check_consistency()`
   directly — the same function `holus check` calls — rather than adding a
   second CLI surface.
+
+---
+
+## Safe Continuous-Evaluation Pilot (Added 2026-08-23)
+
+The smallest useful local, no-spend continuous-evaluation loop over
+already-shipped `holus`/consistency-engine behavior. Full design record:
+`specs/017-holusight-safe-continuous-evaluation-pilot.md`; decision
+record: `docs/decisions/0013-eval-pilot-scope-boundaries.md`; case
+admission: `docs/playbooks/eval-pilot-case-admission.md`.
+
+```
+tests/fixtures/holusight_eval_pilot_cases.jsonl   frozen, human-admitted
+                                                   case corpus (4 seed
+                                                   cases)
+src/codesight/eval_pilot.py
+  run_pilot()                       runs every frozen case, records
+                                     CandidateLineage, catches grader
+                                     errors as retained verdict="error"
+  build_pilot_aggregate_scorecard() content-free fleet.eval_scorecard.v1.2
+                                     preview (counts/rates/hashes only)
+  pilot_domain_result_summary()     minimal parse_domain_result()-shaped
+                                     dict, mirroring fleet_scorecard.py's
+                                     precedent
+just eval-pilot                     runs it locally; NOT
+                                     agentic/manifest.yaml's declared
+                                     eval_entrypoint (still `just
+                                     fleet-smoke`, unchanged)
+```
+
+- **One genuine candidate-vs-status-quo comparison**: the
+  `cli-axi-provider-starvation-display-quota` case runs the shipped PR #20
+  fix (`cli_axi._select_display_items`) against a frozen, pilot-only
+  pre-fix comparator (`eval_pilot._naive_concatenate_then_slice`, never
+  imported by production code) on a synthetic fixture reproducing the
+  historical starvation shape.
+- **Three deterministic regression cases** anchored to already-documented
+  spec 013/015 contracts (dangling-reference detection, hash-diffing
+  up-to-date check, egress-off-by-default) — all local, no embeddings, no
+  network.
+- **Advisory only**: nothing in this repository reads a verdict from this
+  module and takes an automatic action. `provenance_policy.
+  default_training_eligibility` in `agentic/manifest.yaml` stays `false`,
+  untouched.
+- **Not the 96-task suite** specs 011/012 describe — deliberately narrower
+  than even spec 012's own "Free smoke" experiment-ladder stage. See spec
+  017 §9 for the explicit boundary.
+- **Documents, does not fix**, the spec 002 default-drift finding (spec
+  002's "Status Note", 2026-08-23): the shipped embedding default is
+  `all-MiniLM-L6-v2`/`voyage-code-3`, never the `nomic-embed-text-v1.5`
+  spec 002's table states.
 
 ---
 

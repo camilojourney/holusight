@@ -113,6 +113,32 @@ Rejected because: sentence-transformers is battle-tested, has better model selec
 - [ ] Should model download happen at `pip install` time or first use? — @juan
 - [ ] Is 10% Precision@5 improvement a realistic target for nomic vs MiniLM? Need benchmarking. — @juan
 
+## Status Note (2026-08-23)
+
+**Documented drift, not silently changed** — recorded per the
+`spec002-default-drift` boundary in
+`specs/017-holusight-safe-continuous-evaluation-pilot.md` §10. The "Key
+Parameters" table above states the default model is
+`nomic-embed-text-v1.5`. The actually shipped default
+(`src/codesight/config.py::DEFAULT_EMBEDDING_MODEL`, unchanged by this
+note) is:
+
+```python
+DEFAULT_EMBEDDING_MODEL = os.environ.get(
+    "CODESIGHT_EMBEDDING_MODEL",
+    "voyage-code-3" if VOYAGE_API_KEY else "sentence-transformers/all-MiniLM-L6-v2",
+)
+```
+
+i.e. `all-MiniLM-L6-v2` with no `VOYAGE_API_KEY` set (the common case),
+or `voyage-code-3` when one is present — **never** `nomic-embed-text-v1.5`
+in current shipped behavior. `nomic-embed-text-v1.5` remains a supported,
+allowlisted model (`EMBEDDING_MODEL_REGISTRY`) selectable via
+`CODESIGHT_EMBEDDING_MODEL=nomic-ai/nomic-embed-text-v1.5`; it is simply
+not the default. This note documents the drift rather than changing the
+production default, per the delegated pilot's explicit boundary — a
+default change is a separate product decision this note does not make.
+
 ## Acceptance Criteria
 
 - [ ] `CODESIGHT_EMBEDDING_MODEL=nomic-embed-text-v1.5` produces 768-dim vectors
