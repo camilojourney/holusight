@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -328,6 +329,202 @@ def test_full_flag_disables_excerpt_truncation(tmp_path):
     assert len(truncated_item["excerpt"]) < len(long_line)
     assert full_item["excerpt_truncated"] is False
     assert full_item["excerpt"] == long_line
+
+
+# ---------------------------------------------------------------------------
+# Auto-mode per-provider display quota (anti-starvation regression)
+#
+# Confirmed root cause: `evidence`'s auto-mode merge used to concatenate
+# every provider's items in fixed order and slice the first
+# _MAX_DISPLAY_ITEMS, with no per-provider quota. A single provider (most
+# often `exact`, whose own scan budget has no per-file cap) could report
+# enough matches on its own to fill the entire display cap, silently
+# pushing every later provider's already-successful evidence out of the
+# displayed list even though `providers_checked` showed those providers at
+# state "ok". See the diagnosis this fixes for the full root-cause writeup.
+# ---------------------------------------------------------------------------
+
+
+def _evidence_item(provider: str, n: int) -> axi_providers.EvidenceItem:
+    return axi_providers.EvidenceItem(
+        provider=provider,
+        source=f"{provider}.py",
+        location=f"line {n}",
+        excerpt=f"{provider} item {n}",
+        confidence=1.0 if provider == "exact" else None,
+        score=0.9 if provider == "semantic" else None,
+    )
+
+
+def _provider_result(
+    provider: str, n: int, state: axi_providers.ProviderState = axi_providers.ProviderState.OK
+) -> axi_providers.ProviderResult:
+    return axi_providers.ProviderResult(
+        provider=provider,
+        state=state,
+        detail=f"{n} result(s)",
+        route_reason="test fixture",
+        items=[_evidence_item(provider, i) for i in range(n)],
+    )
+
+
+def test_select_display_items_single_provider_fallback_unchanged():
+    """With only one nonempty provider, the quota degenerates exactly to
+    the prior slicing behavior: that provider's own items, in its own
+    order, up to cap."""
+    results = [_provider_result("exact", 25)]
+    displayed = cli_axi._select_display_items(results, cap=20)
+    assert len(displayed) == 20
+    assert [item.location for item in displayed] == [f"line {i}" for i in range(20)]
+    assert all(item.provider == "exact" for item in displayed)
+
+
+def test_select_display_items_prevents_single_provider_starvation():
+    """Reproduces the confirmed regression at the unit level: exact alone
+    has more matches than the display cap; structural and consistency also
+    matched. None of the later, already-successful providers may be
+    starved down to zero."""
+    results = [
+        _provider_result("exact", 30, axi_providers.ProviderState.BUDGET_EXCEEDED),
+        _provider_result("structural", 3),
+        _provider_result("consistency", 2),
+        _provider_result("semantic", 5),
+    ]
+    displayed = cli_axi._select_display_items(results, cap=20)
+    assert len(displayed) == 20
+    counts = Counter(item.provider for item in displayed)
+    assert counts["exact"] < 20, "a single provider must not consume the entire display cap"
+    assert counts["structural"] == 3
+    assert counts["consistency"] == 2
+    assert counts["semantic"] == 5
+    # exact fills every slot the others didn't need: 20 - 3 - 2 - 5 = 10
+    assert counts["exact"] == 10
+
+
+def test_select_display_items_allocates_in_stable_fixed_order():
+    """Allocation always visits providers in the order `results` lists them
+    (the same fixed order MODE_PROVIDERS declares) - never reordered by
+    item count, score, or confidence."""
+    results = [
+        _provider_result("exact", 1),
+        _provider_result("structural", 1),
+        _provider_result("consistency", 1),
+        _provider_result("semantic", 1),
+    ]
+    displayed = cli_axi._select_display_items(results, cap=20)
+    assert [item.provider for item in displayed] == [
+        "exact",
+        "structural",
+        "consistency",
+        "semantic",
+    ]
+
+
+def test_select_display_items_fills_unused_slots_deterministically():
+    """A provider with fewer items than an even split doesn't leave its
+    unused slots empty - they deterministically go to other providers in
+    fixed order, not the first provider to be greedy."""
+    results = [
+        _provider_result("exact", 2),
+        _provider_result("structural", 0),
+        _provider_result("consistency", 100),
+        _provider_result("semantic", 0),
+    ]
+    displayed = cli_axi._select_display_items(results, cap=20)
+    counts = Counter(item.provider for item in displayed)
+    assert len(displayed) == 20
+    assert counts["exact"] == 2
+    assert counts["structural"] == 0
+    assert counts["semantic"] == 0
+    # consistency fills every slot exact/structural/semantic didn't use
+    assert counts["consistency"] == 18
+
+
+def test_select_display_items_never_ranks_by_score_or_confidence():
+    """A provider with lower confidence/score must not be pushed behind, or
+    excluded in favor of, a "higher scoring" provider - allocation is
+    fixed-order round-robin only, never a sort."""
+    # `exact` items carry confidence=1.0, `semantic` items carry a score;
+    # `structural`/`consistency` carry neither. If ranking leaked in,
+    # `exact` (highest, only, confidence) would dominate the cap.
+    results = [
+        _provider_result("exact", 5),
+        _provider_result("structural", 5),
+        _provider_result("consistency", 5),
+        _provider_result("semantic", 5),
+    ]
+    displayed = cli_axi._select_display_items(results, cap=12)
+    counts = Counter(item.provider for item in displayed)
+    # 12 slots / 4 providers, round-robin: 3 each.
+    assert counts == {"exact": 3, "structural": 3, "consistency": 3, "semantic": 3}
+
+
+def test_select_display_items_preserves_output_and_cap_accounting():
+    """The quota only changes *which* items are displayed, never the total
+    count, truncation flag, or provider-order accounting that the rest of
+    `_cmd_evidence` derives from `results`/`all_items`."""
+    results = [
+        _provider_result("exact", 30, axi_providers.ProviderState.BUDGET_EXCEEDED),
+        _provider_result("structural", 3),
+        _provider_result("consistency", 2),
+        _provider_result("semantic", 5),
+    ]
+    all_items = [item for r in results for item in r.items]
+    total_items = len(all_items)
+    displayed = cli_axi._select_display_items(results, cap=cli_axi._MAX_DISPLAY_ITEMS)
+    assert total_items == 40
+    assert len(displayed) == cli_axi._MAX_DISPLAY_ITEMS
+    assert total_items > cli_axi._MAX_DISPLAY_ITEMS  # still the truncation condition
+    # Every displayed item really came from one of the providers' own item
+    # lists - the quota selects a subset, it never fabricates or mutates.
+    assert all(item in all_items for item in displayed)
+
+
+def test_evidence_auto_mode_quota_prevents_single_provider_starvation(tmp_path):
+    """End-to-end regression matching the confirmed user-visible bug: with
+    `--mode auto`, `exact` alone matched enough files to exceed the 20-item
+    display cap, while `structural` and `consistency` also matched and
+    reported state "ok" in the same run - previously those were silently
+    starved down to zero displayed items and absent from `route`."""
+    repo = _minimal_repo(tmp_path)
+
+    # exact: 25 files each match "widget" - alone exceeds the 20-item cap.
+    for i in range(25):
+        _write(repo, f"docs/w{i:02d}.md", "widget appears here\n")
+
+    # structural: a synthetic graphify-out/graph.json node matching "widget".
+    graph = {"nodes": [{"id": "widget_helper", "source_file": "src/pkg/mod.py"}]}
+    _write(repo, "graphify-out/graph.json", json.dumps(graph))
+
+    # consistency: a second spec concept whose path contains "widget".
+    _write(
+        repo,
+        "specs/002-widget.md",
+        "# Widget Feature\n\nImplemented by `src/pkg/mod.py`.\n",
+    )
+    consistency.refresh(repo, run_semantic=False)
+
+    payload, _fmt, exit_code = _run(["evidence", "widget", "--mode", "auto"], repo)
+    assert exit_code == 0
+
+    ok_providers = {
+        p["provider"]
+        for p in payload["providers_checked"]
+        if p["state"] in ("ok", "budget_exceeded", "stale")
+    }
+    assert {"exact", "structural", "consistency"}.issubset(ok_providers)
+
+    counts = Counter(item["provider"] for item in payload["evidence"])
+    assert len(payload["evidence"]) == cli_axi._MAX_DISPLAY_ITEMS
+    # The regression: exact alone (25 matches) would consume the entire
+    # 20-slot cap, leaving structural/consistency at zero despite matching.
+    assert counts["exact"] < cli_axi._MAX_DISPLAY_ITEMS
+    assert counts["structural"] > 0
+    assert counts["consistency"] > 0
+    assert {"exact", "structural", "consistency"}.issubset(set(payload["route"]))
+    # Total/truncation accounting is unaffected by the quota.
+    assert payload["evidence_total"] >= 27  # 25 exact + >=1 structural + >=1 consistency
+    assert payload["truncated"] is True
 
 
 # ---------------------------------------------------------------------------

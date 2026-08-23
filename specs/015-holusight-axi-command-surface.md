@@ -157,6 +157,19 @@ regardless of the chosen output format.
 - List outputs (evidence items, `check`'s all-concepts view) are capped
   (20 items) with an explicit `truncated` flag, a total count, and a help
   hint naming the escape hatch - never a silent partial list.
+- `evidence`'s `--mode auto` display list applies a bounded, deterministic
+  **per-provider display quota** (`cli_axi._select_display_items`) when
+  merging results into the 20-item cap: providers are visited round-robin
+  in the same fixed `exact, structural, consistency, semantic` order every
+  round, taking at most one item per provider per round, so that one
+  provider's own item count (e.g. `exact`'s scan matches) cannot by itself
+  crowd out every other provider's already-successful evidence. This is an
+  anti-starvation **display** safeguard, not provider routing or
+  promotion - see §8. It does not change which providers run, in what
+  order they are attempted, `evidence_total`, or `truncated`; it only
+  changes which subset of the already-computed items is shown when the
+  merged total exceeds the cap. Items are never sorted, scored, or ranked
+  across providers to decide this - see §8.
 
 ## 8. Non-goals (unchanged from the launch instructions)
 
@@ -166,6 +179,23 @@ above, no broad MCP architecture, no production deployment. `graphify`
 CLI invocation is out of scope here exactly as it was for spec 013 - the
 structural provider reads the tracked `graphify-out/graph.json` file
 directly and never shells out to `graphify`.
+
+**Clarification (anti-starvation display quota is not routing):** the
+`--mode auto` order (`exact, structural, consistency, semantic`) governs
+which providers run and in what sequence they are attempted - that is
+"provider routing" and stays exactly as this spec always described it,
+untouched. The per-provider display quota described in §7 operates one
+level downstream of that: after every provider in the fixed order has
+already run to completion, the quota only bounds how the already-computed
+`evidence` items are merged into the capped display list, so that one
+provider cannot silently starve another's real, already-successful
+results out of what the user sees. It never decides which providers run,
+never reorders or skips a provider, and never compares `score`/
+`confidence` across providers to pick winners - it is a fixed-order
+round-robin over already-run results, not a relevance-based promotion
+mechanism. `evidence_total`, `truncated`, and `providers_checked` always
+reflect every provider's full, unbounded result regardless of what the
+quota chose to display.
 
 ## 9. Relationship to PR 17
 
