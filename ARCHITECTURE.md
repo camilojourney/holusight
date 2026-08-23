@@ -96,7 +96,8 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `toon.py`       | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
-| `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See spec 017. |
+| `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
+| `improvement_control.py` | Deterministic tracked-manifest review, stage/link validation, constrained research signal, and opt-in content-minimized derived records for the existing `holus improve-*` commands. See spec 019. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
 
@@ -587,6 +588,47 @@ holus improve-placement    validates a proposed artifact path; never edits files
   §4.1/§6.1 and `tests/test_improve_loop.py` (29 tests, including explicit
   refusals of evaluator mutation, private/raw-content export, automatic
   promotion, external egress, and unsupported placement).
+
+---
+
+## Research-to-Improvement Control Plane v1 (Added 2026-08-23)
+
+A deterministic review layer over the existing continuous-improvement loop,
+not a new workflow engine or Fleet contract. Full design record:
+`specs/019-research-to-improvement-control-plane.md`; decision record:
+`docs/decisions/0015-deterministic-improvement-review-records.md`; operating
+guide: `docs/playbooks/improvement-control-review.md`.
+
+```
+tracked *.change.json manifest
+  -> holus improve-review <manifest> --phase <step>
+  -> classification + stage + missing evidence + blockers + next action
+  -> optional .holusight/improvement-runs/<change-id>/ record
+  -> holus improve-history <change-id>
+  -> holus improve-integration <manifest> (future local consumer contract)
+```
+
+- **Authority is exact and repository-local.** The manifest classification,
+  required structured sections, canonical role paths, SHA-256 link hashes, and
+  structured Markdown status markers determine the result. No model infers
+  authority from prose. Accepted/implemented/evaluated conclusions require
+  governing, implementation, test, documentation, evaluation-case, and
+  evaluation-result links. Research-only, rejected, and superseded material
+  never falsely requires code.
+- **Stepwise and advisory only.** The four phases are `before_change`,
+  `after_implementation`, `after_test`, and `pre_promotion`. Every result has
+  `promotion.allowed: false`; a complete pre-promotion review permits only
+  human promotion review. Placement, evaluator mutation, dangling, stale,
+  duplicate, wrong-role, and contradictory evidence block progression.
+- **Derived state is minimized and rebuildable.** `--record` is opt-in and
+  stores only stage/outcome, hashes, lineage, references, and blocker codes in
+  gitignored `.holusight/`. It stores no source/prompt content, private data,
+  credentials, or production telemetry. Delete it and rerun the review to
+  rebuild without changing canonical truth.
+- **Research does not run itself.** A `research_needed` packet is emitted only
+  for contradictions, material incompleteness/unfamiliarity, or repeated
+  blocked history. It may name normal review or a precise GPT Deep Research
+  question, always with `external_action: "not_launched"`.
 
 ---
 

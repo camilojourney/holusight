@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-AXI_SCHEMA_VERSION = "0.2.0"
+AXI_SCHEMA_VERSION = "0.3.0"
 
 # The five stable jobs, per specs/011-holusight-product-architecture-research.md
 # ("holus-axi: smallest stable command surface") and
@@ -58,14 +58,14 @@ class AxiCommand:
 # Flags shared by every job that returns an evidence-shaped or listing
 # payload. Kept as a named tuple so each command below composes it
 # explicitly rather than re-declaring the same four flags four times.
-_FORMAT_FLAG = AxiFlag(
-    "--format", "Output encoding.", choices=FORMAT_CHOICES, default="toon"
-)
+_FORMAT_FLAG = AxiFlag("--format", "Output encoding.", choices=FORMAT_CHOICES, default="toon")
 _FIELDS_FLAG = AxiFlag(
     "--fields", "Comma-separated dotted-path projection (e.g. snapshot,evidence.source)."
 )
 _FULL_FLAG = AxiFlag(
-    "--full", "Disable excerpt truncation.", takes_value=False,
+    "--full",
+    "Disable excerpt truncation.",
+    takes_value=False,
 )
 _HELP_FLAG = AxiFlag("--help", "Show this command's reference and exit.", takes_value=False)
 _CASES_FLAG = AxiFlag("--cases", "Path to the frozen case corpus JSONL file.")
@@ -76,12 +76,8 @@ _KIND_FLAG = AxiFlag(
 _DIAGNOSIS_REF_FLAG = AxiFlag("--diagnosis-ref", "Reference path for reproduced findings.")
 _FIX_REF_FLAG = AxiFlag("--fix-ref", "Reference to the fix commit/PR for a reproduced gap.")
 _CASE_ID_FLAG = AxiFlag("--case-id", "Explicit candidate case id to propose.")
-_ADMITTED_BY_FLAG = AxiFlag(
-    "--admitted-by", "Approver name or team in plain text."
-)
-_ADMITTED_AT_FLAG = AxiFlag(
-    "--admitted-at", "YYYY-MM-DD date for the admission record."
-)
+_ADMITTED_BY_FLAG = AxiFlag("--admitted-by", "Approver name or team in plain text.")
+_ADMITTED_AT_FLAG = AxiFlag("--admitted-at", "YYYY-MM-DD date for the admission record.")
 _ARTIFACT_TYPE_FLAG = AxiFlag(
     "--artifact-type",
     "Logical placement kind for a proposed artifact.",
@@ -107,6 +103,17 @@ _COMPARE_FLAG = AxiFlag(
 _WORKFLOW_FLAG = AxiFlag("--workflow", "Execution workflow label.")
 _TOOL_FLAG = AxiFlag("--tool", "Tool that produced this run.")
 _MODEL_FLAG = AxiFlag("--model", "LLM model name used by the run.")
+_PHASE_FLAG = AxiFlag(
+    "--phase",
+    "Deterministic review phase.",
+    choices=("before_change", "after_implementation", "after_test", "pre_promotion"),
+    default="before_change",
+)
+_RECORD_FLAG = AxiFlag(
+    "--record",
+    "Opt in to a content-minimized derived review record under .holusight/.",
+    takes_value=False,
+)
 
 AXI_COMMANDS: tuple[AxiCommand, ...] = (
     AxiCommand(
@@ -130,15 +137,20 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
         positional=("question",),
         flags=(
             AxiFlag(
-                "--mode", "Restrict which providers run.",
-                choices=MODE_CHOICES, default="auto",
+                "--mode",
+                "Restrict which providers run.",
+                choices=MODE_CHOICES,
+                default="auto",
             ),
             AxiFlag(
-                "--provider", "Restrict to exactly one named provider.",
+                "--provider",
+                "Restrict to exactly one named provider.",
                 choices=PROVIDER_NAMES,
             ),
             AxiFlag(
-                "--explain-route", "Include route_reason per provider.", takes_value=False,
+                "--explain-route",
+                "Include route_reason per provider.",
+                takes_value=False,
             ),
             AxiFlag(
                 "--allow-egress",
@@ -243,9 +255,9 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
         ),
         examples=(
             'holus improve-intake "holus evidence can starve structural evidence" '
-            '--origin reproduced_usage_gap --kind comparative --admitted-by team-x',
+            "--origin reproduced_usage_gap --kind comparative --admitted-by team-x",
             'python -m codesight.cli_axi improve-intake "structural graph stale case" '
-            '--origin spec_documented_finding --admitted-by team-x',
+            "--origin spec_documented_finding --admitted-by team-x",
         ),
     ),
     AxiCommand(
@@ -307,6 +319,42 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
             "--proposed-path tests/fixtures/my_case.jsonl",
             "holus improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md",
         ),
+    ),
+    AxiCommand(
+        name="improve-review",
+        usage="holus improve-review <change-manifest.json>",
+        description=(
+            "Deterministically classify one tracked change, verify its canonical links, "
+            "and return stage, missing evidence, next permitted action, and promotion blockers."
+        ),
+        positional=("change-manifest.json",),
+        flags=(_PHASE_FLAG, _RECORD_FLAG, _FIELDS_FLAG, _FORMAT_FLAG, _HELP_FLAG),
+        examples=(
+            "holus improve-review specs/019-example.change.json --phase before_change",
+            "holus improve-review specs/019-example.change.json --phase pre_promotion --record",
+        ),
+    ),
+    AxiCommand(
+        name="improve-history",
+        usage="holus improve-history <change-id>",
+        description=(
+            "Inspect content-minimized, opt-in derived stage history for a change. "
+            "Deleting derived records never changes canonical truth."
+        ),
+        positional=("change-id",),
+        flags=(_FIELDS_FLAG, _FORMAT_FLAG, _HELP_FLAG),
+        examples=("holus improve-history example-change",),
+    ),
+    AxiCommand(
+        name="improve-integration",
+        usage="holus improve-integration <change-manifest.json>",
+        description=(
+            "Emit the stable local advisory review contract for a future No Mistakes or "
+            "Fleet consumer. It performs no integration, promotion, or egress."
+        ),
+        positional=("change-manifest.json",),
+        flags=(_PHASE_FLAG, _FIELDS_FLAG, _FORMAT_FLAG, _HELP_FLAG),
+        examples=("holus improve-integration specs/019-example.change.json --phase pre_promotion",),
     ),
 )
 

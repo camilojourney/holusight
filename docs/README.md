@@ -21,6 +21,7 @@ Project documentation index.
 | [playbooks/investigate-bug.md](playbooks/investigate-bug.md) | Bug investigation workflow |
 | [playbooks/docker-deployment.md](playbooks/docker-deployment.md) | Single-team Docker / FastAPI pilot ops |
 | [playbooks/run-retrieval-eval.md](playbooks/run-retrieval-eval.md) | Run the retrieval eval harness: baselines, taxonomy, opt-in embedding variants |
+| [playbooks/improvement-control-review.md](playbooks/improvement-control-review.md) | Deterministic staged review and derived-record rebuild for tracked improvement changes |
 
 ## Rules
 
