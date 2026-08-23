@@ -274,7 +274,11 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
             _MODEL_FLAG,
             _COMPARE_FLAG,
             AxiFlag("--candidate-id", "Stable candidate identifier for this run."),
-            AxiFlag("--output", "Write the full PilotRunResult JSON to this path."),
+            AxiFlag(
+                "--output",
+                "Write the full PilotRunResult JSON only to gitignored derived state "
+                "or a safe external path.",
+            ),
             AxiFlag(
                 "--allow-egress",
                 "Allow egress-only pilot operations when a case explicitly requires it.",

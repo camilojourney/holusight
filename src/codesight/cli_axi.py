@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import sys
 import time
@@ -39,6 +40,12 @@ from typing import Any
 
 from . import axi_providers, consistency
 from .axi_schema import AXI_COMMANDS, AXI_SCHEMA_VERSION, AxiCommand, command_by_name
+from .control_storage import (
+    RESULTS_ROOT,
+    UnsafeStoragePath,
+    safe_atomic_write,
+    validate_output_path,
+)
 from .toon import to_toon
 
 logger = logging.getLogger(__name__)
@@ -248,6 +255,29 @@ def _render(payload: dict, fmt: str) -> str:
     raise ValueError(f"unsupported format: {fmt!r}")
 
 
+def _public_error_message(message: str) -> str:
+    """Keep host paths and secrets out of public error payloads."""
+    message = re.sub(r"(?:/[^\s:'\"]+)+", "<redacted-path>", message)
+    return message
+
+
+def _requested_format(argv: list[str]) -> str:
+    for index, value in enumerate(argv):
+        if value.startswith("--format="):
+            return (
+                value.partition("=")[2]
+                if value.partition("=")[2] in {"json", "toon", "text"}
+                else "toon"
+            )
+        if (
+            value == "--format"
+            and index + 1 < len(argv)
+            and argv[index + 1] in {"json", "toon", "text"}
+        ):
+            return argv[index + 1]
+    return "toon"
+
+
 def _error_payload(code: str, message: str, help_text: str | list[str] = "") -> dict:
     payload: dict[str, Any] = {
         "schema_version": AXI_SCHEMA_VERSION,
@@ -317,6 +347,13 @@ def _apply_fields(payload: dict, fields_arg: str | None) -> dict:
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
+
+def _public_path(repo_root: Path, path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(repo_root.resolve()))
+    except (ValueError, OSError):
+        return "external-corpus"
 
 
 def _snapshot(repo_root: Path) -> tuple[str | None, bool]:
@@ -496,6 +533,9 @@ def _proposed_path_within_canonical_location(
         # Exactly one path segment below the root -- no subdirectories.
         if Path(relative).parent != Path(roots[0]):
             return False
+
+    if artifact_type == "case" and Path(relative).suffix != ".jsonl":
+        return False
 
     if artifact_type == "test":
         if Path(relative).parent != Path(roots[0]):
@@ -712,14 +752,18 @@ def _cmd_improve_status(repo_root: Path, values: dict, positionals: list[str]) -
     origins = Counter(case["provenance"]["origin"] for case in cases)
     types = Counter(case["kind"] for case in cases)
     comparative = types["comparative"]
+    corpus_trust = (
+        "canonical" if eval_pilot._is_canonical_cases(path, repo_root) else "untrusted_advisory"
+    )
     payload = {
         "schema_version": AXI_SCHEMA_VERSION,
         "lifecycle": {
             "command": "improve-status",
             "status_quo_control": "included" if comparative > 0 else "not_applicable",
-            "cases_file": str(path),
+            "cases_file": _public_path(repo_root, path),
             "cases_file_hash": eval_pilot.cases_file_hash(path),
             "canonical_case_schema": eval_pilot.SCHEMA_CASE,
+            "corpus_trust": corpus_trust,
         },
         "coverage": {
             "cases_total": len(cases),
@@ -750,17 +794,20 @@ def _cmd_improve_intake(repo_root: Path, values: dict, positionals: list[str]) -
         )
     summary = " ".join(positionals)
 
-    result = eval_pilot.build_intake_proposal(
-        summary,
-        origin=values.get("--origin") or "reproduced_usage_gap",
-        kind=values.get("--kind") or "regression",
-        diagnosis_ref=values.get("--diagnosis-ref"),
-        fix_ref=values.get("--fix-ref"),
-        cases_path=Path(values["--cases"]) if values.get("--cases") else None,
-        admitted_by=values.get("--admitted-by"),
-        admitted_at=values.get("--admitted-at"),
-        case_id=values.get("--case-id"),
-    )
+    try:
+        result = eval_pilot.build_intake_proposal(
+            summary,
+            origin=values.get("--origin") or "reproduced_usage_gap",
+            kind=values.get("--kind") or "regression",
+            diagnosis_ref=values.get("--diagnosis-ref"),
+            fix_ref=values.get("--fix-ref"),
+            cases_path=Path(values["--cases"]) if values.get("--cases") else None,
+            admitted_by=values.get("--admitted-by"),
+            admitted_at=values.get("--admitted-at"),
+            case_id=values.get("--case-id"),
+        )
+    except ValueError as exc:
+        raise UsageError(str(exc), help_text=_command_help_text(cmd)) from exc
     return _intake_status_payload(repo_root, result), 0
 
 
@@ -777,36 +824,67 @@ def _cmd_improve_run(repo_root: Path, values: dict, positionals: list[str]) -> t
             f"cases file not found: {cases_path}",
             help_text="Pass --cases with an existing JSONL file.",
         )
-    previous = eval_pilot.load_prior_run(Path(compare_path_raw)) if compare_path_raw else None
+    try:
+        previous = None
+        if compare_path_raw:
+            compare_path = validate_output_path(
+                repo_root, Path(compare_path_raw), allowed_repo_root=RESULTS_ROOT
+            )
+            previous = eval_pilot.load_prior_run(compare_path)
+    except (ValueError, OSError, json.JSONDecodeError, UnsafeStoragePath) as exc:
+        raise UsageError(f"invalid comparison result: {exc}") from exc
     repo_commit = current_commit(repo_root) if is_git_repo(repo_root) else None
+    workflow = values.get("--workflow") or "manual"
+    tool = values.get("--tool") or "holus-cli"
+    try:
+        for label, value in (
+            ("candidate_id", candidate_id),
+            ("workflow", workflow),
+            ("tool", tool),
+        ):
+            eval_pilot._validate_identifier(label, value)
+        if values.get("--model") is not None:
+            eval_pilot._validate_identifier("model", values["--model"])
+    except ValueError as exc:
+        raise UsageError(str(exc)) from exc
     lineage = eval_pilot.CandidateLineage(
         candidate_id=candidate_id,
         repo_commit=repo_commit,
-        workflow=values.get("--workflow") or "manual",
-        tool=values.get("--tool") or "holus-cli",
+        workflow=workflow,
+        tool=tool,
         model=values.get("--model"),
     )
-    result = eval_pilot.run_pilot(
-        repo_root,
-        cases_path=cases_path,
-        lineage=lineage,
-        allow_egress=bool(values.get("--allow-egress")),
-        allow_semantic=bool(values.get("--allow-semantic")),
-    )
+    try:
+        result = eval_pilot.run_pilot(
+            repo_root,
+            cases_path=cases_path,
+            lineage=lineage,
+            allow_egress=bool(values.get("--allow-egress")),
+            allow_semantic=bool(values.get("--allow-semantic")),
+        )
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
+        raise UsageError(f"invalid case corpus: {exc}") from exc
     progress = eval_pilot.evaluate_progress(result, previous)
 
     run_payload = result.model_dump(mode="json")
+    run_payload["cases_file"] = _public_path(repo_root, cases_path)
     if values.get("--output"):
-        output = Path(values["--output"])
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(run_payload, indent=2), encoding="utf-8")
+        try:
+            safe_atomic_write(
+                repo_root,
+                Path(values["--output"]),
+                (json.dumps(run_payload, indent=2) + "\n").encode("utf-8"),
+                allowed_repo_root=RESULTS_ROOT,
+            )
+        except UnsafeStoragePath as exc:
+            raise UsageError(f"output rejected: {exc}") from exc
 
     payload = {
         "schema_version": AXI_SCHEMA_VERSION,
         "lifecycle": {
             "command": "improve-run",
             "candidate_id": result.lineage.candidate_id,
-            "cases_file": str(cases_path),
+            "cases_file": _public_path(repo_root, cases_path),
             "cases_file_hash": result.cases_file_hash,
             "promotion": {
                 "allowed": False,
@@ -828,7 +906,8 @@ def _cmd_improve_run(repo_root: Path, values: dict, positionals: list[str]) -> t
             result, repo="holusight", repo_commit=repo_commit or "unknown"
         )
 
-    return _apply_fields(payload, values.get("--fields")), 0
+    evaluation_failed = result.counts["failed"] > 0 or result.counts["errored"] > 0
+    return _apply_fields(payload, values.get("--fields")), (1 if evaluation_failed else 0)
 
 
 def _cmd_improve_review(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
@@ -932,9 +1011,13 @@ def _cmd_improve_placement(
         },
         "placement": placement,
         "recommended_action": (
-            "reuse_existing_path"
-            if placement["in_canonical_location"] and not reasons
-            else "adjust_path_and_retry"
+            "adjust_path_and_retry"
+            if reasons
+            else (
+                "reuse_existing_path"
+                if placement["proposed_file_exists"]
+                else "create_at_recommended_path"
+            )
         ),
     }
     return _apply_fields(payload, values.get("--fields")), 0
@@ -1238,16 +1321,20 @@ def main(argv: list[str] | None = None) -> None:
         print(help_exc.text)
         sys.exit(0)
     except UsageError as usage_exc:
-        payload = _error_payload("USAGE_ERROR", usage_exc.message, usage_exc.help_text)
-        print(_render(payload, usage_exc.format))
+        payload = _error_payload(
+            "USAGE_ERROR", _public_error_message(usage_exc.message), usage_exc.help_text
+        )
+        print(_render(payload, _requested_format(raw_argv)))
         sys.exit(2)
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         sys.exit(130)
     except Exception as exc:  # noqa: BLE001 - never leak a raw traceback to stdout
         logger.debug("Unhandled exception", exc_info=True)
-        payload = _error_payload("INTERNAL_ERROR", f"{exc.__class__.__name__}: {exc}")
-        print(_render(payload, "toon"))
+        payload = _error_payload(
+            "INTERNAL_ERROR", _public_error_message(f"{exc.__class__.__name__}: {exc}")
+        )
+        print(_render(payload, _requested_format(raw_argv)))
         sys.exit(1)
     else:
         print(_render(payload, fmt))

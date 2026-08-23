@@ -154,7 +154,7 @@ Flags:
 - `--model` - LLM model name used by the run.
 - `--compare-result` - Previous pilot result JSON path to compare against for stagnation/research signals.
 - `--candidate-id` - Stable candidate identifier for this run.
-- `--output` - Write the full PilotRunResult JSON to this path.
+- `--output` - Write the full PilotRunResult JSON only to gitignored derived state or a safe external path.
 - `--allow-egress` - Allow egress-only pilot operations when a case explicitly requires it.
 - `--allow-semantic` - Allow semantic providers while running cases that require them.
 - `--scorecard` - Also print the Fleet aggregate scorecard preview.

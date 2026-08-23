@@ -53,7 +53,8 @@
 | `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only). |
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents. Local, no-spend. See spec 016. |
 | `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
-| `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for existing `holus improve-*` review commands. It validates tracked manifests, links, hashes, stages, and promotion blockers. See spec 019. |
+| `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for existing `holus improve-*` review commands. It validates tracked manifests, typed links, hashes, monotonic stages, and promotion blockers. See spec 019. |
+| `src/codesight/control_storage.py` | Shared no-follow, atomic control-plane derived-state writer. It permits only gitignored result/history paths inside the repository and rejects tracked or symlinked destinations. |
 | `src/codesight/types.py` | Shared type definitions. |
 
 ## Demo (`demo/`)

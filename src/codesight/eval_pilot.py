@@ -45,6 +45,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,6 +55,7 @@ from typing import Callable
 from pydantic import BaseModel, Field
 
 from . import axi_providers, cli_axi, consistency
+from .control_storage import RESULTS_ROOT, UnsafeStoragePath, safe_atomic_write
 from .fleet_scorecard import FLEET_CONTRACT_COMMIT, FLEET_CONTRACT_PR, FLEET_CONTRACT_REPO
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -64,12 +67,16 @@ SCHEMA_PILOT_SCORECARD = "fleet.eval_scorecard.v1.2"
 SCHEMA_INTAKE_PROPOSAL = "holus-improve-intake/v1"
 
 _KNOWN_KINDS = frozenset({"regression", "comparative"})
-_REQUIRED_PROVENANCE_FIELDS = frozenset(
-    {"origin", "description", "admitted_by", "admitted_at"}
-)
+_REQUIRED_PROVENANCE_FIELDS = frozenset({"origin", "description", "admitted_by", "admitted_at"})
 _KNOWN_ORIGINS = frozenset(
     {"reproduced_usage_gap", "spec_documented_finding", "spec_documented_contract"}
 )
+_SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")
+_SECRET_LIKE = re.compile(
+    r"(?i)(?:sk-[a-z0-9_-]{8,}|api[_ -]?key|authorization:\s*bearer|private|"
+    r"raw\s+prompt|password|token)[^\s]{0,160}"
+)
+_CONTROLLED_COMPARATORS = frozenset({"grade_display_quota_case"})
 
 
 def _now() -> str:
@@ -95,6 +102,10 @@ class CandidateLineage(BaseModel):
     tool: str
     model: str | None = None
     recorded_at: str = Field(default_factory=_now)
+    repo_dirty: bool = False
+    evaluator_digest: str | None = None
+    candidate_digest: str | None = None
+    comparator_digest: str | None = None
 
 
 class CaseGrade(BaseModel):
@@ -117,7 +128,9 @@ class PilotRunResult(BaseModel):
     semantic_allowed: bool
     grades: list[CaseGrade]
     counts: dict[str, int]
-    status_quo_control: str  # "included" | "not_applicable"
+    status_quo_control: str  # "included" | "not_applicable" | "invalid"
+    corpus_trust: str = "canonical"  # canonical | untrusted_advisory
+    result_digest: str | None = None
 
 
 class RunContext(BaseModel):
@@ -137,6 +150,21 @@ def cases_file_hash(cases_path: Path) -> str:
 
 def _short_hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+
+
+def _validate_identifier(label: str, value: str | None) -> None:
+    if value is None or not _SAFE_IDENTIFIER.fullmatch(value) or _SECRET_LIKE.search(value):
+        raise ValueError(f"{label} must be a bounded non-secret identifier")
+
+
+def _is_canonical_cases(cases_path: Path, repo_root: Path = REPO_ROOT) -> bool:
+    try:
+        return (
+            cases_path.resolve()
+            == (repo_root / "tests/fixtures/holusight_eval_pilot_cases.jsonl").resolve()
+        )
+    except OSError:
+        return False
 
 
 def load_cases(cases_path: Path) -> list[dict]:
@@ -176,7 +204,18 @@ def load_cases(cases_path: Path) -> list[dict]:
                 f"{cases_path}:{lineno}: case {case.get('case_id')!r} names unknown "
                 f"grader {case.get('grader')!r}"
             )
+        if not isinstance(case.get("case_id"), str):
+            raise ValueError(f"{cases_path}:{lineno}: case_id must be a string")
+        _validate_identifier("case_id", case["case_id"])
+        if any(existing["case_id"] == case["case_id"] for existing in cases):
+            raise ValueError(f"{cases_path}:{lineno}: duplicate case_id {case['case_id']!r}")
+        if case["kind"] == "comparative" and case["grader"] not in _CONTROLLED_COMPARATORS:
+            raise ValueError(
+                f"{cases_path}:{lineno}: comparative case lacks a pinned status-quo control"
+            )
         cases.append(case)
+    if not cases:
+        raise ValueError("case corpus must contain at least one valid case")
     return cases
 
 
@@ -206,8 +245,13 @@ def build_intake_proposal(
     trimmed = " ".join(summary.split())
     if not trimmed:
         raise ValueError("summary must contain at least one non-empty word")
+    if _SECRET_LIKE.search(trimmed):
+        raise ValueError("summary contains private or credential-like content")
+    if admitted_by is not None:
+        _validate_identifier("admitted_by", admitted_by)
 
     proposed_case_id = case_id or f"proposed-{_short_hash(trimmed)}"
+    _validate_identifier("case_id", proposed_case_id)
     is_duplicate_case_id = False
     if cases_path and cases_path.exists():
         try:
@@ -250,6 +294,38 @@ def build_intake_proposal(
     }
 
 
+def _recomputed_counts(grades: list[CaseGrade]) -> dict[str, int]:
+    return {
+        "total": len(grades),
+        "passed": sum(g.verdict == "pass" for g in grades),
+        "failed": sum(g.verdict == "fail" for g in grades),
+        "errored": sum(g.verdict == "error" for g in grades),
+        "comparative_total": sum(g.kind == "comparative" for g in grades),
+        "comparative_with_status_quo_verdict": sum(
+            g.kind == "comparative" and g.status_quo_verdict is not None for g in grades
+        ),
+    }
+
+
+def _validate_result(result: PilotRunResult) -> None:
+    if result.schema_version != SCHEMA_RESULT:
+        raise ValueError("prior result uses an unsupported schema")
+    if result.counts != _recomputed_counts(result.grades):
+        raise ValueError("prior result counts do not match grades")
+    if result.status_quo_control == "included" and (
+        result.counts["comparative_total"] != result.counts["comparative_with_status_quo_verdict"]
+    ):
+        raise ValueError("prior result has incomplete status-quo controls")
+    if result.corpus_trust != "canonical" or result.lineage.repo_dirty:
+        raise ValueError("prior result is not immutable promotion-relevant evidence")
+    if (
+        not result.lineage.evaluator_digest
+        or not result.lineage.candidate_digest
+        or not result.lineage.comparator_digest
+    ):
+        raise ValueError("prior result lacks pinned evaluator, candidate, or comparator identity")
+
+
 def load_prior_run(path: Path) -> PilotRunResult | None:
     """Load a prior PilotRunResult from a JSON artifact path.
 
@@ -262,13 +338,20 @@ def load_prior_run(path: Path) -> PilotRunResult | None:
     if not isinstance(payload, dict):
         raise ValueError(f"{path} must contain a JSON object")
     required_keys = {
-        "run_id", "counts", "lineage", "cases_file_hash", "cases_file", "schema_version",
+        "run_id",
+        "counts",
+        "lineage",
+        "cases_file_hash",
+        "cases_file",
+        "schema_version",
     }
     if not required_keys <= set(payload):
         # Some callers may feed a summary-like artifact; fail fast to avoid false
         # confidence.
         raise ValueError(f"{path} does not look like a PilotRunResult")
-    return PilotRunResult.model_validate(payload)
+    result = PilotRunResult.model_validate(payload)
+    _validate_result(result)
+    return result
 
 
 def evaluate_progress(
@@ -288,6 +371,34 @@ def evaluate_progress(
             "reason": "no prior run to compare against",
             "recommended_research": "normal_review",
             "next_step": "run_compare_after_repair",
+        }
+
+    try:
+        _validate_result(current)
+        _validate_result(previous)
+    except ValueError as exc:
+        return {
+            "outcome": "invalid_comparison",
+            "research_needed": True,
+            "stagnated": False,
+            "reason": str(exc),
+            "recommended_research": "normal_review",
+            "next_step": "repair_comparison_evidence",
+        }
+    if (
+        current.cases_file_hash != previous.cases_file_hash
+        or current.lineage.evaluator_digest != previous.lineage.evaluator_digest
+        or current.lineage.repo_commit != previous.lineage.repo_commit
+        or current.lineage.candidate_digest != previous.lineage.candidate_digest
+        or current.lineage.comparator_digest != previous.lineage.comparator_digest
+    ):
+        return {
+            "outcome": "invalid_comparison",
+            "research_needed": True,
+            "stagnated": False,
+            "reason": "corpus, evaluator, candidate, or commit identity differs",
+            "recommended_research": "normal_review",
+            "next_step": "repair_comparison_evidence",
         }
 
     current_rate = current.counts["passed"] / max(current.counts["total"], 1)
@@ -512,9 +623,8 @@ def grade_no_egress_default(case: dict, repo_root: Path, ctx: RunContext) -> Cas
         else:
             os.environ.pop("VOYAGE_API_KEY", None)
 
-    ok = (
-        stripped == bool(expected["key_stripped_without_allow_egress"])
-        and restored == bool(expected["key_restored_after_context_exit"])
+    ok = stripped == bool(expected["key_stripped_without_allow_egress"]) and restored == bool(
+        expected["key_restored_after_context_exit"]
     )
     verdict = "pass" if ok else "fail"
     return CaseGrade(
@@ -540,6 +650,34 @@ GRADERS: dict[str, Callable[[dict, Path, RunContext], CaseGrade]] = {
 # ---------------------------------------------------------------------------
 
 
+def _tree_digest(repo_root: Path, prefixes: tuple[str, ...]) -> str:
+    """Digest candidate/evaluator bytes without exporting paths or content."""
+    digest = hashlib.sha256()
+    for prefix in prefixes:
+        base = repo_root / prefix
+        if not base.exists() or base.is_symlink():
+            continue
+        files = (
+            [base]
+            if base.is_file()
+            else sorted(p for p in base.rglob("*") if p.is_file() and not p.is_symlink())
+        )
+        for path in files:
+            digest.update(str(path.relative_to(repo_root)).encode())
+            digest.update(path.read_bytes())
+    return "sha256:" + digest.hexdigest()
+
+
+def _git_dirty(repo_root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
 def run_pilot(
     repo_root: Path,
     *,
@@ -558,6 +696,15 @@ def run_pilot(
     cases_path = cases_path or DEFAULT_CASES_PATH
     file_hash = cases_file_hash(cases_path)
     cases = load_cases(cases_path)
+    corpus_trust = (
+        "canonical" if _is_canonical_cases(cases_path, repo_root) else "untrusted_advisory"
+    )
+    lineage.repo_dirty = _git_dirty(repo_root)
+    lineage.evaluator_digest = _tree_digest(
+        repo_root, ("src/codesight/eval_pilot.py", "src/codesight/cli_axi.py")
+    )
+    lineage.candidate_digest = _tree_digest(repo_root, ("src/codesight",))
+    lineage.comparator_digest = _tree_digest(repo_root, ("src/codesight/eval_pilot.py",))
 
     ctx = RunContext(
         repo_root=str(repo_root), allow_egress=allow_egress, allow_semantic=allow_semantic
@@ -592,21 +739,16 @@ def run_pilot(
                 )
             )
 
-    counts = {
-        "total": len(grades),
-        "passed": sum(1 for g in grades if g.verdict == "pass"),
-        "failed": sum(1 for g in grades if g.verdict == "fail"),
-        "errored": sum(1 for g in grades if g.verdict == "error"),
-        "comparative_total": sum(1 for g in grades if g.kind == "comparative"),
-        "comparative_with_status_quo_verdict": sum(
-            1 for g in grades if g.kind == "comparative" and g.status_quo_verdict is not None
-        ),
-    }
-    status_quo_control = (
-        "included" if counts["comparative_total"] > 0 else "not_applicable"
-    )
+    counts = _recomputed_counts(grades)
+    status_quo_control = "not_applicable"
+    if counts["comparative_total"]:
+        status_quo_control = (
+            "included"
+            if counts["comparative_total"] == counts["comparative_with_status_quo_verdict"]
+            else "invalid"
+        )
 
-    return PilotRunResult(
+    result = PilotRunResult(
         run_id=f"eval-pilot-{lineage.candidate_id}-{_now()}",
         cases_file=str(cases_path),
         cases_file_hash=file_hash,
@@ -616,7 +758,14 @@ def run_pilot(
         grades=grades,
         counts=counts,
         status_quo_control=status_quo_control,
+        corpus_trust=corpus_trust,
     )
+    result.result_digest = _sha256_hex(
+        json.dumps(
+            result.model_dump(mode="json", exclude={"result_digest"}), sort_keys=True
+        ).encode("utf-8")
+    )
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -639,7 +788,15 @@ def build_pilot_aggregate_scorecard(
     total = result.counts["total"] or 1  # guard divide-by-zero; total is always >=1 in practice
     pass_rate = result.counts["passed"] / total
     no_regressions = result.counts["failed"] == 0 and result.counts["errored"] == 0
-    gate_decision = "pass" if no_regressions else "fail"
+    controls_complete = (
+        result.counts["comparative_total"] == result.counts["comparative_with_status_quo_verdict"]
+    )
+    promotion_relevant = result.corpus_trust == "canonical" and not result.lineage.repo_dirty
+    gate_decision = (
+        "pass"
+        if no_regressions and controls_complete and promotion_relevant
+        else ("hold" if not promotion_relevant else "fail")
+    )
     hidden_status = "pass" if gate_decision == "pass" else "fail"
 
     result_payload = result.model_dump(mode="json")
@@ -660,6 +817,7 @@ def build_pilot_aggregate_scorecard(
             "pass_rate": round(pass_rate, 4),
             "comparative_cases_total": result.counts["comparative_total"],
             "status_quo_control": result.status_quo_control,
+            "corpus_trust": result.corpus_trust,
         },
         "gate_decision": gate_decision,
         "input_hash": input_hash,
@@ -688,7 +846,7 @@ def build_pilot_aggregate_scorecard(
             "fallbacks": 0,
             "operational_failures": result.counts["errored"],
         },
-        "diagnostics": {"completion": True},
+        "diagnostics": {"completion": True, "promotion_relevant": promotion_relevant},
         "artifacts": {},
         "provenance": {
             "fleet_contract_repo": FLEET_CONTRACT_REPO,
@@ -763,6 +921,7 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = args.repo_root.resolve()
     commit = current_commit(repo_root) if is_git_repo(repo_root) else None
 
+    _validate_identifier("candidate_id", args.candidate_id)
     lineage = CandidateLineage(
         candidate_id=args.candidate_id,
         repo_commit=commit,
@@ -780,11 +939,28 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     payload = result.model_dump(mode="json")
+    try:
+        payload["cases_file"] = str(args.cases.resolve().relative_to(repo_root))
+    except (ValueError, OSError):
+        payload["cases_file"] = "external-corpus"
     text = json.dumps(payload, indent=2, sort_keys=True)
     if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(text + "\n")
-        print(f"Wrote {args.output}", file=sys.stderr)
+        try:
+            output = safe_atomic_write(
+                repo_root,
+                args.output,
+                (text + "\n").encode("utf-8"),
+                allowed_repo_root=RESULTS_ROOT,
+            )
+        except UnsafeStoragePath as exc:
+            print(f"output rejected: {exc}", file=sys.stderr)
+            return 2
+        label = (
+            str(output.relative_to(repo_root))
+            if output.is_relative_to(repo_root)
+            else "external result"
+        )
+        print(f"Wrote {label}", file=sys.stderr)
     else:
         print(text)
 

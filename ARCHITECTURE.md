@@ -97,7 +97,8 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `toon.py`       | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
 | `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
-| `improvement_control.py` | Deterministic tracked-manifest review, stage/link validation, constrained research signal, and opt-in content-minimized derived records for the existing `holus improve-*` commands. See spec 019. |
+| `improvement_control.py` | Deterministic tracked-manifest review, monotonic evidence-stage validation, constrained research signal, and bounded content-minimized derived records for the existing `holus improve-*` commands. See spec 019. |
+| `control_storage.py` | Shared no-follow, restrictive, atomic durable writer for gitignored control-plane result/history state. It rejects canonical tracked destinations and symlink aliases. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
 

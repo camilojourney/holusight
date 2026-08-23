@@ -13,8 +13,9 @@ next permitted action, promotion blockers, and any narrowly justified
 `research_needed` packet.
 
 All decisions are derived from an explicit tracked JSON change manifest,
-structured `**Status:**` markers in governing Markdown, repository-relative
-links, and byte hashes. No language model classifies authority or evidence.
+structured `**Status:**` markers and explicit authorization boundaries in
+governing Markdown, repository-relative links, and byte hashes. No language
+model classifies authority or evidence.
 The command never launches research, makes a network request, accesses
 credentials/private/customer/production data, modifies canonical artifacts,
 merges, releases, or promotes.
@@ -74,8 +75,10 @@ private/customer data, credentials, or telemetry. `evidence_state` is exactly
 link roles are canonical only at these locations: governing specs/ADRs,
 implementation under `src/`, `tests/test_*.py`, explanatory documentation in
 `docs/` or `ARCHITECTURE.md`, evaluation cases under `tests/fixtures/*.jsonl`,
-and evaluation results under `tests/fixtures/` or derived improvement-run
-state.
+and evaluation results only under `.holusight/improvement-results/`. Case
+corpora are flat JSONL only. Links, hashes, and proposed artifacts use closed
+nested schemas; unlinked hashes, unknown roles, secret-like values, symlinks,
+and circular or escaping paths are rejected.
 
 ## Classification, stages, and evidence checks
 
@@ -86,10 +89,13 @@ value is authoritative only after exact validation against any structured
 links, dangling links, missing hashes, and hash mismatch are blockers.
 
 `accepted`, `implemented`, and `evaluated` require every fixed link role and
-current hashes. The derived stage advances only from verified link presence:
-`accepted` -> `implemented` -> `evaluated`. `research_only`, `rejected`, and
-`superseded` remain non-authoritative records and never require implementation,
-tests, or evaluation evidence.
+current hashes. Transitions are monotonic: `proposed` may be reviewed only
+before change, `accepted` after implementation, `implemented` after test, and
+only `evaluated` at pre-promotion. The latter requires a schema-valid, successful,
+clean-tree result whose canonical corpus, evaluator, candidate, and commit
+digests match the linked immutable evidence. `research_only`, `rejected`, and
+`superseded` remain non-authoritative records and cannot become promotion
+evidence through manifest metadata.
 
 Before change, `proposed_artifacts` are checked using the existing canonical
 placement rules. Existing duplicate paths/names and wrong roots are blocked
@@ -115,11 +121,14 @@ not invoke external, paid, or egress-capable research.
 ## Derived records and rebuild
 
 `--record` is opt-in and writes only to the gitignored
-`.holusight/improvement-runs/<change-id>/` directory. Records contain stage,
-outcome, metadata and link hashes, repository references, bounded lineage, and
-blocker codes. They do not store raw prompts/source content, private/customer
-data, credentials, or production telemetry. `improve-history` exposes only
-this minimized history.
+`.holusight/improvement-runs/<change-id>/` directory. The shared writer rejects
+tracked destinations and symlink components, uses restrictive atomic durable
+writes under an interprocess lock, and never derives IDs from an unlocked count.
+Records contain stage, outcome, metadata and link hashes, repository references,
+bounded lineage, and blocker codes. They do not store raw prompts/source
+content, private/customer data, credentials, or production telemetry.
+`improve-history` exposes a bounded page and explicit corruption state rather
+than silently skipping bad records.
 
 The directory is derived state, never canonical truth. It is safe to delete;
 running the same review with `--record` rebuilds it from the unchanged tracked
@@ -129,7 +138,8 @@ rerunnable, but cannot rewrite their evaluator or become promotion authority.
 ## Evidence and verification
 
 The required end-to-end coverage is in
-`tests/test_improvement_control.py`: complete and incomplete accepted links,
+`tests/test_improvement_control.py` and
+`tests/test_control_plane_adversarial_e2e.py`: complete and incomplete accepted links,
 non-authoritative classifications, duplicate/misplaced pre-creation blocking,
 all link integrity failures, retained history/rebuild, constrained research
 packets, safety refusals, and the local integration payload. Existing

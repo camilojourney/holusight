@@ -30,12 +30,29 @@ def _sha(path: Path) -> str:
 def _repo(tmp_path: Path) -> Path:
     _write(tmp_path, ".gitignore", ".holusight/\n")
     _write(tmp_path, ".claude/rules/structure.md", "# structure\n")
-    _write(tmp_path, "specs/019-control.md", "# Control\n\n**Status:** Accepted\n")
+    _write(tmp_path, "specs/019-control.md", "# Control\n\n**Status:** Evaluated\n")
     _write(tmp_path, "src/codesight/control_target.py", "VALUE = 1\n")
     _write(tmp_path, "tests/test_control_target.py", "def test_value():\n    assert True\n")
     _write(tmp_path, "docs/playbooks/control.md", "# Control explanation\n")
-    _write(tmp_path, "tests/fixtures/control_cases.jsonl", '{"case_id":"control-case"}\n')
-    _write(tmp_path, "tests/fixtures/control_result.json", '{"passed": true}\n')
+    case = {
+        "schema_version": eval_pilot.SCHEMA_CASE,
+        "case_id": "control-case",
+        "family": "regression",
+        "kind": "regression",
+        "provenance": {
+            "origin": "spec_documented_contract",
+            "description": "control test",
+            "admitted_by": "human",
+            "admitted_at": "2026-08-23",
+        },
+        "grader": "grade_no_egress_default",
+        "fixture": {},
+        "expected": {
+            "key_stripped_without_allow_egress": True,
+            "key_restored_after_context_exit": True,
+        },
+    }
+    _write(tmp_path, "tests/fixtures/holusight_eval_pilot_cases.jsonl", json.dumps(case) + "\n")
     return tmp_path
 
 
@@ -45,14 +62,22 @@ def _manifest(root: Path, classification: str = "accepted") -> Path:
         "implementation": ["src/codesight/control_target.py"],
         "tests": ["tests/test_control_target.py"],
         "documentation": ["docs/playbooks/control.md"],
-        "evaluation_case": ["tests/fixtures/control_cases.jsonl"],
-        "evaluation_result": ["tests/fixtures/control_result.json"],
+        "evaluation_case": ["tests/fixtures/holusight_eval_pilot_cases.jsonl"],
+        "evaluation_result": [".holusight/improvement-results/control-result.json"],
     }
+    result = eval_pilot.run_pilot(
+        root,
+        cases_path=root / links["evaluation_case"][0],
+        lineage=eval_pilot.CandidateLineage(
+            candidate_id="control-change", repo_commit=None, workflow="pytest", tool="holus"
+        ),
+    )
+    _write(root, links["evaluation_result"][0], json.dumps(result.model_dump(mode="json")))
     hashes = {path: _sha(root / path) for paths in links.values() for path in paths}
     manifest = {
         "schema_version": improvement_control.CHANGE_SCHEMA,
         "change_id": "control-change",
-        "classification": classification,
+        "classification": "evaluated" if classification == "accepted" else classification,
         "structured_sections": ["context", "evidence", "decision"],
         "links": links,
         "link_hashes": hashes,
@@ -138,8 +163,8 @@ def test_missing_accepted_implementation_and_evaluation_are_exact_blockers(tmp_p
     value["links"]["evaluation_case"] = ["tests/fixtures/missing.jsonl"]
     value["links"]["evaluation_result"] = []
     value["link_hashes"].pop("src/codesight/control_target.py")
-    value["link_hashes"].pop("tests/fixtures/control_cases.jsonl")
-    value["link_hashes"].pop("tests/fixtures/control_result.json")
+    value["link_hashes"].pop("tests/fixtures/holusight_eval_pilot_cases.jsonl")
+    value["link_hashes"].pop(".holusight/improvement-results/control-result.json")
     manifest.write_text(json.dumps(value), encoding="utf-8")
 
     payload, _fmt, _exit = _run(
