@@ -1,0 +1,54 @@
+# Fleet memory-policy declaration for holusight.
+#
+# Holusight-owned data conforming to a schema Holusight does not own:
+#   github.com/camilojourney/fleet-system @ 7d396b30f0250a414f9115964c945e29b7afb267
+#   system/shared/contracts/agentic/memory-policy.schema.json
+#   ($id: fleet.memory-policy.v1; unchanged by the v1.1 -> v1.2 transition,
+#   this file targets v1.1, the newest version that schema defines)
+#
+# fleet_visibility below is byte-for-byte the same set as
+# agentic/manifest.yaml's `privacy` block -- run_repo_eval.py's
+# validate_agentic_privacy_config() requires the two to agree exactly
+# before it will treat this repo as Fleet-export-eligible.
+schema: fleet.memory_policy.v1.1
+repo: holusight
+
+working:
+  purpose: current task/session state
+  locations:
+    - .pipeline-state/
+    - tasks/
+
+episodic:
+  purpose: chronological record of what happened
+  locations:
+    - .self-improvement/memory/trajectory.jsonl
+    - .self-improvement/reports/
+    - devlog/
+
+semantic:
+  purpose: stable domain facts, lessons, and reusable knowledge
+  locations:
+    - .self-improvement/MEMORY.md
+    - .self-improvement/knowledge/
+    - docs/
+
+procedural:
+  purpose: how agents should behave
+  locations:
+    - AGENTS.md
+    - CLAUDE.md
+    - .claude/agents/
+    - docs/playbooks/
+
+fleet_visibility:
+  exported_to_fleet:
+    - agentic/manifest.yaml
+    - agentic/memory.yaml
+    - fleet.eval_scorecard.v1.2 documents produced by src/codesight/fleet_scorecard.py for the holusight-axi consistency evaluator's four outcomes
+  not_exported_to_fleet:
+    - secrets and credentials (API keys, .env, Voyage/Claude/OpenAI/Azure tokens)
+    - raw agent outputs and transcripts
+    - repository source code beyond this manifest and generated scorecards
+    - customer data (any document under an indexed customer folder; holusight's read-only invariant already forbids writing to those folders, this boundary additionally forbids exporting their content to Fleet)
+    - private fixtures and golden files not marked for export (tests/fixtures/, .claude/agent-memory/)

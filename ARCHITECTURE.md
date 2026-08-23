@@ -95,6 +95,7 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `cli_axi.py`    | `holus` CLI entry point - job-oriented command surface (`[project.scripts] holus`). See spec 015. |
 | `axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `toon.py`       | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
+| `fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
 
@@ -433,6 +434,53 @@ holus providers              provider availability/freshness/egress
   signal it exists to detect); `holus`/`status`/`providers`/`evidence`
   bootstrap the cache once if it has never been built. Pass `holus check
   --refresh` to explicitly reset the baseline.
+
+---
+
+## Fleet v1.2 Protocol Pilot (Added 2026-08-23)
+
+Wires the consistency evaluator above and this repo's manifest to Fleet's
+canonical, now-landed `v1.2` agentic contracts (`github.com/camilojourney/
+fleet-system` @ `7d396b3`, [PR #58](https://github.com/camilojourney/fleet-system/pull/58))
+without vendoring those contracts into this repository. Full design
+record: `specs/016-fleet-v1.2-protocol-pilot.md`; decision record:
+`docs/decisions/0012-fleet-v1.2-protocol-wiring.md`.
+
+```
+agentic/manifest.yaml   fleet.repo_agent_manifest.v1.2 -- eval_entrypoint,
+                        privacy boundary, provenance_policy
+agentic/memory.yaml     fleet.memory_policy.v1.1 -- fleet_visibility,
+                        byte-identical to manifest.yaml's privacy boundary
+src/codesight/fleet_scorecard.py
+  build_eval_scorecard()      ConsistencyReport -> fleet.eval_scorecard.v1.2
+                               (Holusight's own honest local preview -- see
+                               spec 016 §6 for why this is not yet what
+                               Fleet's own runner emits)
+  domain_result_summary()     the minimal JSON object `run_repo_eval.py`'s
+                               parse_domain_result() actually reads from the
+                               entrypoint's last stdout line
+  main() / `just fleet-smoke` runs tests/test_fleet_smoke.py, then prints
+                               domain_result_summary() as the last line
+```
+
+- **Honest outcome mapping**: `consistency.py`'s four outcomes map to
+  `gate_decision`/`hidden_correctness` conservatively — only `up_to_date`
+  is `pass` (the one claim deterministic hash-diffing can stand behind);
+  `possible_undocumented_drift` is `fail`; the other two changed-but-
+  unconfirmed outcomes are `hold`, never `pass`. See spec 016 §5.
+- **No spend, no telemetry, no promotion**: only the `exact`/`structural`
+  providers run (`run_semantic` stays `False` everywhere in this pilot);
+  nothing here makes a network call; `gate_decision` is informational
+  output only — nothing in this repository acts on it automatically. See
+  spec 016 §7.
+- **Smoke suite**: `tests/test_fleet_smoke.py`, 20 local tasks, proves
+  partial-result survival (missing/corrupt `graphify-out/graph.json`
+  degrades the structural provider without raising) and that deleting
+  `.holusight/` and rebuilding reproduces an equivalent Fleet-shaped
+  scorecard, not just equivalent artifact counts.
+- **Does not duplicate `holus`**: calls `consistency.check_consistency()`
+  directly — the same function `holus check` calls — rather than adding a
+  second CLI surface.
 
 ---
 
