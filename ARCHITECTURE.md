@@ -1,7 +1,7 @@
 # Architecture -- CodeSight
 
 > Guided tour of the codebase. WHY things are built, not just WHAT.
-> **Last Updated:** 2026-04-04
+> **Last Updated:** 2026-08-23
 
 ---
 
@@ -90,6 +90,11 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `holus.py`      | Read-only Holus v1 lineage export adapter: validation + safe provenance. |
 | `consistency.py` | Holusight-AXI documentation-code consistency engine (Phase 1) — classification, concept registry, claim/relationship provenance, evidence packets, consistency checks. See spec 013. |
 | `consistency_store.py` | SQLite storage for the consistency cache (`.holusight/consistency.db`). |
+| `axi_schema.py` | Versioned `holus` command/output schema - single source of truth for the CLI and generated skill. See spec 015. |
+| `axi_providers.py` | `holus` evidence providers (exact/structural/consistency/semantic), thin wrappers over `consistency.py`/`search.py`. |
+| `cli_axi.py`    | `holus` CLI entry point - job-oriented command surface (`[project.scripts] holus`). See spec 015. |
+| `axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
+| `toon.py`       | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
 
@@ -381,6 +386,53 @@ python -m codesight consistency status .          (concepts + open health flags)
 - **Out of scope for Phase 1**: no change planner, no artifact-creation
   governance, no CI enforcement/merge blocking. See spec 013 §4 for the
   full non-goals list.
+
+---
+
+## `holus` - Holusight-AXI Command Surface (Phase 1, added 2026-08-23)
+
+A job-oriented CLI (`[project.scripts] holus`, see spec 015) over the
+already-landed consistency engine above and the already-shipped
+`search.hybrid_search`. Not a new retrieval mechanism - a thin,
+AXI-compliant command surface:
+
+```
+holus                        content-first repository home view
+holus evidence "<question>"  routed evidence packet
+holus check [scope]          post-change consistency check
+holus status                 repository/provider status
+holus providers              provider availability/freshness/egress
+
+--mode auto|exact|semantic|structure   (diagnostic, beneath the jobs above)
+--provider exact|structural|consistency|semantic
+--explain-route
+```
+
+- **Providers** (`src/codesight/axi_providers.py`): `exact` (literal/token
+  scan), `structural` (reads `graphify-out/graph.json` via the same
+  `consistency._load_structural_index`/`structural_graph_freshness` PR
+  #17's `graphify` eval baseline reuses), `consistency` (the cache above),
+  `semantic` (`hybrid_search` against an **already-built** local index
+  only - never auto-indexes, never a side effect of a read-only job).
+  Every provider reports one of `ok`/`no_evidence`/`unavailable`/`stale`/
+  `denied`/`unsupported`/`budget_exceeded` - never a fabricated answer.
+- **Egress**: off by default. The CLI strips `VOYAGE_API_KEY` from its own
+  process environment for every provider call unless `--allow-egress` is
+  passed; the semantic provider additionally reports `denied` if the
+  local index's stored embedding model is Voyage and `--allow-egress`
+  wasn't given.
+- **Output**: JSON is the lossless canonical contract; `--format toon`
+  (default) is a compact agent-facing projection (`src/codesight/
+  toon.py`) generated only at the output boundary; `--format text` is
+  human-readable. `--fields a,b.c` projects any payload to dotted paths.
+- **Schema/skill drift**: `src/codesight/axi_schema.py` is the single
+  source of truth for commands/flags; `axi_skill_gen.py` generates
+  `.claude/skills/holus/SKILL.md` from it; `tests/test_axi_skill_drift.py`
+  fails the normal `pytest` run if the two diverge.
+- **`check` baseline**: never auto-refreshes (that would erase the drift
+  signal it exists to detect); `holus`/`status`/`providers`/`evidence`
+  bootstrap the cache once if it has never been built. Pass `holus check
+  --refresh` to explicitly reset the baseline.
 
 ---
 

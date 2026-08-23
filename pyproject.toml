@@ -17,6 +17,9 @@ dependencies = [
     "python-dotenv>=1.2.2",
 ]
 
+[project.scripts]
+holus = "codesight.cli_axi:main"
+
 [project.optional-dependencies]
 claude = ["anthropic>=0.40"]
 azure = ["openai>=1.0"]
