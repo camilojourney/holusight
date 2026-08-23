@@ -61,10 +61,14 @@ DEFAULT_CASES_PATH = REPO_ROOT / "tests" / "fixtures" / "holusight_eval_pilot_ca
 SCHEMA_CASE = "holus-eval-pilot-case/v1"
 SCHEMA_RESULT = "holus-eval-pilot-result/v1"
 SCHEMA_PILOT_SCORECARD = "fleet.eval_scorecard.v1.2"
+SCHEMA_INTAKE_PROPOSAL = "holus-improve-intake/v1"
 
 _KNOWN_KINDS = frozenset({"regression", "comparative"})
 _REQUIRED_PROVENANCE_FIELDS = frozenset(
     {"origin", "description", "admitted_by", "admitted_at"}
+)
+_KNOWN_ORIGINS = frozenset(
+    {"reproduced_usage_gap", "spec_documented_finding", "spec_documented_contract"}
 )
 
 
@@ -131,6 +135,10 @@ def cases_file_hash(cases_path: Path) -> str:
     return _sha256_hex(cases_path.read_bytes())
 
 
+def _short_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+
+
 def load_cases(cases_path: Path) -> list[dict]:
     """Load and structurally validate the frozen case corpus. Every case
     must declare a supported schema_version, kind, and provenance block —
@@ -150,6 +158,12 @@ def load_cases(cases_path: Path) -> list[dict]:
             )
         if case.get("kind") not in _KNOWN_KINDS:
             raise ValueError(f"{cases_path}:{lineno}: unknown kind {case.get('kind')!r}")
+        provenance_origin = case.get("provenance", {}).get("origin")
+        if provenance_origin not in _KNOWN_ORIGINS:
+            raise ValueError(
+                f"{cases_path}:{lineno}: case {case.get('case_id')!r} has "
+                f"unsupported provenance.origin {provenance_origin!r}"
+            )
         provenance = case.get("provenance") or {}
         missing = _REQUIRED_PROVENANCE_FIELDS - provenance.keys()
         if missing:
@@ -164,6 +178,159 @@ def load_cases(cases_path: Path) -> list[dict]:
             )
         cases.append(case)
     return cases
+
+
+def build_intake_proposal(
+    summary: str,
+    *,
+    origin: str = "reproduced_usage_gap",
+    kind: str = "regression",
+    diagnosis_ref: str | None = None,
+    fix_ref: str | None = None,
+    cases_path: Path | None = None,
+    admitted_by: str | None = None,
+    admitted_at: str | None = None,
+    case_id: str | None = None,
+    grader: str = "<unassigned>",
+) -> dict:
+    """Build an explicit content-minimized case intake payload for human review.
+
+    This helper performs no writes and captures only an admission record plus
+    optional provenance references.
+    """
+    if kind not in _KNOWN_KINDS:
+        raise ValueError(f"unsupported kind {kind!r}")
+    if origin not in _KNOWN_ORIGINS:
+        raise ValueError(f"unsupported origin {origin!r}")
+
+    trimmed = " ".join(summary.split())
+    if not trimmed:
+        raise ValueError("summary must contain at least one non-empty word")
+
+    proposed_case_id = case_id or f"proposed-{_short_hash(trimmed)}"
+    is_duplicate_case_id = False
+    if cases_path and cases_path.exists():
+        try:
+            existing_case_ids = {c["case_id"] for c in load_cases(cases_path)}
+            is_duplicate_case_id = proposed_case_id in existing_case_ids
+        except Exception:
+            # Intake can still proceed; the caller can decide whether to proceed
+            # once they fix the case file schema.
+            is_duplicate_case_id = False
+
+    proposal = {
+        "schema_version": SCHEMA_INTAKE_PROPOSAL,
+        "case_id": proposed_case_id,
+        "family": "regression",
+        "kind": kind,
+        "provenance": {
+            "origin": origin,
+            "description": trimmed[:240],
+            "diagnosis_ref": diagnosis_ref,
+            "fix_ref": fix_ref,
+            "admitted_by": admitted_by or "unassigned",
+            "admitted_at": admitted_at or _now().split("T", 1)[0],
+        },
+        "proposed_grader": grader,
+        "fixture": {},
+        "expected": {},
+        "requires_semantic": False,
+        "requires_index": False,
+        "notes": "human-reviewed repository-local proposal; no raw prompts or private content",
+    }
+    return {
+        "schema_version": SCHEMA_INTAKE_PROPOSAL,
+        "intake": proposal,
+        "intake_policy": {
+            "status": "duplicate_case_id" if is_duplicate_case_id else "proposed",
+            "content_minimized": True,
+            "captures_prompt_or_private_content": False,
+            "auto_placement": False,
+        },
+    }
+
+
+def load_prior_run(path: Path) -> PilotRunResult | None:
+    """Load a prior PilotRunResult from a JSON artifact path.
+
+    A malformed path is a caller bug and must raise, because compare signals are
+    advisory and explicit in this loop.
+    """
+    if not path.exists():
+        raise ValueError(f"{path} does not exist")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    required_keys = {
+        "run_id", "counts", "lineage", "cases_file_hash", "cases_file", "schema_version",
+    }
+    if not required_keys <= set(payload):
+        # Some callers may feed a summary-like artifact; fail fast to avoid false
+        # confidence.
+        raise ValueError(f"{path} does not look like a PilotRunResult")
+    return PilotRunResult.model_validate(payload)
+
+
+def evaluate_progress(
+    current: PilotRunResult, previous: PilotRunResult | None
+) -> dict[str, object]:
+    """Detect stagnation or uncertainty between two frozen runs.
+
+    `current` and `previous` are compared using counts only. `research_needed`
+    and `stagnated` are distinct and machine-readable outcomes; neither
+    triggers automatic action.
+    """
+    if previous is None:
+        return {
+            "outcome": "research_needed",
+            "research_needed": True,
+            "stagnated": False,
+            "reason": "no prior run to compare against",
+            "recommended_research": "normal_review",
+            "next_step": "run_compare_after_repair",
+        }
+
+    current_rate = current.counts["passed"] / max(current.counts["total"], 1)
+    previous_rate = previous.counts["passed"] / max(previous.counts["total"], 1)
+
+    if current.counts["errored"] > previous.counts["errored"]:
+        return {
+            "outcome": "research_needed",
+            "research_needed": True,
+            "stagnated": False,
+            "reason": "errored cases increased",
+            "recommended_research": "normal_review",
+            "next_step": "isolate_instability",
+        }
+
+    if current_rate > previous_rate:
+        return {
+            "outcome": "improved",
+            "research_needed": False,
+            "stagnated": False,
+            "reason": "pass rate improved",
+            "recommended_research": None,
+            "next_step": "candidate_readiness_for_review",
+        }
+
+    if current_rate < previous_rate:
+        return {
+            "outcome": "stagnated",
+            "research_needed": False,
+            "stagnated": True,
+            "reason": "pass rate decreased",
+            "recommended_research": "gpt_deep_research",
+            "next_step": "pause_promotion",
+        }
+
+    return {
+        "outcome": "stagnated",
+        "research_needed": False,
+        "stagnated": True,
+        "reason": "no measurable change from prior run",
+        "recommended_research": "gpt_deep_research",
+        "next_step": "add_new_cases",
+    }
 
 
 # ---------------------------------------------------------------------------

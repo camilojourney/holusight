@@ -40,6 +40,14 @@ Do **not** admit a case for:
 
 ## 2. Write the case
 
+Optionally generate a paste-ready skeleton first with
+`holus improve-intake "<one-sentence summary>" --origin
+reproduced_usage_gap --admitted-by "<you>"` (spec 018 §3). This is purely a
+convenience — it never writes to the corpus file, and it has no more
+authority over admission than typing the JSON by hand. It is also
+content-minimized (the summary is truncated to 240 characters) and
+strictly opt-in: nothing in this repository calls it automatically.
+
 Append **one line** of valid JSON to
 `tests/fixtures/holusight_eval_pilot_cases.jsonl` (never reformat or
 reorder existing lines in the same PR — keep diffs reviewable):
@@ -103,6 +111,15 @@ python -m codesight.eval_pilot run --scorecard
 
 Confirm your new case appears in the run output with the verdict you
 expect, and that the full suite (`just check`) still passes.
+`holus improve-run --scorecard` is the schema-generated CLI equivalent of
+`python -m codesight.eval_pilot run --scorecard` (spec 018 §4) — either
+works.
+
+If your case needs a new fixture file (not a JSONL line — an actual new
+file under `tests/fixtures/`), check its path first with
+`holus improve-placement --artifact-type fixture --proposed-path
+<path>` (spec 018 §6) to catch a wrong-directory or duplicate-name mistake
+before you write it.
 
 ## 6. Open the PR
 

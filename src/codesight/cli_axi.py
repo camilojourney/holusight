@@ -32,6 +32,7 @@ import logging
 import shutil
 import sys
 import time
+from collections import Counter
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -42,7 +43,17 @@ from .toon import to_toon
 
 logger = logging.getLogger(__name__)
 
-_JOB_NAMES = {"evidence", "check", "status", "providers"}
+_JOB_NAMES = {
+    "",
+    "evidence",
+    "check",
+    "status",
+    "providers",
+    "improve-status",
+    "improve-intake",
+    "improve-run",
+    "improve-placement",
+}
 _MAX_DISPLAY_ITEMS = 20
 _MAX_DISPLAY_CONCEPTS = 20
 
@@ -397,6 +408,226 @@ def _resolve_concept(repo_root: Path, scope: str) -> tuple[str | None, list[str]
     return None, candidates
 
 
+def _read_structure_rules(repo_root: Path) -> str:
+    paths = [
+        repo_root / ".claude" / "rules" / "structure.md",
+        repo_root / "AGENTS.md",
+    ]
+    for path in paths:
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    raise UsageError(
+        "structure rules file is missing",
+        help_text="Repository placement checks cannot run safely.",
+    )
+
+
+def _artifact_type_roots(artifact_type: str) -> tuple[str, ...]:
+    return {
+        "case": ("tests/fixtures",),
+        "fixture": ("tests/fixtures",),
+        "test": ("tests",),
+        "spec": ("specs",),
+        "adr": ("docs/decisions",),
+        "decision": ("docs/decisions",),
+        "playbook": ("docs/playbooks",),
+        "source": ("src/codesight",),
+        "skill": (".claude/skills",),
+        "agent": (".claude/agents",),
+        "docs": ("docs",),
+    }[artifact_type]
+
+
+# `.claude/rules/structure.md` states "specs/" is "Flat structure only. No
+# subdirectories." for artifact types placed directly under it.
+_FLAT_ONLY_ARTIFACT_TYPES = frozenset({"spec"})
+
+# `.claude/rules/structure.md` states docs/ has "Exactly four categories --
+# no others" and explicitly forbids ad-hoc files at the docs/ root (the
+# `docs/RESEARCH.md`/`docs/MARKET.md` legacy violations it calls out by
+# name). `adr`/`decision`/`playbook` cover the two subdirectory categories;
+# the generic "docs" artifact type may only ever propose one of the two
+# remaining fixed top-level files.
+_FIXED_DOCS_ROOT_FILES = frozenset({"docs/README.md", "docs/vision.md", "docs/roadmap.md"})
+
+# `.claude/rules/structure.md` states "tests/test_*.py" is the filename
+# convention for the `test` artifact type, placed directly under `tests/`
+# (not `tests/fixtures/`, which is its own `case`/`fixture` artifact type).
+_TEST_FILENAME_PATTERN = "test_*.py"
+
+
+def _safe_repo_relative_path(repo_root: Path, raw_path: str) -> Path | None:
+    """Resolve ``raw_path`` to a path strictly inside ``repo_root``, or
+    ``None`` if it is empty, absolute, or escapes the repository (``..``).
+
+    Every filesystem check placement evidence performs (``.exists()``,
+    duplicate-name scans, canonical-location membership) must go through
+    this guard first -- an absolute or traversal-crafted ``--proposed-path``
+    must never cause a stat/read against the real host filesystem outside
+    this repository, even for a read-only existence check."""
+    proposed = Path(raw_path)
+    if not str(raw_path).strip() or str(proposed) == "." or proposed.is_absolute():
+        return None
+    if ".." in proposed.parts:
+        return None
+    normalized = (repo_root / proposed).resolve()
+    repo = repo_root.resolve()
+    if not normalized.is_relative_to(repo):
+        return None
+    return normalized.relative_to(repo)
+
+
+def _proposed_path_within_canonical_location(
+    repo_root: Path, artifact_type: str, raw_path: str
+) -> bool:
+    safe = _safe_repo_relative_path(repo_root, raw_path)
+    if safe is None:
+        return False
+    relative = str(safe).replace("\\", "/")
+
+    if artifact_type == "docs":
+        return relative in _FIXED_DOCS_ROOT_FILES
+
+    roots = _artifact_type_roots(artifact_type)
+    in_root = any(relative == root or relative.startswith(root.rstrip("/") + "/") for root in roots)
+    if not in_root:
+        return False
+
+    if artifact_type in _FLAT_ONLY_ARTIFACT_TYPES:
+        # Exactly one path segment below the root -- no subdirectories.
+        if Path(relative).parent != Path(roots[0]):
+            return False
+
+    if artifact_type == "test":
+        if Path(relative).parent != Path(roots[0]):
+            return False
+        import fnmatch
+
+        if not fnmatch.fnmatch(Path(relative).name, _TEST_FILENAME_PATTERN):
+            return False
+
+    return True
+
+
+def _find_duplicate_artifacts(repo_root: Path, artifact_type: str, raw_path: str) -> list[str]:
+    proposed = Path(raw_path)
+    target_name = proposed.name
+    if not target_name:
+        return []
+    roots = [repo_root / root for root in _artifact_type_roots(artifact_type)]
+    hits: list[str] = []
+    for root in roots:
+        if not root.exists():
+            continue
+        for candidate in root.rglob("*"):
+            if not candidate.is_file():
+                continue
+            if candidate.name == target_name and candidate.name != (repo_root / proposed).name:
+                try:
+                    hits.append(str(candidate.relative_to(repo_root)))
+                except ValueError:
+                    pass
+    return sorted(set(hits))[:8]
+
+
+def _recommended_new_path(repo_root: Path, root: str, base_path: Path) -> str:
+    """Compute an available path under ``root`` for a proposed artifact.
+
+    Read-only: this only inspects existing paths to steer clear of a name
+    collision. It never creates a directory or file -- placement checks
+    must never edit the repository.
+    """
+    fallback_root = repo_root / root
+    stem = base_path.stem or "proposed-artifact"
+    suffix = base_path.suffix or ".txt"
+    candidate = Path(f"{stem}{suffix}")
+
+    counter = 1
+    while (fallback_root / candidate).exists():
+        candidate = Path(f"{stem}-{counter}{suffix}")
+        counter += 1
+    return str(Path(root) / candidate)
+
+
+def _placement_recommendation(repo_root: Path, artifact_type: str, raw_path: str) -> dict[str, Any]:
+    structure_text = _read_structure_rules(repo_root)
+    allowed_roots = _artifact_type_roots(artifact_type)
+    safe_relative = _safe_repo_relative_path(repo_root, raw_path)
+    # An absolute or repo-escaping --proposed-path must never reach a
+    # filesystem check against anything outside this repository -- not
+    # even a read-only .exists()/.is_dir() probe.
+    if safe_relative is not None and (repo_root / safe_relative).is_dir():
+        raise ValueError("proposed-path must point to a file")
+
+    in_canonical = _proposed_path_within_canonical_location(repo_root, artifact_type, raw_path)
+    duplicates = _find_duplicate_artifacts(repo_root, artifact_type, raw_path)
+    if artifact_type == "docs":
+        canonical_locations: tuple[str, ...] = tuple(sorted(_FIXED_DOCS_ROOT_FILES))
+        canonical_hits = [
+            path for path in canonical_locations if path.rsplit("/", 1)[-1] in structure_text
+        ]
+    else:
+        canonical_locations = allowed_roots
+        canonical_hits = [
+            root
+            for root in allowed_roots
+            if f"`{root}`" in structure_text or f"{root}/" in structure_text
+        ]
+
+    guidance: str | None = None
+    if in_canonical:
+        recommendation: str | None = str(Path(raw_path))
+    elif artifact_type == "docs":
+        # docs/ is not an open-ended bucket -- `.claude/rules/structure.md`
+        # names exactly four categories and forbids ad-hoc files at its
+        # root. There is no safe auto-generated fallback path here; the
+        # caller needs to pick a different artifact type instead.
+        recommendation = None
+        guidance = (
+            "docs/ only holds README.md, vision.md, roadmap.md, "
+            "docs/decisions/*, and docs/playbooks/*; propose this artifact "
+            "with --artifact-type adr, decision, playbook, or spec instead"
+        )
+    else:
+        fallback_root = Path(allowed_roots[0])
+        fallback_name = Path(raw_path).name or f"{artifact_type}-proposal"
+        if artifact_type == "test" and not fallback_name.startswith("test_"):
+            fallback_name = f"test_{fallback_name}"
+        recommendation = _recommended_new_path(repo_root, str(fallback_root), Path(fallback_name))
+
+    exists = safe_relative is not None and (repo_root / safe_relative).exists()
+    if exists and str(Path(raw_path)) not in duplicates:
+        duplicates.append(str(Path(raw_path)))
+    duplicates = sorted(set(duplicates))
+
+    result = {
+        "artifact_type": artifact_type,
+        "proposed_path": str(Path(raw_path)),
+        "canonical_locations": canonical_locations,
+        "canonical_roots_documented": canonical_hits,
+        "in_canonical_location": in_canonical,
+        "duplicate_hits": duplicates,
+        "recommended_path": recommendation,
+        "proposed_file_exists": exists,
+    }
+    if guidance is not None:
+        result["guidance"] = guidance
+    return result
+
+
+def _intake_status_payload(repo_root: Path, result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": AXI_SCHEMA_VERSION,
+        "lifecycle": {
+            "command": "improve-intake",
+            "status": result["intake_policy"]["status"],
+            "content_minimized": result["intake_policy"]["content_minimized"],
+        },
+        "intake": result["intake"],
+        "intake_policy": result["intake_policy"],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Job handlers - each returns (payload, exit_code)
 # ---------------------------------------------------------------------------
@@ -466,6 +697,193 @@ def _cmd_providers(repo_root: Path, values: dict, positionals: list[str]) -> tup
         "providers": [s.model_dump() for s in statuses],
     }
     return payload, 0
+
+
+def _cmd_improve_status(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
+    from . import eval_pilot
+
+    _reject_extra_positionals("improve-status", positionals)
+    cases_path = values.get("--cases") or str(eval_pilot.DEFAULT_CASES_PATH)
+    path = Path(cases_path)
+    if not path.exists():
+        raise UsageError(
+            f"cases file not found: {cases_path}",
+            help_text="Pass --cases with an existing JSONL file.",
+        )
+    cases = eval_pilot.load_cases(path)
+    origins = Counter(case["provenance"]["origin"] for case in cases)
+    types = Counter(case["kind"] for case in cases)
+    comparative = types["comparative"]
+    payload = {
+        "schema_version": AXI_SCHEMA_VERSION,
+        "lifecycle": {
+            "command": "improve-status",
+            "status_quo_control": "included" if comparative > 0 else "not_applicable",
+            "cases_file": str(path),
+            "cases_file_hash": eval_pilot.cases_file_hash(path),
+            "canonical_case_schema": eval_pilot.SCHEMA_CASE,
+        },
+        "coverage": {
+            "cases_total": len(cases),
+            "provenance_origins": dict(origins),
+            "kind_distribution": dict(types),
+            "comparative_cases": comparative,
+            "status_quo_supported": comparative > 0,
+        },
+        "placement_support": {
+            "canonical_paths_documented_in_structure": list(
+                dict.fromkeys(_artifact_type_roots("case") + _artifact_type_roots("fixture"))
+            ),
+            "placement_checks_available": True,
+            "requires_human_review_for_creation": True,
+        },
+    }
+    return _apply_fields(payload, values.get("--fields")), 0
+
+
+def _cmd_improve_intake(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
+    from . import eval_pilot
+
+    cmd = command_by_name("improve-intake")
+    if not positionals:
+        raise UsageError(
+            'missing required argument "summary" for `holus improve-intake`',
+            help_text=_command_help_text(cmd),
+        )
+    summary = " ".join(positionals)
+
+    result = eval_pilot.build_intake_proposal(
+        summary,
+        origin=values.get("--origin") or "reproduced_usage_gap",
+        kind=values.get("--kind") or "regression",
+        diagnosis_ref=values.get("--diagnosis-ref"),
+        fix_ref=values.get("--fix-ref"),
+        cases_path=Path(values["--cases"]) if values.get("--cases") else None,
+        admitted_by=values.get("--admitted-by"),
+        admitted_at=values.get("--admitted-at"),
+        case_id=values.get("--case-id"),
+    )
+    return _intake_status_payload(repo_root, result), 0
+
+
+def _cmd_improve_run(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
+    from . import eval_pilot
+    from .git_utils import current_commit, is_git_repo
+
+    _reject_extra_positionals("improve-run", positionals)
+    cases_path = Path(values.get("--cases") or str(eval_pilot.DEFAULT_CASES_PATH))
+    compare_path_raw = values.get("--compare-result")
+    candidate_id = values.get("--candidate-id") or "current-worktree"
+    if not cases_path.exists():
+        raise UsageError(
+            f"cases file not found: {cases_path}",
+            help_text="Pass --cases with an existing JSONL file.",
+        )
+    previous = (
+        eval_pilot.load_prior_run(Path(compare_path_raw))
+        if compare_path_raw
+        else None
+    )
+    repo_commit = current_commit(repo_root) if is_git_repo(repo_root) else None
+    lineage = eval_pilot.CandidateLineage(
+        candidate_id=candidate_id,
+        repo_commit=repo_commit,
+        workflow=values.get("--workflow") or "manual",
+        tool=values.get("--tool") or "holus-cli",
+        model=values.get("--model"),
+    )
+    result = eval_pilot.run_pilot(
+        repo_root,
+        cases_path=cases_path,
+        lineage=lineage,
+        allow_egress=bool(values.get("--allow-egress")),
+        allow_semantic=bool(values.get("--allow-semantic")),
+    )
+    progress = eval_pilot.evaluate_progress(result, previous)
+
+    run_payload = result.model_dump(mode="json")
+    if values.get("--output"):
+        output = Path(values["--output"])
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(run_payload, indent=2), encoding="utf-8")
+
+    payload = {
+        "schema_version": AXI_SCHEMA_VERSION,
+        "lifecycle": {
+            "command": "improve-run",
+            "candidate_id": result.lineage.candidate_id,
+            "cases_file": str(cases_path),
+            "cases_file_hash": result.cases_file_hash,
+            "promotion": {
+                "allowed": False,
+                "status": "human_review_required",
+                "reason": "no automatic promotion or rollback",
+            },
+        },
+        "run": run_payload,
+        "progress": progress,
+    }
+
+    if compare_path_raw:
+        payload["compare_result"] = {
+            "reference": str(compare_path_raw),
+            "previous_run_id": previous.run_id if previous else None,
+        }
+    if bool(values.get("--scorecard")):
+        payload["scorecard"] = eval_pilot.build_pilot_aggregate_scorecard(
+            result, repo="holusight", repo_commit=repo_commit or "unknown"
+        )
+
+    return _apply_fields(payload, values.get("--fields")), 0
+
+
+def _cmd_improve_placement(
+    repo_root: Path, values: dict, positionals: list[str]
+) -> tuple[dict, int]:
+    _reject_extra_positionals("improve-placement", positionals)
+    artifact_type = values.get("--artifact-type")
+    proposed_path = values.get("--proposed-path")
+    if not artifact_type or not proposed_path:
+        cmd = command_by_name("improve-placement")
+        raise UsageError(
+            "both --artifact-type and --proposed-path are required",
+            help_text=_command_help_text(cmd),
+        )
+    try:
+        placement = _placement_recommendation(repo_root, artifact_type, proposed_path)
+    except ValueError as exc:
+        cmd = command_by_name("improve-placement")
+        raise UsageError(str(exc), help_text=_command_help_text(cmd)) from exc
+
+    status = "ok"
+    reasons: list[str] = []
+    if not placement["in_canonical_location"]:
+        status = "blocked"
+        reasons.append("proposed path is outside canonical location")
+        if placement.get("guidance"):
+            reasons.append(placement["guidance"])
+    if placement["proposed_file_exists"]:
+        status = "blocked"
+        reasons.append("proposed file already exists")
+    if placement["duplicate_hits"]:
+        status = "blocked"
+        reasons.append("duplicate artifact names already exist in canonical locations")
+
+    payload = {
+        "schema_version": AXI_SCHEMA_VERSION,
+        "lifecycle": {
+            "command": "improve-placement",
+            "status": status,
+            "reasons": reasons,
+        },
+        "placement": placement,
+        "recommended_action": (
+            "reuse_existing_path"
+            if placement["in_canonical_location"] and not reasons
+            else "adjust_path_and_retry"
+        ),
+    }
+    return _apply_fields(payload, values.get("--fields")), 0
 
 
 def _select_display_items(
@@ -730,6 +1148,10 @@ _HANDLERS = {
     "check": _cmd_check,
     "status": _cmd_status,
     "providers": _cmd_providers,
+    "improve-status": _cmd_improve_status,
+    "improve-intake": _cmd_improve_intake,
+    "improve-run": _cmd_improve_run,
+    "improve-placement": _cmd_improve_placement,
 }
 
 
