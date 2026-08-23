@@ -10,7 +10,7 @@ description: >
 
 # holus - Holusight-AXI repository evidence CLI
 
-Schema version: `0.2.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
+Schema version: `0.3.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
 
 ## When to use this
 
@@ -186,6 +186,53 @@ holus improve-placement --artifact-type case --proposed-path tests/fixtures/my_c
 python -m codesight.cli_axi improve-placement --artifact-type case --proposed-path tests/fixtures/my_case.jsonl
 holus improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
 python -m codesight.cli_axi improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
+```
+
+### `holus improve-review <change-manifest.json>`
+
+Deterministically classify one tracked change, verify its canonical links, and return stage, missing evidence, next permitted action, and promotion blockers.
+
+Flags:
+- `--phase` (before_change/after_implementation/after_test/pre_promotion) [default: before_change] - Deterministic review phase.
+- `--record` - Opt in to a content-minimized derived review record under .holusight/.
+- `--fields` - Comma-separated dotted-path projection (e.g. snapshot,evidence.source).
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-review specs/019-example.change.json --phase before_change
+python -m codesight.cli_axi improve-review specs/019-example.change.json --phase before_change
+holus improve-review specs/019-example.change.json --phase pre_promotion --record
+python -m codesight.cli_axi improve-review specs/019-example.change.json --phase pre_promotion --record
+```
+
+### `holus improve-history <change-id>`
+
+Inspect content-minimized, opt-in derived stage history for a change. Deleting derived records never changes canonical truth.
+
+Flags:
+- `--fields` - Comma-separated dotted-path projection (e.g. snapshot,evidence.source).
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-history example-change
+python -m codesight.cli_axi improve-history example-change
+```
+
+### `holus improve-integration <change-manifest.json>`
+
+Emit the stable local advisory review contract for a future No Mistakes or Fleet consumer. It performs no integration, promotion, or egress.
+
+Flags:
+- `--phase` (before_change/after_implementation/after_test/pre_promotion) [default: before_change] - Deterministic review phase.
+- `--fields` - Comma-separated dotted-path projection (e.g. snapshot,evidence.source).
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-integration specs/019-example.change.json --phase pre_promotion
+python -m codesight.cli_axi improve-integration specs/019-example.change.json --phase pre_promotion
 ```
 
 ## Output formats

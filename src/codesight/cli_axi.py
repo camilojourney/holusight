@@ -53,6 +53,9 @@ _JOB_NAMES = {
     "improve-intake",
     "improve-run",
     "improve-placement",
+    "improve-review",
+    "improve-history",
+    "improve-integration",
 }
 _MAX_DISPLAY_ITEMS = 20
 _MAX_DISPLAY_CONCEPTS = 20
@@ -102,9 +105,7 @@ def _split_command(argv: list[str]) -> tuple[str, list[str]]:
 
 def _parse_command_args(cmd: AxiCommand, argv: list[str]) -> tuple[dict[str, Any], list[str]]:
     valid_names = {f.name for f in cmd.flags}
-    values: dict[str, Any] = {
-        f.name: (f.default if f.takes_value else False) for f in cmd.flags
-    }
+    values: dict[str, Any] = {f.name: (f.default if f.takes_value else False) for f in cmd.flags}
     positionals: list[str] = []
 
     i = 0
@@ -133,9 +134,7 @@ def _parse_command_args(cmd: AxiCommand, argv: list[str]) -> tuple[dict[str, Any
                 i += 1
             else:
                 if i + 1 >= len(argv):
-                    raise UsageError(
-                        f"{name} requires a value", help_text=_command_help_text(cmd)
-                    )
+                    raise UsageError(f"{name} requires a value", help_text=_command_help_text(cmd))
                 value = argv[i + 1]
                 i += 2
             if flag.choices and value not in flag.choices:
@@ -659,8 +658,7 @@ def _cmd_home(repo_root: Path, values: dict, positionals: list[str]) -> tuple[di
         "snapshot": {"commit": head, "dirty": dirty},
         "egress": "available" if any_egress_capable else "off",
         "providers": [
-            {"name": s.name, "available": s.available, "freshness": s.freshness}
-            for s in statuses
+            {"name": s.name, "available": s.available, "freshness": s.freshness} for s in statuses
         ],
         "contracts": claims,
         "help": [
@@ -779,11 +777,7 @@ def _cmd_improve_run(repo_root: Path, values: dict, positionals: list[str]) -> t
             f"cases file not found: {cases_path}",
             help_text="Pass --cases with an existing JSONL file.",
         )
-    previous = (
-        eval_pilot.load_prior_run(Path(compare_path_raw))
-        if compare_path_raw
-        else None
-    )
+    previous = eval_pilot.load_prior_run(Path(compare_path_raw)) if compare_path_raw else None
     repo_commit = current_commit(repo_root) if is_git_repo(repo_root) else None
     lineage = eval_pilot.CandidateLineage(
         candidate_id=candidate_id,
@@ -834,6 +828,66 @@ def _cmd_improve_run(repo_root: Path, values: dict, positionals: list[str]) -> t
             result, repo="holusight", repo_commit=repo_commit or "unknown"
         )
 
+    return _apply_fields(payload, values.get("--fields")), 0
+
+
+def _cmd_improve_review(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
+    from . import improvement_control
+
+    cmd = command_by_name("improve-review")
+    if len(positionals) != 1:
+        raise UsageError(
+            "`holus improve-review` requires exactly one change manifest path",
+            help_text=_command_help_text(cmd),
+        )
+    try:
+        payload = improvement_control.review_change(
+            repo_root,
+            positionals[0],
+            phase=values.get("--phase") or "before_change",
+            record=bool(values.get("--record")),
+        )
+    except ValueError as exc:
+        raise UsageError(str(exc), help_text=_command_help_text(cmd)) from exc
+    payload = {"schema_version": AXI_SCHEMA_VERSION, **payload}
+    return _apply_fields(payload, values.get("--fields")), 0
+
+
+def _cmd_improve_history(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
+    from . import improvement_control
+
+    cmd = command_by_name("improve-history")
+    if len(positionals) != 1:
+        raise UsageError(
+            "`holus improve-history` requires exactly one change id",
+            help_text=_command_help_text(cmd),
+        )
+    try:
+        history = improvement_control.review_history(repo_root, positionals[0])
+    except ValueError as exc:
+        raise UsageError(str(exc), help_text=_command_help_text(cmd)) from exc
+    payload = {"schema_version": AXI_SCHEMA_VERSION, **history}
+    return _apply_fields(payload, values.get("--fields")), 0
+
+
+def _cmd_improve_integration(
+    repo_root: Path, values: dict, positionals: list[str]
+) -> tuple[dict, int]:
+    from . import improvement_control
+
+    cmd = command_by_name("improve-integration")
+    if len(positionals) != 1:
+        raise UsageError(
+            "`holus improve-integration` requires exactly one change manifest path",
+            help_text=_command_help_text(cmd),
+        )
+    try:
+        integration = improvement_control.integration_review(
+            repo_root, positionals[0], phase=values.get("--phase") or "before_change"
+        )
+    except ValueError as exc:
+        raise UsageError(str(exc), help_text=_command_help_text(cmd)) from exc
+    payload = {"schema_version": AXI_SCHEMA_VERSION, **integration}
     return _apply_fields(payload, values.get("--fields")), 0
 
 
@@ -1133,8 +1187,10 @@ def _cmd_check(repo_root: Path, values: dict, positionals: list[str]) -> tuple[d
         ],
         "truncated": truncated,
         "help": (
-            [f"{len(reports) - len(displayed)} more concept(s) not shown; "
-             'run `holus check "<concept_id>"` for any specific one.']
+            [
+                f"{len(reports) - len(displayed)} more concept(s) not shown; "
+                'run `holus check "<concept_id>"` for any specific one.'
+            ]
             if truncated
             else ['Run `holus check "<concept_id>"` for full evidence on any one concept.']
         ),
@@ -1152,6 +1208,9 @@ _HANDLERS = {
     "improve-intake": _cmd_improve_intake,
     "improve-run": _cmd_improve_run,
     "improve-placement": _cmd_improve_placement,
+    "improve-review": _cmd_improve_review,
+    "improve-history": _cmd_improve_history,
+    "improve-integration": _cmd_improve_integration,
 }
 
 
