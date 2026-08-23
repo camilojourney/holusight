@@ -186,3 +186,143 @@ class TestRunEval:
         assert "hit" in entry
         assert "rr" in entry
         assert "query_tokens" in entry
+
+
+class TestRecallNdcgEvidenceLatency:
+    """Tests for the generalized metrics added alongside hit_rate/MRR."""
+
+    def _make_store_embedder(self):
+        return MagicMock(), MagicMock()
+
+    def test_recall_at_k_reflects_hit_rank(self):
+        """Hit at rank 3 counts toward recall@5 and recall@10 but not recall@1."""
+        store, embedder = self._make_store_embedder()
+        results = [
+            _make_result("src/other.py"),
+            _make_result("src/other2.py"),
+            _make_result("src/search.py"),  # rank 3
+        ]
+        with patch("codesight.search.hybrid_search", return_value=results):
+            eq = EvalQuery("rrf", expected_file="search.py")
+            out = run_eval([eq], store, embedder, top_k=5, k_values=(1, 5, 10))
+
+        assert out.recall_at_k[1] == 0.0
+        assert out.recall_at_k[5] == 1.0
+        assert out.recall_at_k[10] == 1.0
+
+    def test_ndcg_rank_1_is_perfect(self):
+        store, embedder = self._make_store_embedder()
+        results = [_make_result("src/search.py")]
+        with patch("codesight.search.hybrid_search", return_value=results):
+            eq = EvalQuery("rrf", expected_file="search.py")
+            out = run_eval([eq], store, embedder, top_k=5)
+        assert out.ndcg_at_10 == 1.0
+
+    def test_ndcg_zero_on_miss(self):
+        store, embedder = self._make_store_embedder()
+        results = [_make_result("src/other.py")]
+        with patch("codesight.search.hybrid_search", return_value=results):
+            eq = EvalQuery("rrf", expected_file="missing.py")
+            out = run_eval([eq], store, embedder, top_k=5)
+        assert out.ndcg_at_10 == 0.0
+
+    def test_evidence_completeness_multi_file_gold(self):
+        """Partial evidence coverage yields a fractional completeness score."""
+        store, embedder = self._make_store_embedder()
+        results = [_make_result("src/a.py"), _make_result("src/c.py")]
+        with patch("codesight.search.hybrid_search", return_value=results):
+            eq = EvalQuery(
+                "impact of X", expected_file="a.py",
+                expected_evidence=["a.py", "b.py", "c.py"],
+            )
+            out = run_eval([eq], store, embedder, top_k=5)
+        assert abs(out.evidence_completeness - (2 / 3)) < 1e-9
+
+    def test_evidence_completeness_defaults_to_expected_file(self):
+        store, embedder = self._make_store_embedder()
+        results = [_make_result("src/search.py")]
+        with patch("codesight.search.hybrid_search", return_value=results):
+            eq = EvalQuery("rrf", expected_file="search.py")
+            out = run_eval([eq], store, embedder, top_k=5)
+        assert out.evidence_completeness == 1.0
+
+    def test_latency_recorded_per_query(self):
+        store, embedder = self._make_store_embedder()
+        results = [_make_result("src/search.py")]
+        with patch("codesight.search.hybrid_search", return_value=results):
+            eq = EvalQuery("rrf", expected_file="search.py")
+            out = run_eval([eq], store, embedder, top_k=5)
+        assert out.avg_latency_ms >= 0.0
+        assert "latency_ms" in out.per_query[0]
+
+    def test_diagnostic_probe_excluded_from_aggregates(self):
+        """NO_MATCH_SENTINEL queries are diagnostic-only: they don't count
+        toward hit_rate/recall/mrr/ndcg/evidence_completeness."""
+        from tests.eval_harness import NO_MATCH_SENTINEL
+
+        store, embedder = self._make_store_embedder()
+        graded_hit = [_make_result("src/search.py")]
+        probe_results = [_make_result("src/random.py")]
+
+        call_count = [0]
+
+        def fake_search(*args, **kwargs):
+            call_count[0] += 1
+            return graded_hit if call_count[0] == 1 else probe_results
+
+        with patch("codesight.search.hybrid_search", side_effect=fake_search):
+            queries = [
+                EvalQuery("rrf", expected_file="search.py"),
+                EvalQuery("kubernetes helm chart", expected_file=NO_MATCH_SENTINEL),
+            ]
+            out = run_eval(queries, store, embedder, top_k=5)
+
+        assert out.num_graded == 1
+        assert out.num_diagnostic_probes == 1
+        assert out.hit_rate == 1.0  # only the graded query counts
+        diag_entry = [e for e in out.per_query if e.get("diagnostic_only")][0]
+        assert diag_entry["top_result_file"] == "src/random.py"
+        assert "hit" not in diag_entry
+
+
+class TestPluggableSearchFn:
+    """Tests that run_eval() can score an arbitrary retriever, not just
+    the production hybrid_search."""
+
+    def _make_store_embedder(self):
+        return MagicMock(), MagicMock()
+
+    def test_custom_search_fn_is_used_instead_of_hybrid_search(self):
+        store, embedder = self._make_store_embedder()
+        custom_results = [_make_result("src/custom.py")]
+
+        def fake_baseline(store_, embedder_, query, top_k, config):
+            return custom_results
+
+        with patch("codesight.search.hybrid_search") as mock_hybrid:
+            eq = EvalQuery("anything", expected_file="custom.py")
+            out = run_eval([eq], store, embedder, top_k=5, search_fn=fake_baseline)
+
+        mock_hybrid.assert_not_called()
+        assert out.hit_rate == 1.0
+
+    def test_search_fn_receives_positional_args(self):
+        store, embedder = self._make_store_embedder()
+        received = {}
+
+        def capturing_fn(store_, embedder_, query, top_k, config):
+            received["store"] = store_
+            received["embedder"] = embedder_
+            received["query"] = query
+            received["top_k"] = top_k
+            received["config"] = config
+            return []
+
+        eq = EvalQuery("some query", expected_file="x.py")
+        run_eval([eq], store, embedder, top_k=7, config="cfg-sentinel", search_fn=capturing_fn)
+
+        assert received["store"] is store
+        assert received["embedder"] is embedder
+        assert received["query"] == "some query"
+        assert received["top_k"] == 7
+        assert received["config"] == "cfg-sentinel"

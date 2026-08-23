@@ -1,0 +1,655 @@
+[
+  {
+    "id": "EX-01",
+    "query": "rrf_merge",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py",
+    "exact_string": "def rrf_merge("
+  },
+  {
+    "id": "EX-02",
+    "query": "vprf_enhance_query",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py",
+    "exact_string": "def vprf_enhance_query("
+  },
+  {
+    "id": "EX-03",
+    "query": "_sanitize_fts_query",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/store.py",
+    "exact_string": "_sanitize_fts_query"
+  },
+  {
+    "id": "EX-04",
+    "query": "CODESIGHT_CNFB_ALPHA",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_CNFB_ALPHA"
+  },
+  {
+    "id": "EX-05",
+    "query": "VOYAGE_API_KEY",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "VOYAGE_API_KEY = os.environ.get"
+  },
+  {
+    "id": "EX-06",
+    "query": "class ChunkStore",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/store.py",
+    "exact_string": "class ChunkStore:"
+  },
+  {
+    "id": "EX-07",
+    "query": "class VoyageEmbedder",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/embeddings.py",
+    "exact_string": "class VoyageEmbedder:"
+  },
+  {
+    "id": "EX-08",
+    "query": "def chunk_file_ast",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/chunker.py",
+    "exact_string": "chunk_file_ast"
+  },
+  {
+    "id": "EX-09",
+    "query": "walk_repo_files",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/indexer.py",
+    "exact_string": "def walk_repo_files("
+  },
+  {
+    "id": "EX-10",
+    "query": "class ClaudeBackend",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/llm.py",
+    "exact_string": "class ClaudeBackend"
+  },
+  {
+    "id": "EX-11",
+    "query": "def extract_text",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/parsers.py",
+    "exact_string": "def extract_text("
+  },
+  {
+    "id": "EX-12",
+    "query": "class SearchResult",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/types.py",
+    "exact_string": "class SearchResult(BaseModel):"
+  },
+  {
+    "id": "EX-13",
+    "query": "sha256(chunk_content)[:16] content hash guard",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "AGENTS.md",
+    "exact_string": "sha256(chunk_content)[:16]"
+  },
+  {
+    "id": "EX-14",
+    "query": "RRF k=60 constant",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "ARCHITECTURE.md",
+    "exact_string": "RRF k=60 constant"
+  },
+  {
+    "id": "EX-15",
+    "query": "def structural_edges_for",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py",
+    "exact_string": "def structural_edges_for("
+  },
+  {
+    "id": "EX-16",
+    "query": "def classify_artifact",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py",
+    "exact_string": "def classify_artifact("
+  },
+  {
+    "id": "EX-17",
+    "query": "class ConsistencyStore",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency_store.py",
+    "exact_string": "class ConsistencyStore:"
+  },
+  {
+    "id": "EX-18",
+    "query": "def current_commit",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/git_utils.py",
+    "exact_string": "def current_commit("
+  },
+  {
+    "id": "EX-19",
+    "query": "BM25_CANDIDATE_MULTIPLIER",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "BM25_CANDIDATE_MULTIPLIER"
+  },
+  {
+    "id": "EX-20",
+    "query": "CODESIGHT_STALE_SECONDS",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_STALE_SECONDS"
+  },
+  {
+    "id": "CL-01",
+    "query": "how does hybrid search RRF merge work",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py"
+  },
+  {
+    "id": "CL-02",
+    "query": "how is BM25 keyword search implemented",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/store.py"
+  },
+  {
+    "id": "CL-03",
+    "query": "embedding model configuration and voyage backend selection",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/embeddings.py"
+  },
+  {
+    "id": "CL-04",
+    "query": "tree-sitter semantic chunking of function and class boundaries",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/chunker.py"
+  },
+  {
+    "id": "CL-05",
+    "query": "how the indexer walks files while respecting gitignore",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/indexer.py"
+  },
+  {
+    "id": "CL-06",
+    "query": "what the pluggable LLM backend interface looks like",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/llm.py"
+  },
+  {
+    "id": "CL-07",
+    "query": "ServerConfig environment variable defaults",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py"
+  },
+  {
+    "id": "CL-08",
+    "query": "CodeSight public API index search ask status",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/api.py"
+  },
+  {
+    "id": "CL-09",
+    "query": "document parsing for PDF DOCX and PPTX files",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/parsers.py"
+  },
+  {
+    "id": "CL-10",
+    "query": "voyage reranker API call to rerank documents",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py"
+  },
+  {
+    "id": "CL-11",
+    "query": "LanceDB vector table plus FTS5 sidecar storage",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/store.py"
+  },
+  {
+    "id": "CL-12",
+    "query": "vector pseudo relevance feedback query enhancement",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py"
+  },
+  {
+    "id": "CL-13",
+    "query": "query-aware multiplicative filename boost CNFB",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py"
+  },
+  {
+    "id": "CL-14",
+    "query": "git changed files since a given commit",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/git_utils.py"
+  },
+  {
+    "id": "CL-15",
+    "query": "CLI argparse entry point for index search and demo commands",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/__main__.py"
+  },
+  {
+    "id": "CL-16",
+    "query": "purpose-aware classification of specs decisions and architecture docs",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py"
+  },
+  {
+    "id": "CL-17",
+    "query": "SQLite storage for the consistency cache database",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency_store.py"
+  },
+  {
+    "id": "CL-18",
+    "query": "FastAPI server and authenticated browser API",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/web/server.py"
+  },
+  {
+    "id": "CL-19",
+    "query": "read-only adapter for importing Holus v1 lineage exports",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/holus.py"
+  },
+  {
+    "id": "CL-20",
+    "query": "shared pydantic types for chunk records and search results",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/types.py"
+  },
+  {
+    "id": "SR-01",
+    "query": "how does structural_edges_for use the Graphify graph built_at_commit for staleness",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py",
+    "expected_evidence": [
+      "src/codesight/consistency.py"
+    ]
+  },
+  {
+    "id": "SR-02",
+    "query": "how does hybrid_search call bm25_search and vector_search together",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py",
+    "expected_evidence": [
+      "src/codesight/search.py",
+      "src/codesight/store.py"
+    ]
+  },
+  {
+    "id": "SR-03",
+    "query": "where does the indexer call get_embedder to build the embedding backend",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/indexer.py",
+    "expected_evidence": [
+      "src/codesight/indexer.py",
+      "src/codesight/embeddings.py"
+    ]
+  },
+  {
+    "id": "SR-04",
+    "query": "how does evaluate_known_claims compare doc-side and code-side regex extraction",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py"
+  },
+  {
+    "id": "SR-05",
+    "query": "how does check_consistency use content hashes from ConsistencyStore",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py",
+    "expected_evidence": [
+      "src/codesight/consistency.py",
+      "src/codesight/consistency_store.py"
+    ]
+  },
+  {
+    "id": "SR-06",
+    "query": "how does the CLI __main__ construct a ServerConfig and CodeSight engine",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/__main__.py",
+    "expected_evidence": [
+      "src/codesight/__main__.py",
+      "src/codesight/api.py"
+    ]
+  },
+  {
+    "id": "SR-07",
+    "query": "how does the web server call require_auth before search",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/web/server.py"
+  },
+  {
+    "id": "SR-08",
+    "query": "how does the chunker attach a context header before embedding",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/chunker.py"
+  },
+  {
+    "id": "SR-09",
+    "query": "how does semantic_similarity_edges use an opt-in local embed function",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py"
+  },
+  {
+    "id": "SR-10",
+    "query": "how does discover_artifacts classify files under the structure rules",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py",
+    "expected_evidence": [
+      "src/codesight/consistency.py",
+      ".claude/rules/structure.md"
+    ]
+  },
+  {
+    "id": "DS-01",
+    "query": "why was LanceDB chosen over ChromaDB for vector storage",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "docs/decisions/0001-lancedb-over-chromadb.md"
+  },
+  {
+    "id": "DS-02",
+    "query": "why does the engine use hybrid RRF retrieval instead of vector-only search",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "docs/decisions/0002-hybrid-rrf-retrieval.md"
+  },
+  {
+    "id": "DS-03",
+    "query": "what is the read-only invariant decision for indexed folders",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "docs/decisions/0003-read-only-invariant.md"
+  },
+  {
+    "id": "DS-04",
+    "query": "why does the consistency cache use a single SQLite store instead of multiple files",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "docs/decisions/0011-single-sqlite-consistency-store.md"
+  },
+  {
+    "id": "DS-05",
+    "query": "what is the Graphify extension contract decision",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "docs/decisions/0010-graphify-extension-contract.md"
+  },
+  {
+    "id": "DS-06",
+    "query": "what does the tree-sitter chunking spec require for AST-based code chunks",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/004-tree-sitter-chunking.md"
+  },
+  {
+    "id": "DS-07",
+    "query": "what does the cross-encoder reranking spec describe",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/007-cross-encoder-reranking.md"
+  },
+  {
+    "id": "DS-08",
+    "query": "what does the CNFB multiplicative filename boost spec define",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/009-cnfb-multiplicative-filename-boost.md"
+  },
+  {
+    "id": "DS-09",
+    "query": "what is the embedding model configuration spec",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/002-embedding-model-config.md"
+  },
+  {
+    "id": "DS-10",
+    "query": "what does the Holusight-AXI consistency architecture spec define for Phase 1",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/013-holusight-axi-consistency-architecture.md"
+  },
+  {
+    "id": "DS-11",
+    "query": "what does the incremental refresh spec require for content-hash deduplication",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/003-incremental-refresh.md"
+  },
+  {
+    "id": "DS-12",
+    "query": "what does the pluggable LLM backend spec require",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/006-pluggable-llm-backend.md"
+  },
+  {
+    "id": "DS-13",
+    "query": "what deployment tiers does the architecture doc describe",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "ARCHITECTURE.md"
+  },
+  {
+    "id": "DS-14",
+    "query": "what is the docker deployment and FastAPI spec",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/008-docker-deployment-fastapi.md"
+  },
+  {
+    "id": "DS-15",
+    "query": "what does the capability inventory spec catalogue",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "specs/010-capability-inventory.md"
+  },
+  {
+    "id": "CFG-01",
+    "query": "CODESIGHT_RERANKER environment variable",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_RERANKER"
+  },
+  {
+    "id": "CFG-02",
+    "query": "CODESIGHT_EMBEDDING_MODEL environment variable",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_EMBEDDING_MODEL"
+  },
+  {
+    "id": "CFG-03",
+    "query": "CODESIGHT_DATA_DIR environment variable default",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_DATA_DIR"
+  },
+  {
+    "id": "CFG-04",
+    "query": "CODESIGHT_LLM_BACKEND default value claude",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_LLM_BACKEND"
+  },
+  {
+    "id": "CFG-05",
+    "query": "CODESIGHT_RERANKER_TOP_N default",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_RERANKER_TOP_N"
+  },
+  {
+    "id": "CFG-06",
+    "query": "CODESIGHT_QUERY_ENHANCEMENT default false",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_QUERY_ENHANCEMENT"
+  },
+  {
+    "id": "CFG-07",
+    "query": "EMBEDDING_MODEL_REGISTRY dimension table",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "EMBEDDING_MODEL_REGISTRY"
+  },
+  {
+    "id": "CFG-08",
+    "query": "DEFAULT_TOP_K value",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "DEFAULT_TOP_K"
+  },
+  {
+    "id": "CFG-09",
+    "query": "AST min_lines merge-small threshold of 5",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "ARCHITECTURE.md",
+    "exact_string": "min_lines=5"
+  },
+  {
+    "id": "CFG-10",
+    "query": "content hash algorithm sha256 truncated to 16 chars",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "ARCHITECTURE.md",
+    "exact_string": "`sha256[:16]`"
+  },
+  {
+    "id": "TC-01",
+    "query": "unit tests for BM25 finding exact payment terms in e2e retrieval",
+    "family": "test_coverage",
+    "split": "dev",
+    "expected_file": "tests/test_e2e.py"
+  },
+  {
+    "id": "TC-02",
+    "query": "unit tests for the eval harness hit rate and MRR metrics",
+    "family": "test_coverage",
+    "split": "dev",
+    "expected_file": "tests/test_eval_harness.py"
+  },
+  {
+    "id": "TC-03",
+    "query": "unit tests asserting citation metadata for markdown and code chunks",
+    "family": "test_coverage",
+    "split": "dev",
+    "expected_file": "tests/test_e2e.py"
+  },
+  {
+    "id": "TC-04",
+    "query": "unit tests that the index persists across an engine restart",
+    "family": "test_coverage",
+    "split": "dev",
+    "expected_file": "tests/test_e2e.py"
+  },
+  {
+    "id": "TC-05",
+    "query": "unit tests for the RRF merge combining keyword and semantic results",
+    "family": "test_coverage",
+    "split": "dev",
+    "expected_file": "tests/test_e2e.py"
+  },
+  {
+    "id": "NA-01",
+    "query": "kubernetes helm chart values for multi-region autoscaling",
+    "family": "contradiction_no_answer",
+    "split": "dev",
+    "expected_file": "__NO_MATCH__",
+    "notes": "No such capability exists in this repo; a correct system should not confidently cite a file."
+  },
+  {
+    "id": "NA-02",
+    "query": "GraphQL subscription resolver for real-time chunk updates",
+    "family": "contradiction_no_answer",
+    "split": "dev",
+    "expected_file": "__NO_MATCH__",
+    "notes": "CodeSight has no GraphQL layer."
+  },
+  {
+    "id": "NA-03",
+    "query": "OAuth2 device-code login flow implementation",
+    "family": "contradiction_no_answer",
+    "split": "dev",
+    "expected_file": "__NO_MATCH__",
+    "notes": "No OAuth device-code flow is implemented."
+  },
+  {
+    "id": "NA-04",
+    "query": "Rust bindings for the vector index",
+    "family": "contradiction_no_answer",
+    "split": "dev",
+    "expected_file": "__NO_MATCH__",
+    "notes": "Engine is pure Python; no Rust bindings exist."
+  },
+  {
+    "id": "NA-05",
+    "query": "distributed consensus protocol for multi-node index replication",
+    "family": "contradiction_no_answer",
+    "split": "dev",
+    "expected_file": "__NO_MATCH__",
+    "notes": "Single-node local storage only; no replication protocol exists."
+  }
+]
