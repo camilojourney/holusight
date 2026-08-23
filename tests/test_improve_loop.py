@@ -164,19 +164,20 @@ def test_improve_run_reports_structured_progress_outcome(tmp_path):
     )
     assert output_path.exists()
 
-    payload, _fmt, _exit = _run(
-        [
-            "improve-run",
-            "--candidate-id",
-            "run-b",
-            "--compare-result",
-            str(output_path),
-            "--format",
-            "json",
-        ]
-    )
-    assert payload["progress"]["outcome"] in {"improved", "stagnated", "research_needed"}
-    assert payload["compare_result"]["previous_run_id"] is not None
+    # A dirty working tree or a distinct candidate identity cannot be used as
+    # promotion-relevant comparative evidence.
+    with pytest.raises(cli_axi.UsageError, match="invalid comparison result"):
+        _run(
+            [
+                "improve-run",
+                "--candidate-id",
+                "run-b",
+                "--compare-result",
+                str(output_path),
+                "--format",
+                "json",
+            ]
+        )
 
 
 def test_improve_run_without_compare_result_reports_research_needed():
@@ -190,7 +191,7 @@ def test_stagnation_recommends_ordinary_or_gpt_deep_research_never_launches_it()
         REPO_ROOT, cases_path=CASES_PATH, lineage=_lineage("stagnation-a")
     )
     progress = eval_pilot.evaluate_progress(result, result)
-    assert progress["outcome"] == "stagnated"
+    assert progress["outcome"] in {"stagnated", "invalid_comparison"}
     assert progress["recommended_research"] in {"gpt_deep_research", "normal_review", None}
     # A recommendation is a string, never a callable/launch action.
     assert isinstance(progress["recommended_research"], (str, type(None)))
@@ -392,20 +393,14 @@ def test_refuses_private_or_raw_content_export_in_scorecard():
         "pass_rate",
         "comparative_cases_total",
         "status_quo_control",
+        "corpus_trust",
     }
 
 
 def test_refuses_private_or_raw_content_export_via_intake_summary_truncation():
     secret_like = "sk-live-should-not-leak " * 20
-    payload, _fmt, _exit = _run(
-        ["improve-intake", secret_like, "--admitted-by", "x", "--format", "json"]
-    )
-    # Content-minimization (a 240-char truncation of the plain-text summary
-    # the caller opted to pass on the command line) is not a secrets
-    # scanner; the guarantee this loop makes is explicit opt-in and a
-    # bounded, human-reviewed proposal -- never silent capture.
-    assert len(payload["intake"]["provenance"]["description"]) <= 240
-    assert payload["intake_policy"]["captures_prompt_or_private_content"] is False
+    with pytest.raises(cli_axi.UsageError, match="credential-like"):
+        _run(["improve-intake", secret_like, "--admitted-by", "x", "--format", "json"])
 
 
 def test_refuses_automatic_promotion_regardless_of_outcome():

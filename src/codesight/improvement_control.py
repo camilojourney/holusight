@@ -9,12 +9,23 @@ record under the already-gitignored ``.holusight/`` state directory.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
 import re
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from . import eval_pilot
+from .control_storage import (
+    HISTORY_ROOT,
+    UnsafeStoragePath,
+    safe_atomic_write,
+    validate_output_path,
+)
 
 CHANGE_SCHEMA = "holus-improvement-change/v1"
 RECORD_SCHEMA = "holus-improvement-record/v1"
@@ -69,6 +80,12 @@ _ALLOWED_SECTIONS = frozenset(
 )
 _ALLOWED_LINEAGE_FIELDS = frozenset({"candidate_id", "workflow", "tool", "model"})
 _SAFE_LINEAGE_VALUE_RE = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")
+_SECRET_LIKE_RE = re.compile(
+    r"(?i)(?:sk-[a-z0-9_-]{8,}|api[_ -]?key|authorization|bearer|private|"
+    r"raw\\s+prompt|password|token)"
+)
+_HISTORY_MAX_RECORDS = 200
+_HISTORY_PAGE_SIZE = 50
 
 
 def _sha256(path: Path) -> str:
@@ -105,7 +122,7 @@ def _blocked(code: str, evidence: str, *, role: str | None = None) -> dict[str, 
 def _has_forbidden_field(value: Any) -> str | None:
     if isinstance(value, dict):
         for key, child in value.items():
-            if key.lower() in _FORBIDDEN_FIELD_NAMES:
+            if key.lower() in _FORBIDDEN_FIELD_NAMES or _SECRET_LIKE_RE.search(str(key)):
                 return key
             found = _has_forbidden_field(child)
             if found:
@@ -115,6 +132,8 @@ def _has_forbidden_field(value: Any) -> str | None:
             found = _has_forbidden_field(child)
             if found:
                 return found
+    elif isinstance(value, str) and _SECRET_LIKE_RE.search(value):
+        return "secret_like_value"
     return None
 
 
@@ -156,14 +175,34 @@ def _load_manifest(repo_root: Path, raw_path: str) -> tuple[dict[str, Any], Path
     classification_evidence = manifest.get("classification_evidence")
     if classification_evidence is not None and classification_evidence not in CLASSIFICATIONS:
         raise ValueError("classification_evidence must use the classification vocabulary")
+    links = manifest.get("links", {})
+    if not isinstance(links, dict) or set(links) - set(LINK_ROLES):
+        raise ValueError("links must use only the closed role vocabulary")
+    if not all(isinstance(paths, list) and len(paths) <= 16 for paths in links.values()):
+        raise ValueError("link roles must be bounded lists")
     link_hashes = manifest.get("link_hashes", {})
-    if not isinstance(link_hashes, dict) or not all(
-        isinstance(path, str)
-        and isinstance(value, str)
-        and re.fullmatch(r"sha256:[0-9a-f]{64}", value)
-        for path, value in link_hashes.items()
+    linked_paths = {path for paths in links.values() for path in paths if isinstance(path, str)}
+    if (
+        not isinstance(link_hashes, dict)
+        or set(link_hashes) - linked_paths
+        or not all(
+            isinstance(path, str)
+            and isinstance(value, str)
+            and re.fullmatch(r"sha256:[0-9a-f]{64}", value)
+            for path, value in link_hashes.items()
+        )
     ):
-        raise ValueError("link_hashes must contain only full SHA-256 values")
+        raise ValueError("link_hashes must exactly cover linked paths with full SHA-256 values")
+    artifacts = manifest.get("proposed_artifacts", [])
+    if (
+        not isinstance(artifacts, list)
+        or len(artifacts) > 16
+        or any(
+            not isinstance(item, dict) or set(item) != {"artifact_type", "path"}
+            for item in artifacts
+        )
+    ):
+        raise ValueError("proposed_artifacts must be a bounded closed schema")
     evidence_state = manifest.get("evidence_state", "familiar")
     if evidence_state not in {"familiar", "unfamiliar"}:
         raise ValueError("evidence_state must be familiar or unfamiliar")
@@ -173,6 +212,7 @@ def _load_manifest(repo_root: Path, raw_path: str) -> tuple[dict[str, Any], Path
     classification = manifest.get("classification")
     if classification not in CLASSIFICATIONS:
         raise ValueError(f"classification must be one of {sorted(CLASSIFICATIONS)}")
+    manifest.setdefault("link_hashes", {})
     return manifest, relative
 
 
@@ -188,7 +228,7 @@ def _role_path_is_canonical(role: str, path: str) -> bool:
     if role == "evaluation_case":
         return path.startswith("tests/fixtures/") and path.endswith(".jsonl")
     if role == "evaluation_result":
-        return path.startswith("tests/fixtures/") or path.startswith(".holusight/improvement-runs/")
+        return path.startswith(".holusight/improvement-results/")
     return False
 
 
@@ -196,12 +236,15 @@ def _status_classification(path: Path) -> str | None:
     """Read only the structured ``**Status:**`` marker, never prose inference."""
     if path.suffix.lower() != ".md":
         return None
-    match = re.search(
-        r"^\*\*Status:\*\*\s*([^\n]+)$", path.read_text(encoding="utf-8"), re.MULTILINE
-    )
+    text = path.read_text(encoding="utf-8")
+    if re.search(r"\*\*Authorization boundary:\*\*.*\b(?:research|no code)\b", text, re.I):
+        return "research_only"
+    match = re.search(r"^\*\*Status:\*\*\s*([^\n]+)$", text, re.MULTILINE)
     if not match:
         return None
     normalized = match.group(1).strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized.startswith("phase_"):
+        return None
     return normalized if normalized in CLASSIFICATIONS else None
 
 
@@ -228,6 +271,8 @@ def _placement(repo_root: Path, artifact_type: str, raw_path: str) -> list[dict[
     in_root = any(path.startswith(root + "/") for root in roots[artifact_type])
     if artifact_type == "spec":
         in_root = in_root and relative.parent == Path("specs")
+    elif artifact_type == "case":
+        in_root = in_root and relative.suffix == ".jsonl"
     elif artifact_type == "test":
         in_root = in_root and relative.parent == Path("tests") and relative.name.startswith("test_")
     elif artifact_type == "docs":
@@ -248,24 +293,19 @@ def _placement(repo_root: Path, artifact_type: str, raw_path: str) -> list[dict[
 def _review_links(
     repo_root: Path, manifest: dict[str, Any]
 ) -> tuple[list[dict[str, str]], list[str]]:
+    """Validate closed typed links and prove eval result applicability."""
     blockers: list[dict[str, str]] = []
     missing: list[str] = []
-    links = manifest.get("links", {})
-    if not isinstance(links, dict):
-        return [_blocked("invalid_links", "links must be an object")], list(LINK_ROLES)
+    links = manifest["links"]
     classification = manifest["classification"]
     requires_full_evidence = classification in {"accepted", "implemented", "evaluated"}
-    hashes = manifest.get("link_hashes", {})
-    if not isinstance(hashes, dict):
-        blockers.append(_blocked("invalid_link_hashes", "link_hashes must be an object"))
-        hashes = {}
-
+    hashes = manifest["link_hashes"]
     seen: dict[str, str] = {}
+    validated_cases: dict[str, tuple[Path, str]] = {}
+    validated_results: list[tuple[Path, eval_pilot.PilotRunResult]] = []
+
     for role in LINK_ROLES:
         paths = links.get(role, [])
-        if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
-            blockers.append(_blocked("invalid_link_role", role, role=role))
-            continue
         if requires_full_evidence and not paths:
             missing.append(role)
             blockers.append(_blocked(f"missing_{role}", role, role=role))
@@ -284,14 +324,16 @@ def _review_links(
             if not _role_path_is_canonical(role, path):
                 blockers.append(_blocked("wrong_link_role", path, role=role))
             full_path = repo_root / relative
-            if not full_path.is_file():
+            if full_path.is_symlink() or not full_path.is_file():
                 blockers.append(_blocked(f"dangling_{role}", path, role=role))
                 continue
             expected_hash = hashes.get(path)
-            if requires_full_evidence and not expected_hash:
+            if expected_hash is None:
                 blockers.append(_blocked("missing_link_hash", path, role=role))
-            elif expected_hash and expected_hash != _sha256(full_path):
+                continue
+            if expected_hash != _sha256(full_path):
                 blockers.append(_blocked("stale_link", path, role=role))
+                continue
             if role == "governing":
                 doc_classification = _status_classification(full_path)
                 if doc_classification and doc_classification != classification:
@@ -302,15 +344,51 @@ def _review_links(
                             role=role,
                         )
                     )
+            elif role == "evaluation_case":
+                try:
+                    cases = eval_pilot.load_cases(full_path)
+                    if not eval_pilot._is_canonical_cases(full_path, repo_root):
+                        raise ValueError(
+                            "evaluation case corpus is not the canonical frozen corpus"
+                        )
+                    validated_cases[path] = (full_path, eval_pilot.cases_file_hash(full_path))
+                    if len({case["case_id"] for case in cases}) != len(cases):
+                        raise ValueError("duplicate case IDs")
+                except (ValueError, OSError, json.JSONDecodeError):
+                    blockers.append(_blocked("invalid_evaluation_case", path, role=role))
+            elif role == "evaluation_result":
+                try:
+                    result = eval_pilot.load_prior_run(full_path)
+                    validated_results.append((full_path, result))
+                except (ValueError, OSError, json.JSONDecodeError):
+                    blockers.append(_blocked("invalid_evaluation_result", path, role=role))
 
     explicit_evidence = manifest.get("classification_evidence")
-    if explicit_evidence is not None:
-        if explicit_evidence not in CLASSIFICATIONS or explicit_evidence != classification:
-            blockers.append(_blocked("contradictory_classification", str(explicit_evidence)))
-    if requires_full_evidence:
-        sections = manifest.get("structured_sections", [])
-        if not isinstance(sections, list) or not _REQUIRED_SECTIONS <= set(sections):
-            blockers.append(_blocked("missing_structured_section", "context,evidence,decision"))
+    if explicit_evidence is not None and explicit_evidence != classification:
+        blockers.append(_blocked("contradictory_classification", str(explicit_evidence)))
+    if requires_full_evidence and not _REQUIRED_SECTIONS <= set(manifest["structured_sections"]):
+        blockers.append(_blocked("missing_structured_section", "context,evidence,decision"))
+    if classification == "evaluated":
+        if not validated_cases or not validated_results:
+            blockers.append(_blocked("missing_verified_evaluation", manifest["change_id"]))
+        for _path, result in validated_results:
+            case_hashes = {digest for _case_path, digest in validated_cases.values()}
+            if (
+                result.cases_file_hash not in case_hashes
+                or result.lineage.candidate_id != manifest["change_id"]
+                or result.counts["failed"]
+                or result.counts["errored"]
+                or result.status_quo_control == "invalid"
+                or result.corpus_trust != "canonical"
+                or result.lineage.repo_dirty
+            ):
+                blockers.append(
+                    _blocked(
+                        "inapplicable_evaluation_result",
+                        manifest["change_id"],
+                        role="evaluation_result",
+                    )
+                )
     return blockers, missing
 
 
@@ -332,19 +410,36 @@ def _stage(classification: str, links: dict[str, Any], blockers: list[dict[str, 
     return "accepted"
 
 
-def _history_records(repo_root: Path, change_id: str) -> list[dict[str, Any]]:
-    records_dir = repo_root / ".holusight" / "improvement-runs" / change_id
+def _history_records(repo_root: Path, change_id: str) -> tuple[list[dict[str, Any]], list[str]]:
+    """Read bounded derived history without hiding corruption or following links."""
+    directory = repo_root / HISTORY_ROOT / change_id
+    try:
+        validate_output_path(repo_root, directory / ".probe", allowed_repo_root=HISTORY_ROOT)
+    except UnsafeStoragePath:
+        return [], ["unsafe_history_root"]
     records: list[dict[str, Any]] = []
-    if not records_dir.is_dir():
-        return records
-    for path in sorted(records_dir.glob("*.json")):
+    corrupt: list[str] = []
+    if not directory.exists():
+        return records, corrupt
+    if directory.is_symlink() or not directory.is_dir():
+        return [], ["unsafe_history_root"]
+    paths = sorted(directory.glob("*.json"))
+    for path in paths[-_HISTORY_MAX_RECORDS:]:
+        if path.is_symlink():
+            corrupt.append(path.name)
+            continue
         try:
             record = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
+            corrupt.append(path.name)
             continue
-        if record.get("schema_version") == RECORD_SCHEMA and record.get("change_id") == change_id:
+        if record.get("schema_version") != RECORD_SCHEMA or record.get("change_id") != change_id:
+            corrupt.append(path.name)
+        else:
             records.append(record)
-    return records
+    if len(paths) > _HISTORY_MAX_RECORDS:
+        corrupt.append("retention_limit_reached")
+    return records, corrupt
 
 
 def _research_packet(
@@ -415,29 +510,52 @@ def _next_action(phase: str, blockers: list[dict[str, str]], classification: str
 def _record_review(
     repo_root: Path, manifest: dict[str, Any], review: dict[str, Any], phase: str
 ) -> dict[str, str]:
+    """Append a content-minimized record under an interprocess flock."""
     change_id = manifest["change_id"]
-    directory = repo_root / ".holusight" / "improvement-runs" / change_id
-    directory.mkdir(parents=True, exist_ok=True)
-    existing = _history_records(repo_root, change_id)
-    metadata_hash = _json_hash(manifest)
-    outcome = "ready" if review["next_permitted_action"] == "human_promotion_review" else "blocked"
-    record = {
-        "schema_version": RECORD_SCHEMA,
-        "record_id": f"{change_id}-{len(existing) + 1}",
-        "change_id": change_id,
-        "recorded_at": datetime.now(timezone.utc).isoformat(),
-        "phase": phase,
-        "classification": review["classification"],
-        "stage": review["stage"],
-        "outcome": outcome,
-        "metadata_hash": metadata_hash,
-        "link_hashes": dict(manifest.get("link_hashes", {})),
-        "references": {role: list(manifest.get("links", {}).get(role, [])) for role in LINK_ROLES},
-        "lineage": dict(manifest.get("lineage", {})),
-        "blocker_codes": [item["code"] for item in review["blockers"]],
-    }
-    path = directory / f"{len(existing) + 1:04d}-{phase}.json"
-    path.write_text(json.dumps(record, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    directory = repo_root / HISTORY_ROOT / change_id
+    lock_path = repo_root / HISTORY_ROOT / ".lock"
+    try:
+        validate_output_path(repo_root, lock_path, allowed_repo_root=HISTORY_ROOT)
+        lock_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(lock_fd, "a+", encoding="utf-8") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            existing, corrupt = _history_records(repo_root, change_id)
+            if corrupt:
+                raise ValueError("history contains corrupt or unsafe records")
+            if len(existing) >= _HISTORY_MAX_RECORDS:
+                raise ValueError("history retention limit reached")
+            metadata_hash = _json_hash(manifest)
+            outcome = (
+                "ready"
+                if review["next_permitted_action"] == "human_promotion_review"
+                else "blocked"
+            )
+            record = {
+                "schema_version": RECORD_SCHEMA,
+                "record_id": f"{change_id}-{uuid.uuid4().hex}",
+                "change_id": change_id,
+                "recorded_at": datetime.now(timezone.utc).isoformat(),
+                "phase": phase,
+                "classification": review["classification"],
+                "stage": review["stage"],
+                "outcome": outcome,
+                "metadata_hash": metadata_hash,
+                "link_hashes": dict(manifest["link_hashes"]),
+                "references": {role: list(manifest["links"].get(role, [])) for role in LINK_ROLES},
+                "lineage": dict(manifest["lineage"]),
+                "blocker_codes": [item["code"] for item in review["blockers"]],
+            }
+            path = directory / f"{uuid.uuid4().hex}-{phase}.json"
+            safe_atomic_write(
+                repo_root,
+                path,
+                (json.dumps(record, sort_keys=True) + "\n").encode("utf-8"),
+                allowed_repo_root=HISTORY_ROOT,
+            )
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    except UnsafeStoragePath as exc:
+        raise ValueError("unsafe derived history path") from exc
     return {"path": str(path.relative_to(repo_root)), "schema_version": RECORD_SCHEMA}
 
 
@@ -464,13 +582,31 @@ def review_change(
         if raw_path in _EVALUATOR_PATHS:
             blockers.append(_blocked("evaluator_mutation", raw_path))
 
-    # Stable ordering makes results and derived records comparable across runs.
+    links = manifest.get("links", {})
+    stage = _stage(manifest["classification"], links, blockers)
+    allowed_phases = {
+        "proposed": {"before_change"},
+        "accepted": {"after_implementation"},
+        "implemented": {"after_test"},
+        "evaluated": {"pre_promotion"},
+    }
+    if (
+        manifest["classification"] in allowed_phases
+        and phase not in allowed_phases[manifest["classification"]]
+    ):
+        blockers.append(_blocked("non_monotonic_phase", f"{manifest['classification']}:{phase}"))
+    if phase == "pre_promotion" and (
+        manifest["classification"] != "evaluated" or stage != "evaluated"
+    ):
+        blockers.append(
+            _blocked("pre_promotion_requires_evaluated_evidence", manifest["change_id"])
+        )
+    existing_history, corrupt_history = _history_records(repo_root, manifest["change_id"])
+    for item in corrupt_history:
+        blockers.append(_blocked("corrupt_history", item))
     blockers = sorted(
         blockers, key=lambda item: (item["code"], item.get("role", ""), item["evidence"])
     )
-    links = manifest.get("links", {})
-    stage = _stage(manifest["classification"], links, blockers)
-    existing_history = _history_records(repo_root, manifest["change_id"])
     next_action = _next_action(phase, blockers, manifest["classification"])
     review = {
         "change_id": manifest["change_id"],
@@ -513,11 +649,17 @@ def review_change(
 def review_history(repo_root: Path, change_id: str) -> dict[str, Any]:
     if not _CHANGE_ID_RE.fullmatch(change_id):
         raise ValueError("change_id must be a lowercase stable slug")
-    records = _history_records(repo_root, change_id)
+    records, corrupt = _history_records(repo_root, change_id)
     return {
         "history": {
             "change_id": change_id,
             "records_total": len(records),
+            "page": {
+                "offset": 0,
+                "limit": _HISTORY_PAGE_SIZE,
+                "has_more": len(records) > _HISTORY_PAGE_SIZE,
+            },
+            "corrupt_records": corrupt,
             "records": [
                 {
                     key: record.get(key)
@@ -531,7 +673,7 @@ def review_history(repo_root: Path, change_id: str) -> dict[str, Any]:
                         "blocker_codes",
                     )
                 }
-                for record in records
+                for record in records[-_HISTORY_PAGE_SIZE:]
             ],
             "derived_state": ".holusight/improvement-runs/",
             "delete_rebuild": (

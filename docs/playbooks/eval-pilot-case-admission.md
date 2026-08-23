@@ -43,10 +43,11 @@ Do **not** admit a case for:
 Optionally generate a paste-ready skeleton first with
 `holus improve-intake "<one-sentence summary>" --origin
 reproduced_usage_gap --admitted-by "<you>"` (spec 018 §3). This is purely a
-convenience — it never writes to the corpus file, and it has no more
-authority over admission than typing the JSON by hand. It is also
-content-minimized (the summary is truncated to 240 characters) and
-strictly opt-in: nothing in this repository calls it automatically.
+convenience - it never writes to the corpus file, and it has no more
+authority over admission than typing the JSON by hand. It rejects
+credential-like, private, and raw-prompt text before echoing or retaining it;
+this is not merely truncation. It is strictly opt-in: nothing in this
+repository calls it automatically.
 
 Append **one line** of valid JSON to
 `tests/fixtures/holusight_eval_pilot_cases.jsonl` (never reformat or
@@ -94,7 +95,7 @@ function and register it in `GRADERS`. Requirements for a new grader:
 ## 4. Comparative cases: adding a status-quo comparator
 
 A `"comparative"` case must also provide a frozen, pinned alternate
-implementation to compare the candidate against — kept purely as an
+implementation to compare the candidate against - kept purely as an
 eval-pilot fixture, **never imported by production code**. Follow the
 pattern in `eval_pilot._naive_concatenate_then_slice`: a small, clearly
 commented pure function whose only job is to reproduce the historical
@@ -129,8 +130,10 @@ repository. The reviewer should specifically confirm:
 - The case's `provenance` is real and verifiable (a real commit/PR
   reference, or a real spec/ADR section — not a fabricated citation).
 - The grader is deterministic and side-effect-free per step 3.
-- If `kind: "comparative"`, the status-quo comparator is genuinely frozen
-  and demonstrably not imported by production code.
+- If `kind: "comparative"`, the status-quo comparator is genuinely frozen,
+  registered by the evaluator, and demonstrably not imported by production code.
+- Any temporary or external corpus is untrusted advisory input: it cannot
+  produce a passing promotion scorecard or pre-promotion evidence.
 
 ## 7. What happens to a case that starts failing later
 

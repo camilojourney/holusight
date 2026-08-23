@@ -189,8 +189,7 @@ def test_status_quo_control_is_included_whenever_comparative_cases_exist():
     assert result.status_quo_control == "included"
     assert result.counts["comparative_total"] > 0
     assert (
-        result.counts["comparative_with_status_quo_verdict"]
-        == result.counts["comparative_total"]
+        result.counts["comparative_with_status_quo_verdict"] == result.counts["comparative_total"]
     )
 
 
@@ -314,6 +313,7 @@ def test_aggregate_scorecard_contains_no_raw_case_content():
         "pass_rate",
         "comparative_cases_total",
         "status_quo_control",
+        "corpus_trust",
     }
 
 
@@ -347,7 +347,18 @@ def test_candidate_lineage_has_no_free_text_content_field():
     assert "prompt" not in fields
     assert "transcript" not in fields
     assert "content" not in fields
-    assert fields == {"candidate_id", "repo_commit", "workflow", "tool", "model", "recorded_at"}
+    assert fields == {
+        "candidate_id",
+        "repo_commit",
+        "workflow",
+        "tool",
+        "model",
+        "recorded_at",
+        "repo_dirty",
+        "evaluator_digest",
+        "candidate_digest",
+        "comparator_digest",
+    }
 
 
 def test_candidate_lineage_recorded_in_run_result():
