@@ -57,11 +57,11 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/consistency_store.py` | SQLite storage for `.holusight/consistency.db`. |
 | `src/codesight/axi_schema.py` | Versioned `holus` command/output schema - single source of truth for the CLI and the generated skill. See spec 015. |
 | `src/codesight/axi_providers.py` | `holus` evidence providers (exact/structural/consistency/semantic) - thin wrappers over `consistency.py` and `search.py`. |
-| `src/codesight/cli_axi.py` | `holus` CLI entry point (`[project.scripts] holus`). |
+| `src/codesight/cli_axi.py` | `holus` CLI entry point (`[project.scripts] holus`). Also hosts the `improve-*` continuous-improvement loop and repository-placement guard. See spec 018. |
 | `src/codesight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
-| `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See spec 017. |
+| `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See spec 017. Also backs the `holus improve-*` continuous-improvement loop (intake proposals, stagnation detection). See spec 018. |
 | `src/codesight/types.py` | Shared type definitions. |
 | `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |
 | `src/codesight/web/static/` | Browser UI assets for the FastAPI pilot server. |
@@ -100,6 +100,8 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 | Path | Purpose |
 |------|---------|
 | `tests/test_*.py` | Test files matching source modules. |
+| `tests/fixtures/*.jsonl` | Frozen case corpora (e.g. the eval-pilot corpus, spec 017/018). Human-reviewed admission only -- see `docs/playbooks/eval-pilot-case-admission.md`. |
+| `tests/fixtures/` (other) | Other test fixtures (synthetic docs, eval query sets). |
 
 ### `.claude/` -- Claude Code Configuration
 

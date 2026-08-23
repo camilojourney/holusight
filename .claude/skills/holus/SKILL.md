@@ -10,7 +10,7 @@ description: >
 
 # holus - Holusight-AXI repository evidence CLI
 
-Schema version: `0.1.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
+Schema version: `0.2.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
 
 ## When to use this
 
@@ -101,6 +101,91 @@ Examples:
 ```
 holus providers
 python -m codesight.cli_axi providers
+```
+
+### `holus improve-status`
+
+Continuous-improvement lifecycle status: frozen-case corpus summary, status-quo coverage, and placement-guard capabilities.
+
+Flags:
+- `--cases` - Path to the frozen case corpus JSONL file.
+- `--fields` - Comma-separated dotted-path projection (e.g. snapshot,evidence.source).
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-status
+python -m codesight.cli_axi improve-status
+holus improve-status --cases tests/fixtures/holusight_eval_pilot_cases.jsonl
+python -m codesight.cli_axi improve-status --cases tests/fixtures/holusight_eval_pilot_cases.jsonl
+```
+
+### `holus improve-intake "<summary>"`
+
+Produce an explicit, sanitized, content-minimized proposed regression case for human-reviewed admission. No files are written.
+
+Flags:
+- `--origin` - Case origin.
+- `--kind` (regression/comparative) [default: regression] - Case kind.
+- `--diagnosis-ref` - Reference path for reproduced findings.
+- `--fix-ref` - Reference to the fix commit/PR for a reproduced gap.
+- `--cases` - Path to the frozen case corpus JSONL file.
+- `--admitted-by` - Approver name or team in plain text.
+- `--admitted-at` - YYYY-MM-DD date for the admission record.
+- `--case-id` - Explicit candidate case id to propose.
+- `--fields` - Comma-separated dotted-path projection (e.g. snapshot,evidence.source).
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-intake "holus evidence can starve structural evidence" --origin reproduced_usage_gap --kind comparative --admitted-by team-x
+python -m codesight.cli_axi improve-intake "holus evidence can starve structural evidence" --origin reproduced_usage_gap --kind comparative --admitted-by team-x
+python -m codesight.cli_axi improve-intake "structural graph stale case" --origin spec_documented_finding --admitted-by team-x
+```
+
+### `holus improve-run`
+
+Run the frozen continuous-improvement corpus with explicit lineage and machine-readable lifecycle outcome.
+
+Flags:
+- `--cases` - Path to the frozen case corpus JSONL file.
+- `--workflow` - Execution workflow label.
+- `--tool` - Tool that produced this run.
+- `--model` - LLM model name used by the run.
+- `--compare-result` - Previous pilot result JSON path to compare against for stagnation/research signals.
+- `--candidate-id` - Stable candidate identifier for this run.
+- `--output` - Write the full PilotRunResult JSON to this path.
+- `--allow-egress` - Allow egress-only pilot operations when a case explicitly requires it.
+- `--allow-semantic` - Allow semantic providers while running cases that require them.
+- `--scorecard` - Also print the Fleet aggregate scorecard preview.
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-run
+python -m codesight.cli_axi improve-run
+holus improve-run --candidate-id run-42 --workflow crewmate --model claude-sonnet-5
+python -m codesight.cli_axi improve-run --candidate-id run-42 --workflow crewmate --model claude-sonnet-5
+holus improve-run --cases tests/fixtures/holusight_eval_pilot_cases.jsonl --compare-result /tmp/last-run.json
+python -m codesight.cli_axi improve-run --cases tests/fixtures/holusight_eval_pilot_cases.jsonl --compare-result /tmp/last-run.json
+```
+
+### `holus improve-placement`
+
+Validate a proposed artifact path against structure, canonical locations, and existing duplicates. Never edits files.
+
+Flags:
+- `--artifact-type` (case/fixture/test/spec/adr/decision/playbook/source/skill/agent/docs) - Logical placement kind for a proposed artifact.
+- `--proposed-path` - Proposed artifact path to validate.
+- `--fields` - Comma-separated dotted-path projection (e.g. snapshot,evidence.source).
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-placement --artifact-type case --proposed-path tests/fixtures/my_case.jsonl
+python -m codesight.cli_axi improve-placement --artifact-type case --proposed-path tests/fixtures/my_case.jsonl
+holus improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
+python -m codesight.cli_axi improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
 ```
 
 ## Output formats

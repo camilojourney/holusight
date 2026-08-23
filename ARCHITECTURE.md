@@ -536,6 +536,60 @@ just eval-pilot                     runs it locally; NOT
 
 ---
 
+## Continuous-Improvement Loop v1 (Added 2026-08-23)
+
+Four new `holus` commands (`AXI_SCHEMA_VERSION` `0.1.0` -> `0.2.0`) that
+turn the eval pilot above into a discoverable, machine-readable lifecycle,
+plus a standalone repository-placement guard. Full design record:
+`specs/018-holusight-continuous-improvement-loop.md`; decision record:
+`docs/decisions/0014-continuous-improvement-loop-placement-guard.md`.
+Adds no new provider, retrieval mechanism, or Fleet contract — a thin
+lifecycle wrapper over `eval_pilot.py` (spec 017) and the same
+`.claude/rules/structure.md` contract `consistency.py`'s classifier
+already depends on (spec 013).
+
+```
+holus improve-status       frozen-case corpus + status-quo coverage + placement capability
+holus improve-intake "<gap>"   opt-in, content-minimized proposed regression case (no write)
+holus improve-run          runs the frozen corpus; lineage; research_needed/stagnated/improved
+holus improve-placement    validates a proposed artifact path; never edits files
+```
+
+- **Intake is opt-in and content-minimized, never a silent capture.**
+  `eval_pilot.build_intake_proposal` truncates the caller-supplied summary
+  to 240 characters and never opens the frozen case file for writing.
+  Turning a proposal into a real case is still the unchanged, ordinary
+  human-reviewed PR process `docs/playbooks/eval-pilot-case-admission.md`
+  already documents — `improve-intake` only generates the paste-ready
+  skeleton.
+- **`improve-run` adds structured stagnation/research-needed detection**
+  (`eval_pilot.evaluate_progress`) on top of the unchanged `run_pilot`:
+  comparing two runs' `counts` only (no case content) yields one of
+  `improved` / `research_needed` / `stagnated`, each carrying a
+  `recommended_research` label (`normal_review` or `gpt_deep_research`) —
+  a string only; nothing here launches research automatically. Every
+  response also carries `lifecycle.promotion = {"allowed": false, ...}`
+  unconditionally — promotion and rollback stay human-controlled.
+- **Placement compliance is evidence-only.** `improve-placement`
+  (`cli_axi._placement_recommendation`) checks canonical-location
+  membership, per-type structural rules (`specs/` flat; `docs/` limited
+  to its three fixed root files, not the ad-hoc `docs/RESEARCH.md`-shaped
+  legacy violation pattern `AGENTS.md` already names; `test` files must be
+  `test_*.py` directly under `tests/`), and duplicate-artifact-name
+  detection — then returns a recommended existing-or-new path. It never
+  creates a directory or file, and an absolute or repo-escaping
+  `--proposed-path` never reaches a filesystem check against anything
+  outside this repository (`cli_axi._safe_repo_relative_path`).
+- **Proven end to end**: `improve-run` reproduces the real, already-fixed
+  `cli-axi-provider-starvation-display-quota` regression (PR #20) through
+  the new CLI surface; `improve-placement` blocks a real duplicate-
+  artifact case (`tests/test_eval_pilot.py`, already exists). See spec 018
+  §4.1/§6.1 and `tests/test_improve_loop.py` (29 tests, including explicit
+  refusals of evaluator mutation, private/raw-content export, automatic
+  promotion, external egress, and unsupported placement).
+
+---
+
 ## Context Injection Integration (Added 2026-04-04)
 
 CodeSight is used as a runtime context provider inside the OpenClaw skill pipeline. When a developer runs `/code` on any repo, `codesight_context.py` searches that repo's index and injects the top-5 relevant chunks into the Codex prompt.
