@@ -826,11 +826,17 @@ def _cmd_improve_run(repo_root: Path, values: dict, positionals: list[str]) -> t
         )
     try:
         previous = None
+        comparison_anchor = None
         if compare_path_raw:
             compare_path = validate_output_path(
                 repo_root, Path(compare_path_raw), allowed_repo_root=RESULTS_ROOT
             )
             previous = eval_pilot.load_prior_run(compare_path)
+            from . import improvement_control
+
+            comparison_anchor = improvement_control.trusted_evaluation_result_anchor(
+                repo_root, compare_path
+            )
     except (ValueError, OSError, json.JSONDecodeError, UnsafeStoragePath) as exc:
         raise UsageError(f"invalid comparison result: {exc}") from exc
     repo_commit = current_commit(repo_root) if is_git_repo(repo_root) else None
@@ -864,10 +870,14 @@ def _cmd_improve_run(repo_root: Path, values: dict, positionals: list[str]) -> t
         )
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         raise UsageError(f"invalid case corpus: {exc}") from exc
-    progress = eval_pilot.evaluate_progress(result, previous)
+    progress = eval_pilot.evaluate_progress(
+        result,
+        previous,
+        trusted_anchor=comparison_anchor,
+        repo_root=repo_root,
+    )
 
     run_payload = result.model_dump(mode="json")
-    run_payload["cases_file"] = _public_path(repo_root, cases_path)
     if values.get("--output"):
         try:
             safe_atomic_write(

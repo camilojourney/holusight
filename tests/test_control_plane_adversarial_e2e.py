@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -129,6 +130,7 @@ def test_e2e_mutated_prior_is_invalid_not_improved(tmp_path):
     payload = json.loads(prior_path.read_text())
     payload["counts"]["passed"] = 0
     payload["counts"]["failed"] = 1
+    payload["result_digest"] = eval_pilot.canonical_result_digest(payload)
     prior_path.write_text(json.dumps(payload), encoding="utf-8")
     compared = _run(
         repo,
@@ -144,6 +146,195 @@ def test_e2e_mutated_prior_is_invalid_not_improved(tmp_path):
     )
     assert compared.returncode == 2
     assert "counts do not match grades" in compared.stdout
+
+
+def _sha256(path: Path) -> str:
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+
+def _trusted_baseline(repo: Path) -> str:
+    """Create a public-command result plus an independently tracked evaluation anchor."""
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "e2e@example.test")
+    _git(repo, "config", "user.name", "E2E")
+    (repo / "src/codesight/implementation.py").write_text("implementation\n", encoding="utf-8")
+    (repo / "tests/test_implementation.py").write_text("# test artifact\n", encoding="utf-8")
+    (repo / "docs").mkdir()
+    (repo / "docs/README.md").write_text("documentation\n", encoding="utf-8")
+    (repo / "specs").mkdir()
+    (repo / "specs/governing.md").write_text("**Status:** Evaluated\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+
+    prior = ".holusight/improvement-results/prior.json"
+    first = _run(
+        repo,
+        "improve-run",
+        "--cases",
+        "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        "--candidate-id",
+        "e2e",
+        "--output",
+        prior,
+        "--format",
+        "json",
+    )
+    assert first.returncode == 0, first.stdout
+    links = {
+        "governing": ["specs/governing.md"],
+        "implementation": ["src/codesight/implementation.py"],
+        "tests": ["tests/test_implementation.py"],
+        "documentation": ["docs/README.md"],
+        "evaluation_case": ["tests/fixtures/holusight_eval_pilot_cases.jsonl"],
+        "evaluation_result": [prior],
+    }
+    manifest = {
+        "schema_version": "holus-improvement-change/v1",
+        "change_id": "e2e",
+        "classification": "evaluated",
+        "classification_evidence": "evaluated",
+        "evidence_state": "familiar",
+        "structured_sections": ["context", "evidence", "decision"],
+        "links": links,
+        "link_hashes": {path: _sha256(repo / path) for paths in links.values() for path in paths},
+        "lineage": {"candidate_id": "e2e", "workflow": "e2e", "tool": "pytest"},
+        "proposed_artifacts": [],
+    }
+    (repo / "specs/e2e.change.json").write_text(json.dumps(manifest), encoding="utf-8")
+    _git(repo, "add", "specs/e2e.change.json")
+    _git(repo, "commit", "-m", "anchor evaluated baseline")
+    return prior
+
+
+def test_e2e_baseline_integrity_requires_digest_and_trusted_manifest(tmp_path):
+    repo = _repo(tmp_path)
+    prior = _trusted_baseline(repo)
+    prior_path = repo / prior
+    original_bytes = prior_path.read_bytes()
+    original = json.loads(original_bytes)
+
+    def compare(candidate: str = "e2e") -> subprocess.CompletedProcess[str]:
+        return _run(
+            repo,
+            "improve-run",
+            "--cases",
+            "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+            "--candidate-id",
+            candidate,
+            "--compare-result",
+            prior,
+            "--format",
+            "json",
+        )
+
+    # The PR #24 count-only regression remains a clean public usage error.
+    count_only = json.loads(json.dumps(original))
+    count_only["counts"]["passed"] = 0
+    count_only["counts"]["failed"] = 1
+    prior_path.write_text(json.dumps(count_only), encoding="utf-8")
+    result = compare()
+    assert result.returncode == 2
+    assert json.loads(result.stdout)["error"]["code"] == "USAGE_ERROR"
+
+    # A coherent grade-plus-count edit with the old digest is rejected too.
+    coherent = json.loads(json.dumps(original))
+    coherent["grades"][0]["verdict"] = "fail"
+    coherent["counts"]["passed"] = 0
+    coherent["counts"]["failed"] = 1
+    prior_path.write_text(json.dumps(coherent), encoding="utf-8")
+    result = compare()
+    assert result.returncode == 2
+    assert "digest" in json.loads(result.stdout)["error"]["message"]
+
+    # Replacing bytes and recalculating the result's self-declared digest still
+    # cannot defeat the independently tracked evaluated-manifest hash.
+    coherent.pop("result_digest")
+    coherent["result_digest"] = "sha256:" + hashlib.sha256(
+        json.dumps(coherent, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    prior_path.write_text(json.dumps(coherent), encoding="utf-8")
+    result = compare()
+    assert result.returncode == 0
+    progress = json.loads(result.stdout)["progress"]
+    assert progress["outcome"] == "invalid_comparison"
+    assert progress["comparison"]["promotion_relevant"] is False
+    assert progress["next_step"] != "candidate_readiness_for_review"
+
+    prior_path.write_bytes(original_bytes)
+    valid = compare()
+    assert valid.returncode == 0
+    valid_progress = json.loads(valid.stdout)["progress"]
+    assert valid_progress["comparison"]["promotion_relevant"] is True, valid_progress
+    assert valid_progress["outcome"] == "stagnated"
+
+    # A valid anchor does not make candidate identity, evaluator, corpus, or
+    # commit incompatibilities eligible for a promotion-relevant next step.
+    identity = compare("other-candidate")
+    assert identity.returncode == 0
+    assert json.loads(identity.stdout)["progress"]["outcome"] == "invalid_comparison"
+
+    (repo / "src/codesight/eval_pilot.py").write_text("changed evaluator\n", encoding="utf-8")
+    _git(repo, "add", "src/codesight/eval_pilot.py")
+    _git(repo, "commit", "-m", "change evaluator")
+    evaluator = compare()
+    assert evaluator.returncode == 0
+    assert json.loads(evaluator.stdout)["progress"]["outcome"] == "invalid_comparison"
+
+    alternate = repo / "other-cases.jsonl"
+    alternate.write_text((repo / "tests/fixtures/holusight_eval_pilot_cases.jsonl").read_text())
+    corpus = _run(
+        repo,
+        "improve-run",
+        "--cases",
+        "other-cases.jsonl",
+        "--candidate-id",
+        "e2e",
+        "--compare-result",
+        prior,
+        "--format",
+        "json",
+    )
+    assert corpus.returncode == 0
+    assert json.loads(corpus.stdout)["progress"]["outcome"] == "invalid_comparison"
+
+
+def test_e2e_unrelated_prior_commit_is_not_promotion_relevant(tmp_path):
+    repo = _repo(tmp_path)
+    prior = _trusted_baseline(repo)
+    prior_path = repo / prior
+    payload = json.loads(prior_path.read_text(encoding="utf-8"))
+    payload["lineage"]["repo_commit"] = "0" * 40
+    payload["result_digest"] = eval_pilot.canonical_result_digest(payload)
+    prior_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    manifest_path = repo / "specs/e2e.change.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["link_hashes"][prior] = _sha256(prior_path)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    _git(repo, "add", "specs/e2e.change.json")
+    _git(repo, "commit", "-m", "anchor unrelated commit baseline")
+
+    result = _run(
+        repo,
+        "improve-run",
+        "--cases",
+        "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        "--candidate-id",
+        "e2e",
+        "--compare-result",
+        prior,
+        "--format",
+        "json",
+    )
+    assert result.returncode == 0
+    progress = json.loads(result.stdout)["progress"]
+    assert progress["outcome"] == "invalid_comparison"
+    assert progress["comparison"]["promotion_relevant"] is False
+    assert progress["next_step"] != "candidate_readiness_for_review"
 
 
 def test_e2e_case_placement_enforces_jsonl_and_correct_action(tmp_path):

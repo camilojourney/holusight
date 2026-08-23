@@ -63,6 +63,41 @@ def _tracked(repo_root: Path, path: Path) -> bool:
     return result.returncode == 0
 
 
+def is_clean_tracked_file(repo_root: Path, path: Path) -> bool:
+    """Return whether ``path`` exactly matches a blob in the current HEAD.
+
+    This is deliberately stricter than index tracking: an unstaged or staged
+    replacement is not a trustworthy anchor. Callers still validate their own
+    schema before treating the blob as evidence.
+    """
+    try:
+        repo_root = repo_root.resolve()
+        path = path.resolve(strict=True)
+        relative = path.relative_to(repo_root).as_posix()
+        _lstat_no_symlink(path)
+    except (OSError, ValueError, UnsafeStoragePath):
+        return False
+    if path.is_symlink() or not path.is_file():
+        return False
+    head_blob = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", f"HEAD:{relative}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    worktree_blob = subprocess.run(
+        ["git", "-C", str(repo_root), "hash-object", "--", relative],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return (
+        head_blob.returncode == 0
+        and worktree_blob.returncode == 0
+        and head_blob.stdout.strip() == worktree_blob.stdout.strip()
+    )
+
+
 def validate_output_path(repo_root: Path, raw_path: Path, *, allowed_repo_root: Path) -> Path:
     """Validate a result destination before opening it.
 

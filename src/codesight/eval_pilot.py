@@ -87,6 +87,27 @@ def _sha256_hex(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
+def canonical_result_digest(result: "PilotRunResult | dict[str, object]") -> str:
+    """Hash the complete serialized result except its self-referential digest.
+
+    This is the canonical representation for results at rest and is checked
+    whenever a prior result is loaded.  A digest in mutable result bytes is an
+    integrity check, not an independent promotion anchor.
+    """
+    payload = (
+        result.model_dump(mode="json") if isinstance(result, PilotRunResult) else dict(result)
+    )
+    payload.pop("result_digest", None)
+    return _sha256_hex(json.dumps(payload, sort_keys=True).encode("utf-8"))
+
+
+def _public_cases_path(repo_root: Path, cases_path: Path) -> str:
+    try:
+        return str(cases_path.resolve().relative_to(repo_root.resolve()))
+    except (ValueError, OSError):
+        return "external-corpus"
+
+
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
@@ -310,6 +331,8 @@ def _recomputed_counts(grades: list[CaseGrade]) -> dict[str, int]:
 def _validate_result(result: PilotRunResult) -> None:
     if result.schema_version != SCHEMA_RESULT:
         raise ValueError("prior result uses an unsupported schema")
+    if not result.result_digest or result.result_digest != canonical_result_digest(result):
+        raise ValueError("prior result digest does not match canonical result bytes")
     if result.counts != _recomputed_counts(result.grades):
         raise ValueError("prior result counts do not match grades")
     if result.status_quo_control == "included" and (
@@ -354,94 +377,171 @@ def load_prior_run(path: Path) -> PilotRunResult | None:
     return result
 
 
-def evaluate_progress(
-    current: PilotRunResult, previous: PilotRunResult | None
+def _comparison_progress(
+    outcome: str,
+    *,
+    reason: str,
+    next_step: str,
+    research_needed: bool,
+    stagnated: bool,
+    promotion_relevant: bool,
+    recommended_research: str | None,
 ) -> dict[str, object]:
-    """Detect stagnation or uncertainty between two frozen runs.
+    """Keep comparison trust explicit in every lifecycle outcome.
 
-    `current` and `previous` are compared using counts only. `research_needed`
-    and `stagnated` are distinct and machine-readable outcomes; neither
-    triggers automatic action.
+    A no-baseline run is advisory. A comparison is promotion-relevant evidence
+    only when its prior result is independently anchored by a clean, tracked,
+    fully validated evaluated manifest. This remains evidence for human review,
+    never automatic promotion. Invalid comparisons are neither advisory input
+    nor promotion-relevant and can only request evidence repair.
+    """
+    is_advisory = outcome == "research_needed" and reason.startswith("no prior")
+    classification = (
+        "promotion_relevant" if promotion_relevant else ("advisory" if is_advisory else "invalid")
+    )
+    return {
+        "outcome": outcome,
+        "research_needed": research_needed,
+        "stagnated": stagnated,
+        "reason": reason,
+        "recommended_research": recommended_research,
+        "next_step": next_step,
+        "comparison": {
+            "classification": classification,
+            "promotion_relevant": promotion_relevant,
+            "automatic_promotion": False,
+        },
+    }
+
+
+def _is_ancestor_commit(repo_root: Path, ancestor: str, descendant: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "merge-base", "--is-ancestor", ancestor, descendant],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def evaluate_progress(
+    current: PilotRunResult,
+    previous: PilotRunResult | None,
+    *,
+    trusted_anchor: str | None = None,
+    repo_root: Path | None = None,
+) -> dict[str, object]:
+    """Return a fail-closed, explicitly classified comparison outcome.
+
+    Standalone runs are advisory. A prior result may influence the
+    promotion-relevant human-review signal only if a separate clean tracked
+    evaluated manifest pins its loaded bytes. Current and prior code/corpus
+    identities must also match; a prior commit may be an ancestor so recording
+    the tracked manifest itself does not make an otherwise identical baseline
+    unusable.
     """
     if previous is None:
-        return {
-            "outcome": "research_needed",
-            "research_needed": True,
-            "stagnated": False,
-            "reason": "no prior run to compare against",
-            "recommended_research": "normal_review",
-            "next_step": "run_compare_after_repair",
-        }
+        return _comparison_progress(
+            "research_needed",
+            reason="no prior run to compare against",
+            next_step="run_compare_after_repair",
+            research_needed=True,
+            stagnated=False,
+            promotion_relevant=False,
+            recommended_research="normal_review",
+        )
 
     try:
         _validate_result(current)
         _validate_result(previous)
     except ValueError as exc:
-        return {
-            "outcome": "invalid_comparison",
-            "research_needed": True,
-            "stagnated": False,
-            "reason": str(exc),
-            "recommended_research": "normal_review",
-            "next_step": "repair_comparison_evidence",
-        }
+        return _comparison_progress(
+            "invalid_comparison",
+            reason=str(exc),
+            next_step="repair_comparison_evidence",
+            research_needed=True,
+            stagnated=False,
+            promotion_relevant=False,
+            recommended_research="normal_review",
+        )
+    if not trusted_anchor:
+        return _comparison_progress(
+            "invalid_comparison",
+            reason="prior result is not pinned by a clean tracked evaluated manifest",
+            next_step="repair_comparison_evidence",
+            research_needed=True,
+            stagnated=False,
+            promotion_relevant=False,
+            recommended_research="normal_review",
+        )
     if (
         current.cases_file_hash != previous.cases_file_hash
         or current.lineage.evaluator_digest != previous.lineage.evaluator_digest
-        or current.lineage.repo_commit != previous.lineage.repo_commit
+        or current.lineage.candidate_id != previous.lineage.candidate_id
         or current.lineage.candidate_digest != previous.lineage.candidate_digest
         or current.lineage.comparator_digest != previous.lineage.comparator_digest
+        or not current.lineage.repo_commit
+        or not previous.lineage.repo_commit
+        or repo_root is None
+        or not _is_ancestor_commit(
+            repo_root, previous.lineage.repo_commit, current.lineage.repo_commit
+        )
     ):
-        return {
-            "outcome": "invalid_comparison",
-            "research_needed": True,
-            "stagnated": False,
-            "reason": "corpus, evaluator, candidate, or commit identity differs",
-            "recommended_research": "normal_review",
-            "next_step": "repair_comparison_evidence",
-        }
+        return _comparison_progress(
+            "invalid_comparison",
+            reason="corpus, evaluator, candidate, or commit identity differs",
+            next_step="repair_comparison_evidence",
+            research_needed=True,
+            stagnated=False,
+            promotion_relevant=False,
+            recommended_research="normal_review",
+        )
 
     current_rate = current.counts["passed"] / max(current.counts["total"], 1)
     previous_rate = previous.counts["passed"] / max(previous.counts["total"], 1)
 
     if current.counts["errored"] > previous.counts["errored"]:
-        return {
-            "outcome": "research_needed",
-            "research_needed": True,
-            "stagnated": False,
-            "reason": "errored cases increased",
-            "recommended_research": "normal_review",
-            "next_step": "isolate_instability",
-        }
+        return _comparison_progress(
+            "research_needed",
+            reason="errored cases increased",
+            next_step="isolate_instability",
+            research_needed=True,
+            stagnated=False,
+            promotion_relevant=True,
+            recommended_research="normal_review",
+        )
 
     if current_rate > previous_rate:
-        return {
-            "outcome": "improved",
-            "research_needed": False,
-            "stagnated": False,
-            "reason": "pass rate improved",
-            "recommended_research": None,
-            "next_step": "candidate_readiness_for_review",
-        }
+        return _comparison_progress(
+            "improved",
+            reason="pass rate improved",
+            next_step="candidate_readiness_for_review",
+            research_needed=False,
+            stagnated=False,
+            promotion_relevant=True,
+            recommended_research=None,
+        )
 
     if current_rate < previous_rate:
-        return {
-            "outcome": "stagnated",
-            "research_needed": False,
-            "stagnated": True,
-            "reason": "pass rate decreased",
-            "recommended_research": "gpt_deep_research",
-            "next_step": "pause_promotion",
-        }
+        return _comparison_progress(
+            "stagnated",
+            reason="pass rate decreased",
+            next_step="pause_promotion",
+            research_needed=False,
+            stagnated=True,
+            promotion_relevant=True,
+            recommended_research="gpt_deep_research",
+        )
 
-    return {
-        "outcome": "stagnated",
-        "research_needed": False,
-        "stagnated": True,
-        "reason": "no measurable change from prior run",
-        "recommended_research": "gpt_deep_research",
-        "next_step": "add_new_cases",
-    }
+    return _comparison_progress(
+        "stagnated",
+        reason="no measurable change from prior run",
+        next_step="add_new_cases",
+        research_needed=False,
+        stagnated=True,
+        promotion_relevant=True,
+        recommended_research="gpt_deep_research",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -750,7 +850,7 @@ def run_pilot(
 
     result = PilotRunResult(
         run_id=f"eval-pilot-{lineage.candidate_id}-{_now()}",
-        cases_file=str(cases_path),
+        cases_file=_public_cases_path(repo_root, cases_path),
         cases_file_hash=file_hash,
         lineage=lineage,
         egress_allowed=allow_egress,
@@ -760,11 +860,7 @@ def run_pilot(
         status_quo_control=status_quo_control,
         corpus_trust=corpus_trust,
     )
-    result.result_digest = _sha256_hex(
-        json.dumps(
-            result.model_dump(mode="json", exclude={"result_digest"}), sort_keys=True
-        ).encode("utf-8")
-    )
+    result.result_digest = canonical_result_digest(result)
     return result
 
 
