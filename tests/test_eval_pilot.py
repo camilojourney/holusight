@@ -205,6 +205,62 @@ def test_status_quo_control_not_applicable_when_no_comparative_cases(tmp_path):
     assert result.counts["comparative_total"] == 0
 
 
+def test_persisted_result_schema_rejects_unknown_fields_and_closed_vocabularies():
+    payload = eval_pilot.run_pilot(REPO_ROOT, cases_path=CASES_PATH, lineage=_lineage()).model_dump(
+        mode="json"
+    )
+    comparative_index = next(
+        index for index, grade in enumerate(payload["grades"]) if grade["kind"] == "comparative"
+    )
+
+    invalid_payloads = []
+    unknown_result = json.loads(json.dumps(payload))
+    unknown_result["unexpected_result_field"] = True
+    invalid_payloads.append(unknown_result)
+    unknown_grade = json.loads(json.dumps(payload))
+    unknown_grade["grades"][0]["unexpected_grade_field"] = True
+    invalid_payloads.append(unknown_grade)
+    unknown_count = json.loads(json.dumps(payload))
+    unknown_count["counts"]["unexpected_count"] = 0
+    invalid_payloads.append(unknown_count)
+    unknown_lineage = json.loads(json.dumps(payload))
+    unknown_lineage["lineage"]["unexpected_lineage_field"] = True
+    invalid_payloads.append(unknown_lineage)
+    invalid_verdict = json.loads(json.dumps(payload))
+    invalid_verdict["grades"][0]["verdict"] = "not-a-verdict"
+    invalid_payloads.append(invalid_verdict)
+    invalid_status_quo_verdict = json.loads(json.dumps(payload))
+    invalid_status_quo_verdict["grades"][comparative_index]["status_quo_verdict"] = "unknown"
+    invalid_payloads.append(invalid_status_quo_verdict)
+    invalid_status_quo_control = json.loads(json.dumps(payload))
+    invalid_status_quo_control["status_quo_control"] = "unknown"
+    invalid_payloads.append(invalid_status_quo_control)
+    invalid_corpus_trust = json.loads(json.dumps(payload))
+    invalid_corpus_trust["corpus_trust"] = "unknown"
+    invalid_payloads.append(invalid_corpus_trust)
+
+    for invalid_payload in invalid_payloads:
+        with pytest.raises(ValueError):
+            eval_pilot.PilotRunResult.model_validate(invalid_payload)
+
+
+def test_result_validation_requires_exact_counts_and_complete_partition():
+    payload = eval_pilot.run_pilot(REPO_ROOT, cases_path=CASES_PATH, lineage=_lineage()).model_dump(
+        mode="json"
+    )
+    missing_count = json.loads(json.dumps(payload))
+    del missing_count["counts"]["errored"]
+    with pytest.raises(ValueError):
+        eval_pilot.PilotRunResult.model_validate(missing_count)
+
+    partition_mismatch = json.loads(json.dumps(payload))
+    partition_mismatch["counts"]["passed"] += 1
+    partition_mismatch["result_digest"] = eval_pilot.canonical_result_digest(partition_mismatch)
+    parsed = eval_pilot.PilotRunResult.model_validate(partition_mismatch)
+    with pytest.raises(ValueError, match="complete partition"):
+        eval_pilot._validate_result(parsed)
+
+
 def test_display_quota_candidate_beats_the_status_quo_comparator():
     """The concrete demonstration: the shipped fix (candidate) must pass
     while the frozen pre-fix comparator (status quo) reproduces the

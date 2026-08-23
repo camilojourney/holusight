@@ -50,9 +50,9 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Annotated, Callable, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from . import axi_providers, cli_axi, consistency
 from .control_storage import RESULTS_ROOT, UnsafeStoragePath, safe_atomic_write
@@ -113,7 +113,13 @@ def _public_cases_path(repo_root: Path, cases_path: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-class CandidateLineage(BaseModel):
+class _ClosedResultModel(BaseModel):
+    """Fail closed for every persisted result object, including nested fields."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class CandidateLineage(_ClosedResultModel):
     """Who/what produced this run. Deliberately excludes any raw-prompt or
     free-text-content field — only identity/workflow metadata."""
 
@@ -129,17 +135,34 @@ class CandidateLineage(BaseModel):
     comparator_digest: str | None = None
 
 
-class CaseGrade(BaseModel):
+class CaseGrade(_ClosedResultModel):
     case_id: str
     family: str
-    kind: str
-    verdict: str  # "pass" | "fail" | "error"
-    status_quo_verdict: str | None = None
+    kind: Literal["regression", "comparative"]
+    verdict: Literal["pass", "fail", "error"]
+    status_quo_verdict: Literal["pass", "fail"] | None = None
     detail: str
     provenance_origin: str
 
 
-class PilotRunResult(BaseModel):
+_Count = Annotated[StrictInt, Field(ge=0)]
+
+
+class ResultCounts(_ClosedResultModel):
+    """The exact, non-negative count partition persisted in every result."""
+
+    total: _Count
+    passed: _Count
+    failed: _Count
+    errored: _Count
+    comparative_total: _Count
+    comparative_with_status_quo_verdict: _Count
+
+    def __getitem__(self, key: str) -> int:
+        return getattr(self, key)
+
+
+class PilotRunResult(_ClosedResultModel):
     schema_version: str = SCHEMA_RESULT
     run_id: str
     cases_file: str
@@ -148,9 +171,9 @@ class PilotRunResult(BaseModel):
     egress_allowed: bool
     semantic_allowed: bool
     grades: list[CaseGrade]
-    counts: dict[str, int]
-    status_quo_control: str  # "included" | "not_applicable" | "invalid"
-    corpus_trust: str = "canonical"  # canonical | untrusted_advisory
+    counts: ResultCounts
+    status_quo_control: Literal["included", "not_applicable", "invalid"]
+    corpus_trust: Literal["canonical", "untrusted_advisory"] = "canonical"
     result_digest: str | None = None
 
 
@@ -315,17 +338,17 @@ def build_intake_proposal(
     }
 
 
-def _recomputed_counts(grades: list[CaseGrade]) -> dict[str, int]:
-    return {
-        "total": len(grades),
-        "passed": sum(g.verdict == "pass" for g in grades),
-        "failed": sum(g.verdict == "fail" for g in grades),
-        "errored": sum(g.verdict == "error" for g in grades),
-        "comparative_total": sum(g.kind == "comparative" for g in grades),
-        "comparative_with_status_quo_verdict": sum(
+def _recomputed_counts(grades: list[CaseGrade]) -> ResultCounts:
+    return ResultCounts(
+        total=len(grades),
+        passed=sum(g.verdict == "pass" for g in grades),
+        failed=sum(g.verdict == "fail" for g in grades),
+        errored=sum(g.verdict == "error" for g in grades),
+        comparative_total=sum(g.kind == "comparative" for g in grades),
+        comparative_with_status_quo_verdict=sum(
             g.kind == "comparative" and g.status_quo_verdict is not None for g in grades
         ),
-    }
+    )
 
 
 def _validate_result(result: PilotRunResult) -> None:
@@ -333,10 +356,26 @@ def _validate_result(result: PilotRunResult) -> None:
         raise ValueError("prior result uses an unsupported schema")
     if not result.result_digest or result.result_digest != canonical_result_digest(result):
         raise ValueError("prior result digest does not match canonical result bytes")
+    if (
+        result.counts["passed"] + result.counts["failed"] + result.counts["errored"]
+        != result.counts["total"]
+    ):
+        raise ValueError("prior result counts do not form a complete partition")
     if result.counts != _recomputed_counts(result.grades):
         raise ValueError("prior result counts do not match grades")
-    if result.status_quo_control == "included" and (
-        result.counts["comparative_total"] != result.counts["comparative_with_status_quo_verdict"]
+    for grade in result.grades:
+        if grade.kind == "comparative" and grade.status_quo_verdict is None:
+            raise ValueError("prior result has comparative grade without a status-quo verdict")
+        if grade.kind == "regression" and grade.status_quo_verdict is not None:
+            raise ValueError("prior result has status-quo verdict for a non-comparative grade")
+    expected_status_quo_control = (
+        "included" if result.counts["comparative_total"] else "not_applicable"
+    )
+    if result.status_quo_control != expected_status_quo_control:
+        raise ValueError("prior result has invalid status-quo control state")
+    if (
+        result.counts["comparative_total"]
+        != result.counts["comparative_with_status_quo_verdict"]
     ):
         raise ValueError("prior result has incomplete status-quo controls")
     if result.corpus_trust != "canonical" or result.lineage.repo_dirty:

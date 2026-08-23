@@ -302,7 +302,7 @@ def _review_links(
     requires_full_evidence = classification in {"accepted", "implemented", "evaluated"}
     hashes = manifest["link_hashes"]
     seen: dict[str, str] = {}
-    validated_cases: dict[str, tuple[Path, str]] = {}
+    validated_cases: dict[str, tuple[Path, str, dict[str, str]]] = {}
     validated_results: list[tuple[Path, eval_pilot.PilotRunResult]] = []
 
     for role in LINK_ROLES:
@@ -352,9 +352,14 @@ def _review_links(
                         raise ValueError(
                             "evaluation case corpus is not the canonical frozen corpus"
                         )
-                    validated_cases[path] = (full_path, eval_pilot.cases_file_hash(full_path))
-                    if len({case["case_id"] for case in cases}) != len(cases):
+                    case_kinds = {case["case_id"]: case["kind"] for case in cases}
+                    if len(case_kinds) != len(cases):
                         raise ValueError("duplicate case IDs")
+                    validated_cases[path] = (
+                        full_path,
+                        eval_pilot.cases_file_hash(full_path),
+                        case_kinds,
+                    )
                 except (ValueError, OSError, json.JSONDecodeError):
                     blockers.append(_blocked("invalid_evaluation_case", path, role=role))
             elif role == "evaluation_result":
@@ -373,9 +378,19 @@ def _review_links(
         if not validated_cases or not validated_results:
             blockers.append(_blocked("missing_verified_evaluation", manifest["change_id"]))
         for _path, result in validated_results:
-            case_hashes = {digest for _case_path, digest in validated_cases.values()}
+            matching_case_kinds = [
+                case_kinds
+                for _case_path, digest, case_kinds in validated_cases.values()
+                if result.cases_file_hash == digest
+            ]
+            result_case_kinds = {grade.case_id: grade.kind for grade in result.grades}
+            grades_match_corpus = any(
+                len(result_case_kinds) == len(result.grades)
+                and result_case_kinds == case_kinds
+                for case_kinds in matching_case_kinds
+            )
             if (
-                result.cases_file_hash not in case_hashes
+                not grades_match_corpus
                 or result.lineage.candidate_id != manifest["change_id"]
                 or result.counts["failed"]
                 or result.counts["errored"]

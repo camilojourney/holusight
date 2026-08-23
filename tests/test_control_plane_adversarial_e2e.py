@@ -12,8 +12,11 @@ from codesight import eval_pilot
 
 
 def _run(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Exercise the installed public console command, never an in-process handler."""
+    public_command = Path(sys.executable).with_name("holus")
+    assert public_command.is_file(), f"public holus command missing: {public_command}"
     return subprocess.run(
-        [sys.executable, "-m", "codesight.cli_axi", *args],
+        [str(public_command), *args],
         cwd=repo,
         text=True,
         capture_output=True,
@@ -300,6 +303,157 @@ def test_e2e_baseline_integrity_requires_digest_and_trusted_manifest(tmp_path):
     )
     assert corpus.returncode == 0
     assert json.loads(corpus.stdout)["progress"]["outcome"] == "invalid_comparison"
+
+
+def test_e2e_closed_result_schema_blocks_committed_invalid_anchor(tmp_path):
+    """A clean replacement manifest cannot turn malformed evidence into promotion input."""
+    repo = _repo(tmp_path)
+    prior = _trusted_baseline(repo)
+    prior_path = repo / prior
+
+    # The genuine clean anchor remains a compatible, human-review-only comparison.
+    valid = _run(
+        repo,
+        "improve-run",
+        "--cases",
+        "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        "--candidate-id",
+        "e2e",
+        "--compare-result",
+        prior,
+        "--format",
+        "json",
+    )
+    assert valid.returncode == 0
+    valid_progress = json.loads(valid.stdout)["progress"]
+    assert valid_progress["comparison"]["promotion_relevant"] is True
+    assert valid_progress["comparison"]["automatic_promotion"] is False
+
+    def commit_replacement(payload: dict, message: str) -> None:
+        payload["result_digest"] = eval_pilot.canonical_result_digest(payload)
+        prior_path.write_text(json.dumps(payload), encoding="utf-8")
+        manifest_path = repo / "specs/e2e.change.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["link_hashes"][prior] = _sha256(prior_path)
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        _git(repo, "add", "specs/e2e.change.json")
+        _git(repo, "commit", "-m", message)
+
+    # Parse-time rejection is JSON-formatted and never leaves a candidate-review path.
+    unknown = json.loads(prior_path.read_text(encoding="utf-8"))
+    unknown["unexpected_result_field"] = "rejected"
+    commit_replacement(unknown, "anchor unknown result field")
+    unknown_result = _run(
+        repo,
+        "improve-run",
+        "--cases",
+        "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        "--candidate-id",
+        "e2e",
+        "--compare-result",
+        prior,
+        "--format",
+        "json",
+    )
+    assert unknown_result.returncode == 2
+    unknown_error = json.loads(unknown_result.stdout)["error"]
+    assert unknown_error["code"] == "USAGE_ERROR"
+    assert "unexpected_result_field" in unknown_error["message"]
+
+    # Restore a valid baseline before committing each independent adversarial replacement.
+    _git(repo, "reset", "--hard", "HEAD~1")
+    prior_path.write_text(json.dumps(json.loads(valid.stdout)["run"]), encoding="utf-8")
+
+    partition_mismatch = json.loads(prior_path.read_text(encoding="utf-8"))
+    partition_mismatch["counts"]["passed"] = 2
+    commit_replacement(partition_mismatch, "anchor count partition mismatch")
+    partition_result = _run(
+        repo,
+        "improve-run",
+        "--cases",
+        "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        "--candidate-id",
+        "e2e",
+        "--compare-result",
+        prior,
+        "--format",
+        "json",
+    )
+    assert partition_result.returncode == 2
+    partition_error = json.loads(partition_result.stdout)["error"]
+    assert partition_error["code"] == "USAGE_ERROR"
+    assert "complete partition" in partition_error["message"]
+
+    _git(repo, "reset", "--hard", "HEAD~1")
+    prior_path.write_text(json.dumps(json.loads(valid.stdout)["run"]), encoding="utf-8")
+
+    # This is the exact verified bypass: a supported count shape plus an unsupported
+    # verdict and a committed replacement anchor must be rejected before comparison.
+    unsupported_verdict = json.loads(prior_path.read_text(encoding="utf-8"))
+    unsupported_verdict["grades"][0]["verdict"] = "not-a-verdict"
+    unsupported_verdict["counts"] = {
+        "total": 1,
+        "passed": 0,
+        "failed": 0,
+        "errored": 0,
+        "comparative_total": 0,
+        "comparative_with_status_quo_verdict": 0,
+    }
+    commit_replacement(unsupported_verdict, "anchor unsupported verdict")
+    unsupported = _run(
+        repo,
+        "improve-run",
+        "--cases",
+        "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        "--candidate-id",
+        "e2e",
+        "--compare-result",
+        prior,
+        "--format",
+        "json",
+    )
+    assert unsupported.returncode == 2
+    assert json.loads(unsupported.stdout)["error"]["code"] == "USAGE_ERROR"
+
+    review = _run(
+        repo,
+        "improve-review",
+        "specs/e2e.change.json",
+        "--phase",
+        "pre_promotion",
+        "--format",
+        "json",
+    )
+    assert review.returncode == 0
+    review_payload = json.loads(review.stdout)["review"]
+    assert review_payload["blockers"]
+    assert review_payload["next_permitted_action"] != "human_promotion_review"
+    assert review_payload["promotion"]["allowed"] is False
+
+    _git(repo, "reset", "--hard", "HEAD~1")
+    prior_path.write_text(json.dumps(json.loads(valid.stdout)["run"]), encoding="utf-8")
+
+    # A renamed grade cannot gain trust merely by matching a manifest byte hash.
+    renamed = json.loads(prior_path.read_text(encoding="utf-8"))
+    renamed["grades"][0]["case_id"] = "renamed-case"
+    commit_replacement(renamed, "anchor renamed grade")
+    mismatched = _run(
+        repo,
+        "improve-run",
+        "--cases",
+        "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        "--candidate-id",
+        "e2e",
+        "--compare-result",
+        prior,
+        "--format",
+        "json",
+    )
+    assert mismatched.returncode == 0
+    mismatch_progress = json.loads(mismatched.stdout)["progress"]
+    assert mismatch_progress["outcome"] == "invalid_comparison"
+    assert mismatch_progress["comparison"]["promotion_relevant"] is False
+    assert mismatch_progress["next_step"] != "candidate_readiness_for_review"
 
 
 def test_e2e_unrelated_prior_commit_is_not_promotion_relevant(tmp_path):
