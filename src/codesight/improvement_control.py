@@ -23,6 +23,7 @@ from . import eval_pilot
 from .control_storage import (
     HISTORY_ROOT,
     UnsafeStoragePath,
+    is_clean_tracked_file,
     safe_atomic_write,
     validate_output_path,
 )
@@ -390,6 +391,45 @@ def _review_links(
                     )
                 )
     return blockers, missing
+
+
+def trusted_evaluation_result_anchor(repo_root: Path, result_path: Path) -> str | None:
+    """Find a clean tracked evaluated manifest that pins mutable result bytes.
+
+    Result JSON is derived state and may be replaced by its caller. Its own
+    digest only detects accidental or stale edits. A promotion-relevant
+    comparison therefore requires a separate, clean HEAD-tracked manifest with
+    validated typed evidence and a matching full-byte hash for this result.
+    """
+    try:
+        result_relative = (
+            result_path.resolve(strict=True).relative_to(repo_root.resolve()).as_posix()
+        )
+    except (OSError, ValueError):
+        return None
+    if result_path.is_symlink() or not result_path.is_file():
+        return None
+    result_hash = _sha256(result_path)
+    specs_root = repo_root / "specs"
+    if not specs_root.is_dir():
+        return None
+    for path in sorted(specs_root.glob("*.change.json")):
+        if not is_clean_tracked_file(repo_root, path):
+            continue
+        try:
+            manifest, relative = _load_manifest(repo_root, path.relative_to(repo_root).as_posix())
+            if manifest["classification"] != "evaluated":
+                continue
+            if result_relative not in manifest["links"].get("evaluation_result", []):
+                continue
+            if manifest["link_hashes"].get(result_relative) != result_hash:
+                continue
+            blockers, _missing = _review_links(repo_root, manifest)
+            if not blockers:
+                return relative.as_posix()
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+    return None
 
 
 def _stage(classification: str, links: dict[str, Any], blockers: list[dict[str, str]]) -> str:

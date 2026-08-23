@@ -149,7 +149,11 @@ def test_improve_run_never_writes_to_the_frozen_case_file():
     assert CASES_PATH.read_bytes() == before
 
 
-def test_improve_run_reports_structured_progress_outcome(tmp_path):
+def test_improve_run_reports_structured_progress_outcome(tmp_path, monkeypatch):
+    # Keep this contract test independent of the developer's uncommitted
+    # implementation under test; production clean-worktree state is checked by
+    # the subprocess E2E suite.
+    monkeypatch.setattr(eval_pilot, "_git_dirty", lambda _repo: False)
     output_path = tmp_path / "first-run.json"
     _run(
         [
@@ -164,20 +168,23 @@ def test_improve_run_reports_structured_progress_outcome(tmp_path):
     )
     assert output_path.exists()
 
-    # A dirty working tree or a distinct candidate identity cannot be used as
-    # promotion-relevant comparative evidence.
-    with pytest.raises(cli_axi.UsageError, match="invalid comparison result"):
-        _run(
-            [
-                "improve-run",
-                "--candidate-id",
-                "run-b",
-                "--compare-result",
-                str(output_path),
-                "--format",
-                "json",
-            ]
-        )
+    # A mutable external baseline and a distinct candidate identity remain
+    # structured invalid comparison evidence, never a promotion-relevant step.
+    payload, _fmt, exit_code = _run(
+        [
+            "improve-run",
+            "--candidate-id",
+            "run-b",
+            "--compare-result",
+            str(output_path),
+            "--format",
+            "json",
+        ]
+    )
+    assert exit_code == 0
+    assert payload["progress"]["outcome"] == "invalid_comparison"
+    assert payload["progress"]["comparison"]["promotion_relevant"] is False
+    assert payload["progress"]["next_step"] != "candidate_readiness_for_review"
 
 
 def test_improve_run_without_compare_result_reports_research_needed():

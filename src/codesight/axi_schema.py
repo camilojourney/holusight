@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-AXI_SCHEMA_VERSION = "0.3.0"
+AXI_SCHEMA_VERSION = "0.4.0"
 
 # The five stable jobs, per specs/011-holusight-product-architecture-research.md
 # ("holus-axi: smallest stable command surface") and
@@ -98,7 +98,8 @@ _ARTIFACT_TYPE_FLAG = AxiFlag(
 _PROPOSED_PATH_FLAG = AxiFlag("--proposed-path", "Proposed artifact path to validate.")
 _COMPARE_FLAG = AxiFlag(
     "--compare-result",
-    "Previous pilot result JSON path to compare against for stagnation/research signals.",
+    "Previous pilot result JSON path. Promotion-relevant comparison requires a clean "
+    "tracked evaluated manifest that pins its exact bytes; all other comparisons fail closed.",
 )
 _WORKFLOW_FLAG = AxiFlag("--workflow", "Execution workflow label.")
 _TOOL_FLAG = AxiFlag("--tool", "Tool that produced this run.")

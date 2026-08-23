@@ -10,7 +10,7 @@ description: >
 
 # holus - Holusight-AXI repository evidence CLI
 
-Schema version: `0.3.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
+Schema version: `0.4.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
 
 ## When to use this
 
@@ -152,7 +152,7 @@ Flags:
 - `--workflow` - Execution workflow label.
 - `--tool` - Tool that produced this run.
 - `--model` - LLM model name used by the run.
-- `--compare-result` - Previous pilot result JSON path to compare against for stagnation/research signals.
+- `--compare-result` - Previous pilot result JSON path. Promotion-relevant comparison requires a clean tracked evaluated manifest that pins its exact bytes; all other comparisons fail closed.
 - `--candidate-id` - Stable candidate identifier for this run.
 - `--output` - Write the full PilotRunResult JSON only to gitignored derived state or a safe external path.
 - `--allow-egress` - Allow egress-only pilot operations when a case explicitly requires it.
