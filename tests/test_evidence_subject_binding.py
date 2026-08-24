@@ -110,9 +110,23 @@ def test_repository_identity_strips_remote_credentials(tmp_path):
     [
         "https://192.168.1.10/org/repo.git",
         "https://macbook.local/org/repo.git",
+        "https://repo.localhost/org/repo.git",
     ],
 )
 def test_repository_identity_rejects_machine_local_remote(tmp_path, origin):
+    repo = _committed_repo(tmp_path)
+    _git(repo, "remote", "add", "origin", origin)
+    assert eval_pilot._repository_identity(repo) == "local-no-remote"
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "git@example.test:org/repo.git?access_token=secret",
+        "git@example.test:org/repo.git#secret",
+    ],
+)
+def test_repository_identity_rejects_scp_remote_suffixes(tmp_path, origin):
     repo = _committed_repo(tmp_path)
     _git(repo, "remote", "add", "origin", origin)
     assert eval_pilot._repository_identity(repo) == "local-no-remote"

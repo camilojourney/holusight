@@ -863,7 +863,10 @@ _SAFE_REMOTE_SCHEMES = frozenset({"git", "http", "https", "ssh", "git+ssh"})
 
 def _machine_local_host(host: str) -> bool:
     normalized = host.lower().rstrip(".")
-    if normalized in {"localhost", "localhost.localdomain"} or normalized.endswith(".local"):
+    if (
+        normalized in {"localhost", "localhost.localdomain"}
+        or normalized.endswith((".local", ".localhost"))
+    ):
         return True
     try:
         address = ipaddress.ip_address(normalized)
@@ -880,7 +883,7 @@ def _canonical_remote_identity(origin: str) -> str | None:
         if not match:
             return None
         host, path = match.groups()
-        if _machine_local_host(host) or not path.strip("/"):
+        if _machine_local_host(host) or not path.strip("/") or "?" in path or "#" in path:
             return None
         return f"ssh://{host.lower()}/{path.lstrip('/').rstrip('/')}"
 
