@@ -15,7 +15,6 @@ import json
 import os
 import re
 import stat
-import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -354,9 +353,7 @@ def _placement(repo_root: Path, artifact_type: str, raw_path: str) -> list[dict[
 
 
 def _git_show(repo_root: Path, *args: str) -> str | None:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), *args], capture_output=True, text=True, check=False
-    )
+    result = eval_pilot._git_run(repo_root, *args, text=True)
     value = result.stdout.strip()
     return value if result.returncode == 0 else None
 
@@ -367,21 +364,15 @@ def _worktree_blob_oid(repo_root: Path, path: str) -> str | None:
 
 
 def _git_path_clean(repo_root: Path, path: str) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "status", "--porcelain", "--", path],
-        capture_output=True,
-        text=True,
-        check=False,
+    result = eval_pilot._git_run(
+        repo_root, "status", "--porcelain", "--", path, text=True
     )
     return result.returncode == 0 and not result.stdout.strip()
 
 
 def _git_is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "merge-base", "--is-ancestor", ancestor, descendant],
-        capture_output=True,
-        text=True,
-        check=False,
+    result = eval_pilot._git_run(
+        repo_root, "merge-base", "--is-ancestor", ancestor, descendant, text=True
     )
     return result.returncode == 0
 
@@ -614,6 +605,22 @@ def _review_links(
                         ):
                             raise ValueError("evaluation result is not a pilot result")
                         result = eval_pilot.PilotRunResult.model_validate(raw_result)
+                        if not result.subject.commit or not result.subject.tree:
+                            blockers.append(
+                                _blocked(
+                                    "dangling_evaluation_subject",
+                                    result.subject.commit or "unresolved",
+                                    role="evaluation_result",
+                                )
+                            )
+                        elif not result.subject.clean or result.lineage.repo_dirty:
+                            blockers.append(
+                                _blocked(
+                                    "dirty_evaluation_subject",
+                                    result.subject.commit,
+                                    role="evaluation_result",
+                                )
+                            )
                         eval_pilot._validate_result(result)
                         validated_results.append((full_path, "pilot", result))
                 except (

@@ -46,6 +46,7 @@ import argparse
 import hashlib
 import ipaddress
 import json
+import os
 import re
 import subprocess
 import sys
@@ -493,11 +494,8 @@ def _comparison_progress(
 
 
 def _is_ancestor_commit(repo_root: Path, ancestor: str, descendant: str) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "merge-base", "--is-ancestor", ancestor, descendant],
-        capture_output=True,
-        text=True,
-        check=False,
+    result = _git_run(
+        repo_root, "merge-base", "--is-ancestor", ancestor, descendant, text=True
     )
     return result.returncode == 0
 
@@ -846,13 +844,45 @@ def _tree_digest(repo_root: Path, prefixes: tuple[str, ...]) -> str:
     return "sha256:" + digest.hexdigest()
 
 
-def _git_dirty(repo_root: Path) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "status", "--porcelain"],
+def _git_run(
+    repo_root: Path,
+    *args: str,
+    text: bool = False,
+    input: bytes | None = None,
+) -> subprocess.CompletedProcess:
+    command = ["git", "-C", str(repo_root), *args]
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    try:
+        expected_root = repo_root.resolve(strict=True)
+    except OSError:
+        expected_root = None
+    probe = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
+    try:
+        actual_root = Path(probe.stdout.strip()).resolve(strict=True)
+    except OSError:
+        actual_root = None
+    if probe.returncode != 0 or expected_root is None or actual_root != expected_root:
+        empty = "" if text else b""
+        error = "requested path is not the resolved Git worktree root"
+        return subprocess.CompletedProcess(command, 128, empty, error if text else error.encode())
+    return subprocess.run(
+        command,
+        input=input,
+        capture_output=True,
+        text=text,
+        check=False,
+        env=env,
+    )
+
+
+def _git_dirty(repo_root: Path) -> bool:
+    result = _git_run(repo_root, "status", "--porcelain", text=True)
     return result.returncode != 0 or bool(result.stdout.strip())
 
 
@@ -908,12 +938,7 @@ def _canonical_remote_identity(origin: str) -> str | None:
 
 
 def _repository_identity(repo_root: Path) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "remote", "get-url", "origin"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = _git_run(repo_root, "remote", "get-url", "origin", text=True)
     if result.returncode != 0:
         return "local-no-remote"
     return _canonical_remote_identity(result.stdout.strip()) or "local-no-remote"
@@ -921,12 +946,7 @@ def _repository_identity(repo_root: Path) -> str:
 
 def _git_oid(repo_root: Path, rev: str) -> str | None:
     """Resolve ``rev`` to a full Git object id, or ``None`` if unresolvable."""
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", rev],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = _git_run(repo_root, "rev-parse", "--verify", "--quiet", rev, text=True)
     value = result.stdout.strip()
     return value if result.returncode == 0 and _GIT_OID_RE.fullmatch(value) else None
 
@@ -934,12 +954,7 @@ def _git_oid(repo_root: Path, rev: str) -> str | None:
 def _current_branch(repo_root: Path) -> str | None:
     """The current branch name, recorded as an annotation only — never an
     identity or applicability input (spec 021)."""
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "symbolic-ref", "--quiet", "--short", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = _git_run(repo_root, "symbolic-ref", "--quiet", "--short", "HEAD", text=True)
     branch = result.stdout.strip()
     return branch if result.returncode == 0 and branch else None
 
@@ -958,12 +973,7 @@ def _current_subject(repo_root: Path) -> EvaluationSubject:
 
 
 def _git_blob_oid_for_bytes(repo_root: Path, content: bytes) -> str | None:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "hash-object", "--stdin"],
-        input=content,
-        capture_output=True,
-        check=False,
-    )
+    result = _git_run(repo_root, "hash-object", "--stdin", input=content)
     try:
         value = result.stdout.decode("ascii").strip()
     except UnicodeDecodeError:

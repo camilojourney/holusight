@@ -67,6 +67,31 @@ def test_current_subject_is_never_clean_when_repo_is_dirty(tmp_path):
     assert subject.clean is False
 
 
+def test_current_subject_ignores_repository_selection_environment(tmp_path, monkeypatch):
+    repo = tmp_path / "requested"
+    repo.mkdir()
+    _committed_repo(repo)
+    expected_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    (repo / "untracked.txt").write_text("dirty\n", encoding="utf-8")
+
+    decoy = tmp_path / "decoy"
+    decoy.mkdir()
+    (decoy / "decoy.txt").write_text("different\n", encoding="utf-8")
+    _committed_repo(decoy)
+    monkeypatch.setenv("GIT_DIR", str(decoy / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(decoy))
+
+    subject = eval_pilot._current_subject(repo)
+    assert subject.commit == expected_commit
+    assert subject.clean is False
+
+
 def test_current_subject_has_no_commit_or_tree_outside_a_git_repository(tmp_path):
     subject = eval_pilot._current_subject(tmp_path)
     assert subject.commit is None
@@ -567,6 +592,30 @@ def test_dirty_worktree_evaluation_can_never_become_ready(tmp_path):
 
     review = _review(repo)
     codes = {item["code"] for item in review["blockers"]}
+    assert "invalid_evaluation_result" in codes
+    assert review["stage"] != "evaluated"
+    assert review["next_permitted_action"] != "human_promotion_review"
+
+
+def test_dirty_result_demotes_stage_when_another_result_is_valid(tmp_path):
+    repo, ctx = _build_evaluated_repo(tmp_path)
+    dirty_relative = ".holusight/improvement-results/dirty-subject-result.json"
+    dirty_path = repo / dirty_relative
+    dirty_result = json.loads(ctx["result_path"].read_text(encoding="utf-8"))
+    dirty_result["run_id"] = "eval-pilot-subject-change-dirty"
+    dirty_result["subject"]["clean"] = False
+    dirty_result["lineage"]["repo_dirty"] = True
+    dirty_result["result_digest"] = eval_pilot.canonical_result_digest(dirty_result)
+    dirty_path.write_text(json.dumps(dirty_result), encoding="utf-8")
+
+    manifest = json.loads(ctx["manifest_path"].read_text(encoding="utf-8"))
+    manifest["links"]["evaluation_result"].append(dirty_relative)
+    manifest["link_hashes"][dirty_relative] = _sha256(dirty_path)
+    ctx["manifest_path"].write_text(json.dumps(manifest), encoding="utf-8")
+
+    review = _review(repo)
+    codes = {item["code"] for item in review["blockers"]}
+    assert "dirty_evaluation_subject" in codes
     assert "invalid_evaluation_result" in codes
     assert review["stage"] != "evaluated"
     assert review["next_permitted_action"] != "human_promotion_review"
