@@ -1,0 +1,145 @@
+[
+  {
+    "id": "ADV-01",
+    "query": "propose a synthetic query about a non-existent repo fixture path",
+    "family": "adversarial",
+    "split": "dev",
+    "expected_file": "__NO_MATCH__",
+    "notes": "Adversarial diagnostic control: expected_file intentionally absent"
+  },
+  {
+    "id": "CL-01",
+    "query": "how does hybrid search RRF merge work",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py"
+  },
+  {
+    "id": "CL-02",
+    "query": "how is BM25 keyword search implemented",
+    "family": "conceptual_localization",
+    "split": "dev",
+    "expected_file": "src/codesight/store.py"
+  },
+  {
+    "id": "CFG-01",
+    "query": "CODESIGHT_RERANKER environment variable",
+    "family": "config_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/config.py",
+    "exact_string": "CODESIGHT_RERANKER"
+  },
+  {
+    "id": "NA-01",
+    "query": "kubernetes helm chart values for multi-region autoscaling",
+    "family": "contradiction_no_answer",
+    "split": "dev",
+    "expected_file": "__NO_MATCH__",
+    "notes": "No such capability exists in this repo; a correct system should not confidently cite a file."
+  },
+  {
+    "id": "NA-02",
+    "query": "GraphQL subscription resolver for real-time chunk updates",
+    "family": "contradiction_no_answer",
+    "split": "dev",
+    "expected_file": "__NO_MATCH__",
+    "notes": "CodeSight has no GraphQL layer."
+  },
+  {
+    "id": "DS-01",
+    "query": "why was LanceDB chosen over ChromaDB for vector storage",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "docs/decisions/0001-lancedb-over-chromadb.md"
+  },
+  {
+    "id": "DS-02",
+    "query": "why does the engine use hybrid RRF retrieval instead of vector-only search",
+    "family": "doc_synthesis",
+    "split": "dev",
+    "expected_file": "docs/decisions/0002-hybrid-rrf-retrieval.md"
+  },
+  {
+    "id": "EX-01",
+    "query": "rrf_merge",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py",
+    "exact_string": "def rrf_merge("
+  },
+  {
+    "id": "EX-02",
+    "query": "vprf_enhance_query",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py",
+    "exact_string": "def vprf_enhance_query("
+  },
+  {
+    "id": "EX-03",
+    "query": "_sanitize_fts_query",
+    "family": "exact_lookup",
+    "split": "dev",
+    "expected_file": "src/codesight/store.py",
+    "exact_string": "_sanitize_fts_query"
+  },
+  {
+    "id": "SR-01",
+    "query": "how does structural_edges_for use the Graphify graph built_at_commit for staleness",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py",
+    "expected_evidence": [
+      "src/codesight/consistency.py"
+    ]
+  },
+  {
+    "id": "SR-02",
+    "query": "how does hybrid_search call bm25_search and vector_search together",
+    "family": "symbol_reference",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py",
+    "expected_evidence": [
+      "src/codesight/search.py",
+      "src/codesight/store.py"
+    ]
+  },
+  {
+    "id": "TC-01",
+    "query": "unit tests for BM25 finding exact payment terms in e2e retrieval",
+    "family": "test_coverage",
+    "split": "dev",
+    "expected_file": "tests/test_e2e.py"
+  },
+  {
+    "id": "TC-02",
+    "query": "unit tests for the eval harness hit rate and MRR metrics",
+    "family": "test_coverage",
+    "split": "dev",
+    "expected_file": "tests/test_eval_harness.py"
+  },
+  {
+    "id": "SV-01",
+    "query": "how does query enhancement change retrieval recall",
+    "family": "semantic",
+    "split": "dev",
+    "expected_file": "src/codesight/search.py",
+    "notes": "semantic-style paraphrase intent over direct keyword match"
+  },
+  {
+    "id": "AM-01",
+    "query": "what is in the repo and docs",
+    "family": "ambiguity",
+    "split": "dev",
+    "expected_file": "README.md",
+    "notes": "Ambiguous request intended to exercise broad lexical matching"
+  },
+  {
+    "id": "GR-01",
+    "query": "how does structural graph freshness inform reruns",
+    "family": "graph_impact",
+    "split": "dev",
+    "expected_file": "src/codesight/consistency.py",
+    "notes": "Cross-check structural graph-aware retrieval signal"
+  }
+]
