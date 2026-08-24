@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -56,25 +57,49 @@ def _fake_run_candidate_factory(payloads: dict[str, dict]):
             normalized = dict(entry)
             normalized.setdefault("family", "unspecified")
             normalized.setdefault("diagnostic_only", False)
-            normalized.setdefault("ndcg", base["metrics"].get("ndcg_at_10", 0.0))
             normalized.setdefault(
                 "evidence_completeness",
                 base["metrics"].get("evidence_completeness", 0.0),
             )
             if normalized["diagnostic_only"]:
+                normalized.update(hit=False, rank=None, rr=0.0, ndcg=0.0, evidence_completeness=0.0)
                 normalized.setdefault("top_result_file", None)
                 expected = "deny"
-                observed = "deny" if normalized["top_result_file"] is None else "unsupported_evidence"
+                observed = (
+                    "deny" if normalized["top_result_file"] is None else "unsupported_evidence"
+                )
             elif normalized["family"] == "ambiguity":
                 expected = observed = "clarify"
             else:
                 expected = "evidence"
                 observed = "evidence" if normalized.get("hit", False) else "insufficient_evidence"
+            if not normalized["diagnostic_only"]:
+                if normalized.get("hit", False):
+                    normalized["rank"] = round(1.0 / normalized["rr"])
+                    normalized["ndcg"] = round(
+                        1.0 / math.log2(normalized["rank"] + 1),
+                        4,
+                    )
+                else:
+                    normalized.update(rank=None, rr=0.0, ndcg=0.0)
             normalized["expected_routing_outcome"] = expected
             normalized["routing_outcome"] = observed
             normalized["routing_pass"] = expected == observed
             per_query.append(normalized)
 
+        graded = [entry for entry in per_query if not entry["diagnostic_only"]]
+        metrics = dict(base["metrics"])
+        metrics.update(
+            {
+                "mrr_at_10": sum(entry["rr"] for entry in graded) / len(graded),
+                "hit_rate": sum(entry["hit"] for entry in graded) / len(graded),
+                "recall_at_10": sum(entry["hit"] for entry in graded) / len(graded),
+                "ndcg_at_10": sum(entry["ndcg"] for entry in graded) / len(graded),
+                "evidence_completeness": (
+                    sum(entry["evidence_completeness"] for entry in graded) / len(graded)
+                ),
+            }
+        )
         record = {
             "candidate_id": candidate.candidate_id,
             "version": candidate.version,
@@ -84,9 +109,9 @@ def _fake_run_candidate_factory(payloads: dict[str, dict]):
             "controlled_value": candidate.controlled_value,
             "label": candidate.label,
             "description": candidate.description,
-            "metrics": base["metrics"],
+            "metrics": metrics,
             "run_stats": base["run_stats"],
-            "hit_sequence": base["hit_sequence"],
+            "hit_sequence": [entry["hit"] for entry in graded],
             "per_query": per_query,
             "index_stats": {
                 "files_indexed": 1,
@@ -115,11 +140,13 @@ def _fake_run_candidate_factory(payloads: dict[str, dict]):
 
 def _seal_run(run: dict, benchmark: rv.BenchmarkSpec, candidate: rv.CandidateDefinition) -> dict:
     sealed = dict(run)
-    sealed.update({
-        "candidate_id": candidate.candidate_id,
-        "version": candidate.version,
-        "config_overrides": dict(candidate.config_overrides),
-    })
+    sealed.update(
+        {
+            "candidate_id": candidate.candidate_id,
+            "version": candidate.version,
+            "config_overrides": dict(candidate.config_overrides),
+        }
+    )
     sealed["run_stats"] = {
         "total_queries": len(sealed["per_query"]),
         "graded_queries": sealed["run_stats"]["graded_queries"],
@@ -134,13 +161,57 @@ def _seal_run(run: dict, benchmark: rv.BenchmarkSpec, candidate: rv.CandidateDef
             "evidence_completeness": sealed["metrics"].get("evidence_completeness", 0.0),
             **entry,
         }
-        normalized.setdefault("hit", normalized.get("rr", 0.0) > 0.0)
-        normalized.setdefault("ndcg", sealed["metrics"].get("ndcg_at_10", 0.0))
-        normalized["expected_routing_outcome"] = "evidence"
-        normalized["routing_outcome"] = "evidence" if normalized["hit"] else "insufficient_evidence"
-        normalized["routing_pass"] = normalized["hit"]
+        if normalized["diagnostic_only"]:
+            normalized.update(hit=False, rank=None, rr=0.0, ndcg=0.0, evidence_completeness=0.0)
+        else:
+            normalized.setdefault("hit", normalized.get("rr", 0.0) > 0.0)
+            if normalized["hit"]:
+                normalized.setdefault("rank", round(1.0 / normalized["rr"]))
+                normalized["ndcg"] = round(1.0 / math.log2(normalized["rank"] + 1), 4)
+            else:
+                normalized.setdefault("rank", None)
+                normalized["ndcg"] = 0.0
+        if normalized["diagnostic_only"]:
+            normalized.setdefault("top_result_file", None)
+            normalized["expected_routing_outcome"] = "deny"
+            normalized["routing_outcome"] = (
+                "deny" if normalized["top_result_file"] is None else "unsupported_evidence"
+            )
+        elif normalized["family"] == "ambiguity":
+            normalized["expected_routing_outcome"] = "clarify"
+            normalized["routing_outcome"] = "clarify"
+        else:
+            normalized["expected_routing_outcome"] = "evidence"
+            normalized["routing_outcome"] = (
+                "evidence" if normalized["hit"] else "insufficient_evidence"
+            )
+        normalized["routing_pass"] = (
+            normalized["routing_outcome"] == normalized["expected_routing_outcome"]
+        )
         per_query.append(normalized)
     sealed["per_query"] = per_query
+    graded = [entry for entry in per_query if not entry["diagnostic_only"]]
+    diagnostic = [entry for entry in per_query if entry["diagnostic_only"]]
+    sealed["run_stats"].update(
+        {
+            "total_queries": len(per_query),
+            "graded_queries": len(graded),
+            "diagnostic_queries": len(diagnostic),
+            "query_set_hash": benchmark.path_hash,
+        }
+    )
+    sealed["hit_sequence"] = [entry["hit"] for entry in graded]
+    sealed["metrics"].update(
+        {
+            "mrr_at_10": sum(entry["rr"] for entry in graded) / len(graded),
+            "hit_rate": sum(entry["hit"] for entry in graded) / len(graded),
+            "recall_at_10": sum(entry["hit"] for entry in graded) / len(graded),
+            "ndcg_at_10": sum(entry["ndcg"] for entry in graded) / len(graded),
+            "evidence_completeness": (
+                sum(entry["evidence_completeness"] for entry in graded) / len(graded)
+            ),
+        }
+    )
     sealed["lineage"] = {
         "candidate_id": candidate.candidate_id,
         "candidate_version": candidate.version,
@@ -174,7 +245,10 @@ def test_variant_loop_records_rejected_and_inconclusive_candidates(
 
     def _load_stub(_path):
         return (
-            [rv.EvalQuery(query=row["query"], expected_file=row["expected_file"]) for row in _fixture_query_rows],
+            [
+                rv.EvalQuery(query=row["query"], expected_file=row["expected_file"])
+                for row in _fixture_query_rows
+            ],
             _fixture_query_rows,
             benchmark,
         )
@@ -322,10 +396,7 @@ def test_predominantly_worse_candidate_is_not_promotable(monkeypatch, tmp_path):
         }
 
     benchmark = rv.BenchmarkSpec("benchmark", "hash", 15, 15, {}, {})
-    queries = [
-        rv.EvalQuery(query=f"q{index}", expected_file="expected")
-        for index in range(15)
-    ]
+    queries = [rv.EvalQuery(query=f"q{index}", expected_file="expected") for index in range(15)]
     rows = [{"query": query.query, "expected_file": "expected"} for query in queries]
     monkeypatch.setattr(
         rv,
@@ -377,12 +448,12 @@ def test_compare_candidate_blocks_regression():
             "hit_rate": 1.0,
             "recall_at_10": 1.0,
             "ndcg_at_10": 0.49,
-            "evidence_completeness": 0.80,
+            "evidence_completeness": 0.79,
         },
         "hit_sequence": [True, True],
         "per_query": [
-            {"rr": 1.0, "ndcg": 0.5, "evidence_completeness": 0.8},
-            {"rr": 0.1, "ndcg": 0.48, "evidence_completeness": 0.8},
+            {"rr": 1.0, "ndcg": 0.5, "evidence_completeness": 0.79},
+            {"rr": 0.1, "ndcg": 0.48, "evidence_completeness": 0.79},
         ],
     }
     benchmark = rv.BenchmarkSpec("x", "h", 2, 2, {}, {})
@@ -503,16 +574,21 @@ def test_cli_indexes_retrieves_and_persists_frozen_evidence(monkeypatch, tmp_pat
     output = tmp_path / "evidence" / "report.json"
     repo = Path(__file__).parent / "fixtures" / "pilot_docs"
 
-    assert rv.main([
-        "--repo",
-        str(repo),
-        "--candidate",
-        rv.BASELINE_CANDIDATE_ID,
-        "--candidate",
-        "cnfb-alpha-0.25",
-        "--output",
-        str(output),
-    ]) == 0
+    assert (
+        rv.main(
+            [
+                "--repo",
+                str(repo),
+                "--candidate",
+                rv.BASELINE_CANDIDATE_ID,
+                "--candidate",
+                "cnfb-alpha-0.25",
+                "--output",
+                str(output),
+            ]
+        )
+        == 0
+    )
 
     report = json.loads(output.read_text(encoding="utf-8"))
     assert len(report["runs"]) == 2
@@ -590,6 +666,150 @@ def test_compare_rejects_malformed_evidence():
     assert comparison["constraints"]["violations"]
 
 
+def test_compare_rejects_self_consistent_impossible_rank_evidence():
+    benchmark = rv.BenchmarkSpec("x", "hash", 6, 6, {}, {})
+    baseline = _seal_run(
+        {
+            "run_id": "base",
+            "run_stats": {"graded_queries": 6},
+            "metrics": {
+                "mrr_at_10": 0.0,
+                "hit_rate": 0.0,
+                "recall_at_10": 0.0,
+                "ndcg_at_10": 0.0,
+                "evidence_completeness": 0.0,
+            },
+            "per_query": [{"query": f"q{i}", "rr": 0.0} for i in range(6)],
+        },
+        benchmark,
+        rv.DEFAULT_CANDIDATES[0],
+    )
+    candidate = _seal_run(
+        {
+            "run_id": "candidate",
+            "run_stats": {"graded_queries": 6},
+            "metrics": {
+                "mrr_at_10": 1.0,
+                "hit_rate": 1.0,
+                "recall_at_10": 1.0,
+                "ndcg_at_10": 1.0,
+                "evidence_completeness": 1.0,
+            },
+            "per_query": [{"query": f"q{i}", "rr": 1.0} for i in range(6)],
+        },
+        benchmark,
+        rv.DEFAULT_CANDIDATES[1],
+    )
+    valid_comparison = rv._compare_candidate(benchmark, baseline, candidate)
+    assert valid_comparison["status"] == "promotable"
+    assert valid_comparison["decision"] == "human_review_required"
+    assert valid_comparison["promotion_relevant"] is True
+
+    for entry in candidate["per_query"]:
+        entry["rank"] = None
+    candidate["run_id"] = rv._run_record_id(candidate, benchmark.path_hash)
+    candidate["lineage"]["run_id"] = candidate["run_id"]
+    candidate["run_digest"] = rv._run_record_digest(candidate)
+
+    comparison = rv._compare_candidate(benchmark, baseline, candidate)
+
+    assert comparison["status"] == "invalid"
+    assert comparison["promotion_relevant"] is False
+    assert any(
+        violation["type"] == "retrieval_evidence_mismatch"
+        for violation in comparison["constraints"]["violations"]
+    )
+
+
+def test_compare_rejects_swapped_diagnostic_identities():
+    identities = (
+        ("ADV-01", "unsupported", "adversarial", rv.NO_MATCH_SENTINEL),
+        ("EX-01", "exact", "exact_lookup", "README.md"),
+    )
+    benchmark = rv.BenchmarkSpec("x", "hash", 2, 1, {}, {}, identities)
+    rows = [
+        {
+            "id": identity[0],
+            "query": identity[1],
+            "family": identity[2],
+            "expected_file": identity[3],
+            "diagnostic_only": identity[3] == rv.NO_MATCH_SENTINEL,
+            "rr": 0.0,
+        }
+        for identity in identities
+    ]
+    empty_metrics = {
+        "mrr_at_10": 0.0,
+        "hit_rate": 0.0,
+        "recall_at_10": 0.0,
+        "ndcg_at_10": 0.0,
+        "evidence_completeness": 0.0,
+    }
+    baseline = _seal_run(
+        {
+            "run_id": "base",
+            "run_stats": {"graded_queries": 1},
+            "metrics": dict(empty_metrics),
+            "per_query": rows,
+        },
+        benchmark,
+        rv.DEFAULT_CANDIDATES[0],
+    )
+    candidate = _seal_run(
+        {
+            "run_id": "candidate",
+            "run_stats": {"graded_queries": 1},
+            "metrics": dict(empty_metrics),
+            "per_query": rows,
+        },
+        benchmark,
+        rv.DEFAULT_CANDIDATES[1],
+    )
+    candidate["per_query"][0].update(
+        diagnostic_only=False,
+        hit=True,
+        rank=1,
+        rr=1.0,
+        ndcg=1.0,
+        evidence_completeness=1.0,
+        expected_routing_outcome="evidence",
+        routing_outcome="evidence",
+        routing_pass=True,
+    )
+    candidate["per_query"][1].update(
+        diagnostic_only=True,
+        hit=False,
+        rank=None,
+        rr=0.0,
+        ndcg=0.0,
+        evidence_completeness=0.0,
+        top_result_file=None,
+        expected_routing_outcome="deny",
+        routing_outcome="deny",
+        routing_pass=True,
+    )
+    candidate["metrics"].update(
+        mrr_at_10=1.0,
+        hit_rate=1.0,
+        recall_at_10=1.0,
+        ndcg_at_10=1.0,
+        evidence_completeness=1.0,
+    )
+    candidate["hit_sequence"] = [True]
+    candidate["run_id"] = rv._run_record_id(candidate, benchmark.path_hash)
+    candidate["lineage"]["run_id"] = candidate["run_id"]
+    candidate["run_digest"] = rv._run_record_digest(candidate)
+
+    comparison = rv._compare_candidate(benchmark, baseline, candidate)
+
+    assert comparison["status"] == "invalid"
+    assert comparison["promotion_relevant"] is False
+    assert any(
+        violation["type"] == "diagnostic_identity_mismatch"
+        for violation in comparison["constraints"]["violations"]
+    )
+
+
 def test_candidate_failure_is_retained(monkeypatch, tmp_path):
     benchmark = rv.BenchmarkSpec("x", "hash", 1, 1, {}, {})
     rows = [{"query": "q", "expected_file": "README.md"}]
@@ -652,7 +872,12 @@ def test_denial_routing_failure_blocks_promotion():
         "evidence_completeness": 0.0,
     }
     base = _seal_run(
-        {"run_id": "base", "run_stats": {"graded_queries": 6}, "metrics": common_metrics, "per_query": [*base_rows, diagnostic]},
+        {
+            "run_id": "base",
+            "run_stats": {"graded_queries": 6},
+            "metrics": common_metrics,
+            "per_query": [*base_rows, diagnostic],
+        },
         benchmark,
         rv.DEFAULT_CANDIDATES[0],
     )

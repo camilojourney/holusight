@@ -1,8 +1,8 @@
 # Playbook: Run Holusight retrieval quality variation v1
 
 This playbook runs one bounded local improvement loop. It never promotes a
-candidate automatically. Every run, including failed and invalid runs, stays in
-the evidence report for human review.
+candidate automatically. Every candidate execution, including a failed run or
+an invalid comparison, stays in the evidence report for human review.
 
 ## 1. Create a versioned candidate
 
@@ -49,13 +49,16 @@ The output path must be outside the indexed repository. The report contains:
 
 - `runs[]` with each versioned candidate, final-record `run_digest`, and lineage
 - `comparisons[]` with separate hard constraints and optimization signals
-- exact, semantic, hybrid, graph-impact, ambiguity, no-evidence, and adversarial
-  benchmark family measurements
+- per-family expected-file and routing measurements for `exact_lookup`,
+  `semantic`, hybrid `conceptual_localization`, `graph_impact`, `ambiguity`,
+  `contradiction_no_answer`, and `adversarial` cases
 - explicit evidence, clarification, and denial-routing outcomes
 - `promotions.allowed = false`
 
-A candidate exception is retained as a failed run. It does not abort or erase
-other candidate evidence.
+All frozen queries run unchanged through production hybrid retrieval. The family
+names classify evaluation cases; they do not select alternate retrieval modes or
+expand benchmark queries. A candidate exception is retained as a failed run. It
+does not abort or erase other candidate evidence.
 
 ## 3. Inspect the comparison
 

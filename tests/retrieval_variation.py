@@ -28,7 +28,7 @@ from typing import Any, Mapping
 
 from codesight import CodeSight
 from codesight.config import ServerConfig
-from tests.eval_harness import EvalQuery, run_eval
+from tests.eval_harness import NO_MATCH_SENTINEL, EvalQuery, run_eval
 
 DEFAULT_REPO_PATH = Path(__file__).resolve().parents[1]
 DEFAULT_BENCHMARK = (
@@ -166,16 +166,20 @@ def _run_record_digest(run_payload: dict[str, Any]) -> str:
 
 
 def _run_record_id(run_payload: dict[str, Any], benchmark_hash: str) -> str:
-    return _sha256_hex(_canonical_json({
-        "candidate_id": run_payload.get("candidate_id"),
-        "candidate_version": run_payload.get("version"),
-        "registry_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
-        "query_set_hash": run_payload.get("run_stats", {}).get("query_set_hash"),
-        "config_overrides": run_payload.get("config_overrides"),
-        "benchmark_hash": benchmark_hash,
-        "metrics": run_payload.get("metrics"),
-        "per_query": run_payload.get("per_query"),
-    }))[:20]
+    return _sha256_hex(
+        _canonical_json(
+            {
+                "candidate_id": run_payload.get("candidate_id"),
+                "candidate_version": run_payload.get("version"),
+                "registry_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
+                "query_set_hash": run_payload.get("run_stats", {}).get("query_set_hash"),
+                "config_overrides": run_payload.get("config_overrides"),
+                "benchmark_hash": benchmark_hash,
+                "metrics": run_payload.get("metrics"),
+                "per_query": run_payload.get("per_query"),
+            }
+        )
+    )[:20]
 
 
 def _query_row_to_eval_query(row: dict[str, Any], *, index: int) -> EvalQuery:
@@ -194,7 +198,9 @@ def _query_row_to_eval_query(row: dict[str, Any], *, index: int) -> EvalQuery:
     )
 
 
-def _load_benchmark_queries(path: Path) -> tuple[list[EvalQuery], list[dict[str, Any]], BenchmarkSpec]:
+def _load_benchmark_queries(
+    path: Path,
+) -> tuple[list[EvalQuery], list[dict[str, Any]], BenchmarkSpec]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, list) or not raw:
         raise ValueError(f"benchmark must be a non-empty JSON array: {path}")
@@ -247,7 +253,9 @@ def _load_benchmark_queries(path: Path) -> tuple[list[EvalQuery], list[dict[str,
     return queries, rows, spec
 
 
-def _family_breakdown(per_query: list[dict[str, Any]], *, include_diagnostic: bool = True) -> dict[str, dict[str, Any]]:
+def _family_breakdown(
+    per_query: list[dict[str, Any]], *, include_diagnostic: bool = True
+) -> dict[str, dict[str, Any]]:
     buckets: dict[str, dict[str, Any]] = {}
     for entry in per_query:
         family = entry.get("family", "unspecified")
@@ -427,7 +435,9 @@ def _validate_run_record(
         return violations
 
     if run.get("candidate_id") != expected_candidate_id:
-        invalid("candidate_identity_mismatch", "candidate_id does not match the compared registry entry")
+        invalid(
+            "candidate_identity_mismatch", "candidate_id does not match the compared registry entry"
+        )
     if run.get("version") != registered.version:
         invalid("candidate_version_mismatch", "candidate version is not registered")
     if run.get("config_overrides") != dict(registered.config_overrides):
@@ -469,6 +479,37 @@ def _validate_run_record(
         invalid("query_evidence_mismatch", "per-query evidence does not cover the frozen benchmark")
         per_query = []
 
+    if per_query:
+        diagnostic_flags_valid = all(
+            isinstance(entry.get("diagnostic_only"), bool) for entry in per_query
+        )
+        if not diagnostic_flags_valid:
+            invalid("query_evidence_mismatch", "diagnostic_only must be a boolean")
+        observed_diagnostic = sum(entry.get("diagnostic_only") is True for entry in per_query)
+        observed_graded = sum(entry.get("diagnostic_only") is False for entry in per_query)
+        if run_stats.get("diagnostic_queries") != observed_diagnostic:
+            invalid(
+                "diagnostic_count_mismatch",
+                "diagnostic query count does not match per-query evidence",
+            )
+        if run_stats.get("graded_queries") != observed_graded:
+            invalid("graded_count_mismatch", "graded query count does not match per-query evidence")
+        for entry in per_query:
+            expected_file = entry.get("expected_file")
+            if isinstance(expected_file, str):
+                expected_diagnostic = expected_file == NO_MATCH_SENTINEL
+                if entry.get("diagnostic_only") is not expected_diagnostic:
+                    invalid(
+                        "diagnostic_identity_mismatch",
+                        "diagnostic routing identity does not match the frozen expected file",
+                    )
+
+        expected_hit_sequence = [
+            entry.get("hit") for entry in per_query if entry.get("diagnostic_only") is False
+        ]
+        if run.get("hit_sequence") != expected_hit_sequence:
+            invalid("hit_sequence_mismatch", "hit sequence does not match per-query evidence")
+
     if benchmark.query_identities and per_query:
         observed_identities = tuple(
             (
@@ -480,9 +521,69 @@ def _validate_run_record(
             for entry in per_query
         )
         if observed_identities != benchmark.query_identities:
-            invalid("query_identity_mismatch", "per-query identities or order differ from the benchmark")
+            invalid(
+                "query_identity_mismatch", "per-query identities or order differ from the benchmark"
+            )
 
     graded = [entry for entry in per_query if not entry.get("diagnostic_only", False)]
+    for entry in per_query:
+        diagnostic = bool(entry.get("diagnostic_only", False))
+        hit = entry.get("hit")
+        rank = entry.get("rank")
+        rr = entry.get("rr")
+        ndcg = entry.get("ndcg")
+        completeness = entry.get("evidence_completeness")
+
+        if not isinstance(hit, bool):
+            invalid("retrieval_evidence_mismatch", "per-query hit must be a boolean")
+            continue
+        if diagnostic:
+            if hit or rank is not None or rr != 0.0 or ndcg != 0.0 or completeness != 0.0:
+                invalid(
+                    "retrieval_evidence_mismatch",
+                    "diagnostic query retrieval metrics must be empty or zero",
+                )
+            continue
+
+        numeric_values = (rr, ndcg, completeness)
+        if any(
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            for value in numeric_values
+        ):
+            invalid(
+                "retrieval_evidence_mismatch", "per-query retrieval metrics must be finite numbers"
+            )
+            continue
+        if not 0.0 <= float(completeness) <= 1.0:
+            invalid(
+                "retrieval_evidence_mismatch", "evidence completeness must be between zero and one"
+            )
+
+        if hit:
+            if (
+                isinstance(rank, bool)
+                or not isinstance(rank, int)
+                or not 1 <= rank <= DEFAULT_TOP_K
+            ):
+                invalid(
+                    "retrieval_evidence_mismatch",
+                    f"a hit must have an integer rank between 1 and {DEFAULT_TOP_K}",
+                )
+                continue
+            expected_rr = 1.0 / rank
+            expected_ndcg = round(1.0 / math.log2(rank + 1), 4)
+            if abs(float(rr) - expected_rr) > 0.0001:
+                invalid("retrieval_evidence_mismatch", "reciprocal rank does not match rank")
+            if abs(float(ndcg) - expected_ndcg) > 0.0001:
+                invalid("retrieval_evidence_mismatch", "NDCG does not match rank")
+        elif rank is not None or float(rr) != 0.0 or float(ndcg) != 0.0:
+            invalid(
+                "retrieval_evidence_mismatch",
+                "a miss must have no rank and zero reciprocal-rank and NDCG values",
+            )
+
     metrics = run.get("metrics")
     if not isinstance(metrics, dict):
         invalid("missing_metrics", "metrics must be present")
@@ -490,12 +591,21 @@ def _validate_run_record(
     if graded:
         try:
             recalculated = {
-                "mrr_at_10": round(sum(float(entry.get("rr", 0.0)) for entry in graded) / len(graded), 6),
-                "hit_rate": round(sum(bool(entry.get("hit", False)) for entry in graded) / len(graded), 6),
-                "recall_at_10": round(sum(bool(entry.get("hit", False)) for entry in graded) / len(graded), 6),
-                "ndcg_at_10": round(sum(float(entry.get("ndcg", 0.0)) for entry in graded) / len(graded), 6),
+                "mrr_at_10": round(
+                    sum(float(entry.get("rr", 0.0)) for entry in graded) / len(graded), 6
+                ),
+                "hit_rate": round(
+                    sum(bool(entry.get("hit", False)) for entry in graded) / len(graded), 6
+                ),
+                "recall_at_10": round(
+                    sum(bool(entry.get("hit", False)) for entry in graded) / len(graded), 6
+                ),
+                "ndcg_at_10": round(
+                    sum(float(entry.get("ndcg", 0.0)) for entry in graded) / len(graded), 6
+                ),
                 "evidence_completeness": round(
-                    sum(float(entry.get("evidence_completeness", 0.0)) for entry in graded) / len(graded),
+                    sum(float(entry.get("evidence_completeness", 0.0)) for entry in graded)
+                    / len(graded),
                     6,
                 ),
             }
@@ -513,7 +623,9 @@ def _validate_run_record(
                 or not math.isfinite(expected)
                 or abs(observed - expected) > 0.0001
             ):
-                invalid("metric_integrity_failure", f"metric {metric} does not match per-query evidence")
+                invalid(
+                    "metric_integrity_failure", f"metric {metric} does not match per-query evidence"
+                )
 
     try:
         expected_run_id = _run_record_id(run, benchmark.path_hash)
@@ -531,7 +643,9 @@ def _validate_run_record(
         family = entry.get("family")
         if diagnostic:
             expected_outcome = "deny"
-            observed_outcome = "deny" if entry.get("top_result_file") is None else "unsupported_evidence"
+            observed_outcome = (
+                "deny" if entry.get("top_result_file") is None else "unsupported_evidence"
+            )
         elif family == "ambiguity":
             expected_outcome = observed_outcome = "clarify"
         else:
@@ -542,7 +656,9 @@ def _validate_run_record(
             or entry.get("routing_outcome") != observed_outcome
             or entry.get("routing_pass") != (expected_outcome == observed_outcome)
         ):
-            invalid("routing_evidence_mismatch", "routing outcome is inconsistent with query evidence")
+            invalid(
+                "routing_evidence_mismatch", "routing outcome is inconsistent with query evidence"
+            )
 
     return violations
 
@@ -606,7 +722,10 @@ def _compare_candidate(
         comparison["decision"] = "invalid_comparison"
         comparison["reason"] = "missing required run identifiers"
         comparison["constraints"]["violations"].append(
-            {"type": "missing_run_identifier", "message": "run must include candidate_id and run_id"}
+            {
+                "type": "missing_run_identifier",
+                "message": "run must include candidate_id and run_id",
+            }
         )
         return comparison
 
@@ -679,9 +798,7 @@ def _compare_candidate(
     primary_delta = round(candidate_metrics[PRIMARY_METRIC] - baseline_metrics[PRIMARY_METRIC], 6)
     comparison["primary_delta"] = primary_delta
     comparison["optimization_signal"]["observed_delta"] = primary_delta
-    comparison["optimization_signal"]["statistically_significant"] = (
-        p_value < SIGNIFICANCE_ALPHA
-    )
+    comparison["optimization_signal"]["statistically_significant"] = p_value < SIGNIFICANCE_ALPHA
     comparison["optimization_signal"]["candidate_wins"] = candidate_wins
     comparison["optimization_signal"]["candidate_losses"] = candidate_losses
     comparison["optimization_signal"]["candidate_direction_favorable"] = (
@@ -724,17 +841,21 @@ def _compare_candidate(
     return comparison
 
 
-def _normalize_candidate_selection(candidates: tuple[CandidateDefinition, ...] | None = None) -> tuple[CandidateDefinition, ...]:
+def _normalize_candidate_selection(
+    candidates: tuple[CandidateDefinition, ...] | None = None,
+) -> tuple[CandidateDefinition, ...]:
     selected = tuple(candidates) if candidates else DEFAULT_CANDIDATES
     if not selected:
         raise ValueError("at least one candidate is required")
 
     if len(_candidate_id_set(selected)) != len(selected):
-        duplicates = sorted({
-            candidate_id
-            for candidate_id in _candidate_id_set(selected)
-            if [c.candidate_id for c in selected].count(candidate_id) > 1
-        })
+        duplicates = sorted(
+            {
+                candidate_id
+                for candidate_id in _candidate_id_set(selected)
+                if [c.candidate_id for c in selected].count(candidate_id) > 1
+            }
+        )
         raise ValueError(f"duplicate candidate_id values: {duplicates}")
 
     if BASELINE_CANDIDATE_ID not in _candidate_id_set(selected):
@@ -746,7 +867,8 @@ def _normalize_candidate_selection(candidates: tuple[CandidateDefinition, ...] |
         registered = _registered_candidate(candidate.candidate_id)
         if registered is None or candidate != registered:
             raise ValueError(
-                f"candidate definition is not in immutable registry: {candidate.candidate_id}@{candidate.version}"
+                "candidate definition is not in immutable registry: "
+                f"{candidate.candidate_id}@{candidate.version}"
             )
 
     return tuple(
@@ -759,15 +881,19 @@ def _failed_run_record(
     benchmark: BenchmarkSpec,
     error: Exception,
 ) -> dict[str, Any]:
-    run_id = _sha256_hex(_canonical_json({
-        "candidate_id": candidate.candidate_id,
-        "candidate_version": candidate.version,
-        "benchmark_hash": benchmark.path_hash,
-        "registry_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
-        "status": "failed",
-        "error_type": type(error).__name__,
-        "error_message": str(error),
-    }))[:20]
+    run_id = _sha256_hex(
+        _canonical_json(
+            {
+                "candidate_id": candidate.candidate_id,
+                "candidate_version": candidate.version,
+                "benchmark_hash": benchmark.path_hash,
+                "registry_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
+                "status": "failed",
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+            }
+        )
+    )[:20]
     record: dict[str, Any] = {
         "candidate_id": candidate.candidate_id,
         "version": candidate.version,
@@ -883,10 +1009,7 @@ def run_variation_suite(
         "comparisons": comparisons,
         "constraints": {
             "name": "no protected regression",
-            "metrics": {
-                k: {"min_delta": v}
-                for k, v in PROTECTED_METRICS.items()
-            },
+            "metrics": {k: {"min_delta": v} for k, v in PROTECTED_METRICS.items()},
             "practical_gate": {
                 "metric": PRIMARY_METRIC,
                 "alpha": SIGNIFICANCE_ALPHA,
@@ -895,14 +1018,20 @@ def run_variation_suite(
             "lineage_immutable": True,
         },
         "query_set_hash": spec.path_hash,
-        "run_id": _sha256_hex(_canonical_json({
-            "benchmark": spec.path_hash,
-            "candidate_ids": [c.candidate_id for c in selected_candidates],
-            "candidate_definition_digest": _candidate_definition_digest(selected_candidates),
-            "candidate_definition_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
-            "top_k": top_k,
-            "program_version": PROGRAM_VERSION,
-        }))[:20],
+        "run_id": _sha256_hex(
+            _canonical_json(
+                {
+                    "benchmark": spec.path_hash,
+                    "candidate_ids": [c.candidate_id for c in selected_candidates],
+                    "candidate_definition_digest": _candidate_definition_digest(
+                        selected_candidates
+                    ),
+                    "candidate_definition_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
+                    "top_k": top_k,
+                    "program_version": PROGRAM_VERSION,
+                }
+            )
+        )[:20],
     }
 
 
