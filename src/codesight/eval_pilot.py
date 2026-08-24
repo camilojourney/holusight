@@ -162,6 +162,15 @@ class EvaluationSubject(_ClosedResultModel):
             return value
         raise ValueError("repository_id must be canonical and credential-free")
 
+    @field_validator("branch")
+    @classmethod
+    def validate_branch(cls, value: str | None) -> str | None:
+        if value is None or (
+            _SAFE_IDENTIFIER.fullmatch(value) and not _SECRET_LIKE.search(value)
+        ):
+            return value
+        raise ValueError("branch must be a bounded non-secret annotation")
+
 
 class CaseGrade(_ClosedResultModel):
     case_id: str
@@ -980,7 +989,13 @@ def _current_branch(repo_root: Path) -> str | None:
     identity or applicability input (spec 021)."""
     result = _git_run(repo_root, "symbolic-ref", "--quiet", "--short", "HEAD", text=True)
     branch = result.stdout.strip()
-    return branch if result.returncode == 0 and branch else None
+    return (
+        branch
+        if result.returncode == 0
+        and _SAFE_IDENTIFIER.fullmatch(branch)
+        and not _SECRET_LIKE.search(branch)
+        else None
+    )
 
 
 def _current_subject(repo_root: Path) -> EvaluationSubject:

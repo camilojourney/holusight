@@ -108,6 +108,27 @@ def test_branch_is_populated_but_plays_no_part_in_the_subject_model(tmp_path):
     assert "branch" in eval_pilot.EvaluationSubject.model_fields
 
 
+def test_secret_like_branch_is_not_persisted_in_subject(tmp_path):
+    repo = _committed_repo(tmp_path)
+    _git(repo, "checkout", "-q", "-b", "feature/sk-12345678")
+
+    payload = eval_pilot._current_subject(repo).model_dump(mode="json")
+
+    assert payload["branch"] is None
+    assert "sk-12345678" not in json.dumps(payload)
+
+
+def test_subject_schema_rejects_secret_like_branch_annotation():
+    with pytest.raises(ValueError, match="bounded non-secret annotation"):
+        eval_pilot.EvaluationSubject(
+            repository_id="local-no-remote",
+            commit="0" * 40,
+            tree="1" * 40,
+            clean=True,
+            branch="feature/sk-12345678",
+        )
+
+
 # ---------------------------------------------------------------------------
 # 2. Contract: PilotRunResult.subject is required, closed, and load-time
 #    validated
