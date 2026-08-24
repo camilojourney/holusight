@@ -23,6 +23,7 @@ Project documentation index.
 | [playbooks/run-retrieval-eval.md](playbooks/run-retrieval-eval.md) | Run the retrieval eval harness: baselines, taxonomy, opt-in embedding variants |
 | [playbooks/improvement-control-review.md](playbooks/improvement-control-review.md) | Deterministic staged review and derived-record rebuild for tracked improvement changes |
 | [playbooks/run-retrieval-variation-program.md](playbooks/run-retrieval-variation-program.md) | Run the local controlled evidence-display variation baseline/candidate loop |
+| [playbooks/versioned-eval-suite-fixtures.md](playbooks/versioned-eval-suite-fixtures.md) | Load and hash-verify the versioned suite/method/holdout dataset foundation (no runner) |
 
 ## Rules
 

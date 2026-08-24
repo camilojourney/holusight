@@ -62,6 +62,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
 | `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |
+| `src/codesight/eval_suite.py` | Versioned local-evaluation suite, method/config, and hidden-holdout hash-manifest schemas. Dataset foundation only; no runner, no holdout access path. See spec 022. |
 | `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for the existing `holus improve-*` loop. It verifies tracked manifests, links, hashes, stages, promotion blockers, and (for pilot results) recomputed Git-subject applicability, without egress or canonical writes. See specs 019 and 021. |
 | `src/codesight/retrieval_variation.py` | Fixed, local evidence-display baseline/candidate evaluator. Content-addresses benchmark and lineage, separates hard constraints from reward, and only permits independent human review. See spec 020. |
 | `src/codesight/types.py` | Shared type definitions. |
@@ -103,6 +104,8 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 |------|---------|
 | `tests/test_*.py` | Test files matching source modules. |
 | `tests/fixtures/*.jsonl` | Frozen case corpora (e.g. the eval-pilot corpus, spec 017/018). Human-reviewed admission only -- see `docs/playbooks/eval-pilot-case-admission.md`. |
+| `tests/fixtures/eval_suites/` | Versioned suite and method/config manifests (spec 022). |
+| `tests/fixtures/eval_holdout/` | Hidden-holdout hash-manifests only; payloads are not stored or loaded (spec 022). |
 | `tests/fixtures/` (other) | Other test fixtures (synthetic docs, eval query sets). |
 
 ### `.claude/` -- Claude Code Configuration
