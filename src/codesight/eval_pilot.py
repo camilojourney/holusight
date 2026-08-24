@@ -905,8 +905,8 @@ def _machine_local_host(host: str) -> bool:
     return not address.is_global
 
 
-def _remote_path_contains_secret(path: str) -> bool:
-    decoded = path
+def _remote_component_contains_secret(value: str) -> bool:
+    decoded = value
     for _ in range(3):
         if _SECRET_LIKE.search(decoded):
             return True
@@ -930,7 +930,8 @@ def _canonical_remote_identity(origin: str) -> str | None:
             or not path.strip("/")
             or "?" in path
             or "#" in path
-            or _remote_path_contains_secret(path)
+            or _remote_component_contains_secret(host)
+            or _remote_component_contains_secret(path)
         ):
             return None
         return f"ssh://{host.lower()}/{path.lstrip('/').rstrip('/')}"
@@ -942,10 +943,15 @@ def _canonical_remote_identity(origin: str) -> str | None:
     except ValueError:
         return None
     scheme = parsed.scheme.lower()
-    if scheme not in _SAFE_REMOTE_SCHEMES or not host or _machine_local_host(host):
+    if (
+        scheme not in _SAFE_REMOTE_SCHEMES
+        or not host
+        or _machine_local_host(host)
+        or _remote_component_contains_secret(host)
+    ):
         return None
     path = parsed.path.rstrip("/")
-    if not path or _remote_path_contains_secret(path):
+    if not path or _remote_component_contains_secret(path):
         return None
     host = host.lower()
     if ":" in host:
