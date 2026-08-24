@@ -220,33 +220,14 @@ def cases_file_hash(cases_path: Path) -> str:
     return _sha256_hex(cases_path.read_bytes())
 
 
-def _short_hash(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
-
-
-def _validate_identifier(label: str, value: str | None) -> None:
-    if value is None or not _SAFE_IDENTIFIER.fullmatch(value) or _SECRET_LIKE.search(value):
-        raise ValueError(f"{label} must be a bounded non-secret identifier")
-
-
-def _is_canonical_cases(cases_path: Path, repo_root: Path = REPO_ROOT) -> bool:
+def _parse_cases(cases_path: Path, corpus_bytes: bytes) -> list[dict]:
     try:
-        return (
-            cases_path.resolve()
-            == (repo_root / "tests/fixtures/holusight_eval_pilot_cases.jsonl").resolve()
-        )
-    except OSError:
-        return False
+        corpus_text = corpus_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{cases_path}: case corpus must be valid UTF-8") from exc
 
-
-def load_cases(cases_path: Path) -> list[dict]:
-    """Load and structurally validate the frozen case corpus. Every case
-    must declare a supported schema_version, kind, and provenance block —
-    a case admitted without full provenance is rejected rather than
-    silently run, per the case-admission contract
-    (docs/playbooks/eval-pilot-case-admission.md)."""
     cases: list[dict] = []
-    for lineno, raw_line in enumerate(cases_path.read_text(encoding="utf-8").splitlines(), start=1):
+    for lineno, raw_line in enumerate(corpus_text.splitlines(), start=1):
         line = raw_line.strip()
         if not line:
             continue
@@ -289,6 +270,34 @@ def load_cases(cases_path: Path) -> list[dict]:
     if not cases:
         raise ValueError("case corpus must contain at least one valid case")
     return cases
+
+
+def _short_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+
+
+def _validate_identifier(label: str, value: str | None) -> None:
+    if value is None or not _SAFE_IDENTIFIER.fullmatch(value) or _SECRET_LIKE.search(value):
+        raise ValueError(f"{label} must be a bounded non-secret identifier")
+
+
+def _is_canonical_cases(cases_path: Path, repo_root: Path = REPO_ROOT) -> bool:
+    try:
+        return (
+            cases_path.resolve()
+            == (repo_root / "tests/fixtures/holusight_eval_pilot_cases.jsonl").resolve()
+        )
+    except OSError:
+        return False
+
+
+def load_cases(cases_path: Path) -> list[dict]:
+    """Load and structurally validate the frozen case corpus. Every case
+    must declare a supported schema_version, kind, and provenance block —
+    a case admitted without full provenance is rejected rather than
+    silently run, per the case-admission contract
+    (docs/playbooks/eval-pilot-case-admission.md)."""
+    return _parse_cases(cases_path, cases_path.read_bytes())
 
 
 def build_intake_proposal(
@@ -945,6 +954,39 @@ def _current_subject(repo_root: Path) -> EvaluationSubject:
     )
 
 
+def _git_blob_oid_for_bytes(repo_root: Path, content: bytes) -> str | None:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "hash-object", "--stdin"],
+        input=content,
+        capture_output=True,
+        check=False,
+    )
+    try:
+        value = result.stdout.decode("ascii").strip()
+    except UnicodeDecodeError:
+        return None
+    return value if result.returncode == 0 and _GIT_OID_RE.fullmatch(value) else None
+
+
+def _cases_match_subject(
+    repo_root: Path,
+    cases_path: Path,
+    corpus_bytes: bytes,
+    subject: EvaluationSubject,
+) -> bool:
+    if not subject.commit:
+        return False
+    try:
+        relative = cases_path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except (OSError, ValueError):
+        return False
+    evaluated_blob = _git_oid(repo_root, f"{subject.commit}:{relative}")
+    return bool(
+        evaluated_blob
+        and _git_blob_oid_for_bytes(repo_root, corpus_bytes) == evaluated_blob
+    )
+
+
 def run_pilot(
     repo_root: Path,
     *,
@@ -961,12 +1003,16 @@ def run_pilot(
     worktree's own ``.holusight/`` cache.
     """
     cases_path = cases_path or DEFAULT_CASES_PATH
-    file_hash = cases_file_hash(cases_path)
-    cases = load_cases(cases_path)
+    corpus_bytes = cases_path.read_bytes()
+    file_hash = _sha256_hex(corpus_bytes)
+    cases = _parse_cases(cases_path, corpus_bytes)
     corpus_trust = (
         "canonical" if _is_canonical_cases(cases_path, repo_root) else "untrusted_advisory"
     )
     subject = _current_subject(repo_root)
+    cases_bound_to_subject = _cases_match_subject(
+        repo_root, cases_path, corpus_bytes, subject
+    )
     lineage.repo_dirty = not subject.clean
     lineage.evaluator_digest = _tree_digest(
         repo_root, ("src/codesight/eval_pilot.py", "src/codesight/cli_axi.py")
@@ -1023,7 +1069,7 @@ def run_pilot(
         and subject.tree == final_subject.tree
         and subject.clean == final_subject.clean
     )
-    if not subject_stable or not final_subject.clean:
+    if not subject_stable or not final_subject.clean or not cases_bound_to_subject:
         subject = subject.model_copy(update={"clean": False})
     lineage.repo_dirty = not subject.clean
 

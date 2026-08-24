@@ -267,6 +267,44 @@ def _case() -> dict:
     }
 
 
+def test_run_pilot_grades_and_hashes_one_immutable_corpus_snapshot(tmp_path, monkeypatch):
+    repo = tmp_path
+    cases_path = repo / "tests/fixtures/holusight_eval_pilot_cases.jsonl"
+    cases_path.parent.mkdir(parents=True)
+    committed_bytes = (json.dumps(_case()) + "\n").encode("utf-8")
+    cases_path.write_bytes(committed_bytes)
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "snapshot@example.test")
+    _git(repo, "config", "user.name", "Snapshot")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "base")
+
+    transient_bytes = committed_bytes.replace(b"subject-binding-case", b"transient-case")
+    original_read_bytes = Path.read_bytes
+
+    def read_transient_snapshot(path: Path) -> bytes:
+        if path == cases_path:
+            return transient_bytes
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", read_transient_snapshot)
+    result = eval_pilot.run_pilot(
+        repo,
+        cases_path=cases_path,
+        lineage=eval_pilot.CandidateLineage(
+            candidate_id="snapshot",
+            repo_commit=None,
+            workflow="test",
+            tool="pytest",
+        ),
+    )
+
+    assert result.cases_file_hash == "sha256:" + hashlib.sha256(transient_bytes).hexdigest()
+    assert [grade.case_id for grade in result.grades] == ["transient-case"]
+    assert result.subject.clean is False
+    assert result.lineage.repo_dirty is True
+
+
 def _build_evaluated_repo(tmp_path: Path) -> tuple[Path, dict]:
     """A committed repo with a genuinely evaluated, pre-promotion-ready manifest."""
     repo = tmp_path
