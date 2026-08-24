@@ -452,12 +452,30 @@ def _batch_worktree_blob_oids(
     return values
 
 
-def _git_paths_clean(git: _GitReviewSession, paths: list[str]) -> bool:
-    if not paths:
-        return True
-    literal_paths = [f":(literal){path}" for path in dict.fromkeys(paths)]
-    result = git.run("status", "--porcelain", "--", *literal_paths)
-    return result.returncode == 0 and not result.stdout.strip()
+def _git_dirty_paths(git: _GitReviewSession, paths: list[str]) -> set[str]:
+    unique_paths = list(dict.fromkeys(paths))
+    if not unique_paths:
+        return set()
+    literal_paths = [f":(literal){path}" for path in unique_paths]
+    result = git.run("status", "--porcelain=v1", "-z", "--", *literal_paths)
+    if result.returncode != 0:
+        return set(unique_paths)
+    dirty_paths: set[str] = set()
+    records = result.stdout.split(b"\0")
+    index = 0
+    while index < len(records) and records[index]:
+        record = records[index]
+        if len(record) < 4 or record[2:3] != b" ":
+            return set(unique_paths)
+        status = record[:2]
+        dirty_paths.add(os.fsdecode(record[3:]))
+        index += 1
+        if b"R" in status or b"C" in status:
+            if index >= len(records) or not records[index]:
+                return set(unique_paths)
+            dirty_paths.add(os.fsdecode(records[index]))
+            index += 1
+    return dirty_paths
 
 
 def _git_is_ancestor(git: _GitReviewSession, ancestor: str, descendant: str) -> bool:
@@ -544,7 +562,7 @@ def _subject_applicability_blockers(
     current_specs = {f"{current_commit}:{path}": "blob" for path in paths}
     current_head_oids = _batch_git_oids(git, current_specs)
     current_worktree_oids = _batch_worktree_blob_oids(git, paths)
-    paths_clean = _git_paths_clean(git, paths)
+    dirty_paths = _git_dirty_paths(git, paths)
     current_sha256 = {
         path: _sha256_regular_file(repo_root / relative)
         for _, path, relative in artifacts
@@ -559,7 +577,7 @@ def _subject_applicability_blockers(
         current_blob = current_worktree_oids.get(path)
         sha256 = current_sha256.get(path)
         snapshots.append(
-            (role, path, current_head_blob, current_blob, sha256, paths_clean)
+            (role, path, current_head_blob, current_blob, sha256, path not in dirty_paths)
         )
         if current_head_blob is None or current_head_blob != evaluated_blob:
             blockers.append(_blocked("changed_consequential_artifact", path, role=role))
@@ -570,8 +588,6 @@ def _subject_applicability_blockers(
         if sha256 is None or sha256 != manifest["link_hashes"].get(path):
             blockers.append(_blocked("changed_consequential_artifact", path, role=role))
             continue
-        if not paths_clean:
-            blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
 
     final_repository_id = _repository_identity(git)
     if final_repository_id != repository_id or final_repository_id != subject.repository_id:
@@ -591,7 +607,7 @@ def _subject_applicability_blockers(
             )
         )
     final_worktree_oids = _batch_worktree_blob_oids(git, paths)
-    final_paths_clean = _git_paths_clean(git, paths)
+    final_dirty_paths = _git_dirty_paths(git, paths)
     final_sha256 = {
         path: _sha256_regular_file(repo_root / path)
         for path in paths
@@ -604,7 +620,7 @@ def _subject_applicability_blockers(
         )
         if final_state != (head_blob, worktree_blob, sha256):
             blockers.append(_blocked("changed_consequential_artifact", path, role=role))
-        if not path_clean or not final_paths_clean:
+        if not path_clean or path in final_dirty_paths:
             blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
     return blockers
 

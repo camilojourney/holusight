@@ -650,6 +650,17 @@ def test_staged_literal_metacharacter_path_is_indeterminate(tmp_path):
     review = _review(repo)
     codes = {item["code"] for item in review["blockers"]}
     assert "dirty_consequential_artifact" in codes
+    assert [
+        blocker
+        for blocker in review["blockers"]
+        if blocker["code"] == "dirty_consequential_artifact"
+    ] == [
+        {
+            "code": "dirty_consequential_artifact",
+            "evidence": implementation_relative,
+            "role": "implementation",
+        }
+    ]
     assert review["stage"] != "evaluated"
     assert review["next_permitted_action"] != "human_promotion_review"
 
