@@ -117,3 +117,10 @@ query itself) is genuinely present in `expected_file` before committing —
 don't hand-guess. For `contradiction_no_answer` entries, set
 `"expected_file": "__NO_MATCH__"` (see `tests.eval_harness.NO_MATCH_SENTINEL`)
 and add a `notes` field explaining why the capability doesn't exist here.
+
+## 6. Versioned suite fixtures (dataset only)
+
+The 85-case taxonomy is also the visible development fixture referenced by
+`holusight-local-retrieval-v1` (spec 022). Loading that suite verifies
+hashes; it does not replace this harness, run hidden holdout, or authorize
+promotion. See [versioned-eval-suite-fixtures.md](versioned-eval-suite-fixtures.md).

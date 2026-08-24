@@ -1,0 +1,43 @@
+{
+  "schema_version": "holusight-eval-suite/v1",
+  "suite_id": "holusight-local-retrieval-v1",
+  "status": "dataset_foundation_only",
+  "runner": "not_implemented",
+  "evaluator_execution": "blocked_until_g2_trusted_sandbox",
+  "promotion": "denied",
+  "method_config_path": "tests/fixtures/eval_suites/holusight-local-retrieval-v1.method.json",
+  "method_config_sha256": "sha256:8507da9e978b3a313f3ab6d8b0c28b752a223b8b27dac13e4a9781f5f62b335a",
+  "visible_development": {
+    "role": "visible_development_evidence_not_generalization",
+    "fixture_path": "tests/fixtures/holusight_eval_taxonomy.json",
+    "sha256": "sha256:71a44eb463c9d0b2a02fecaa03815bf718b72b769bb3bc6b48797da34650981f",
+    "case_count": 85,
+    "split": "dev",
+    "family_counts": {
+      "exact_lookup": 20,
+      "conceptual_localization": 20,
+      "symbol_reference": 10,
+      "doc_synthesis": 15,
+      "config_lookup": 10,
+      "test_coverage": 5,
+      "contradiction_no_answer": 5
+    }
+  },
+  "hidden_holdout": {
+    "role": "hidden_from_candidate",
+    "holdout_id": "bookstore-public-v1",
+    "hash_manifest_path": "tests/fixtures/eval_holdout/bookstore-public-v1.hash-manifest.json",
+    "hash_manifest_sha256": "sha256:bbc5c79dfcff41221d273dd375a130a12f2cfb15d46be2b6407bca9b45ca2785",
+    "case_count": 32,
+    "payload_present_in_repository": false
+  },
+  "identity_binding": {
+    "git_subject": "codesight.eval_pilot.EvaluationSubject (spec 021 / ADR-0017)",
+    "corpus": "content-addressed included-path bytes for each named corpus at the bound Git subject or pinned public commit/tree",
+    "evaluator": "independent G2 evaluator-subject pin; blocked_until_g2_trusted_sandbox in this slice",
+    "configuration": "sha256 of the method/config manifest",
+    "suite_manifest": "sha256 of this suite file and of the hidden-holdout hash-manifest",
+    "comparison_rule": "A later baseline/candidate comparison is valid only when all five identities match. Changing any one invalidates the comparison. A legitimate evaluator revision requires a separately reviewed protocol revision and a new baseline."
+  },
+  "notes": "Dataset and schema foundation only. The later named-suite entrypoint may load these manifests; it must not be duplicated here. Hidden-holdout query text is intentionally absent."
+}
