@@ -41,21 +41,34 @@ def _lineage(candidate_id: str = "subject-test") -> eval_pilot.CandidateLineage:
 # ---------------------------------------------------------------------------
 
 
-def test_current_subject_resolves_real_commit_and_tree_for_this_repo():
-    subject = eval_pilot._current_subject(REPO_ROOT, repo_dirty=False)
-    assert subject.commit == eval_pilot._git_oid(REPO_ROOT, "HEAD")
-    assert subject.tree == eval_pilot._git_oid(REPO_ROOT, "HEAD^{tree}")
+def _committed_repo(repo: Path) -> Path:
+    (repo / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "subject-unit@example.test")
+    _git(repo, "config", "user.name", "Subject Unit")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "base")
+    return repo
+
+
+def test_current_subject_resolves_real_commit_and_tree_for_clean_repo(tmp_path):
+    repo = _committed_repo(tmp_path)
+    subject = eval_pilot._current_subject(repo)
+    assert subject.commit == eval_pilot._git_oid(repo, "HEAD")
+    assert subject.tree == eval_pilot._git_oid(repo, "HEAD^{tree}")
     assert subject.clean is True
     assert subject.repository_id
 
 
-def test_current_subject_is_never_clean_when_the_run_recorded_it_dirty():
-    subject = eval_pilot._current_subject(REPO_ROOT, repo_dirty=True)
+def test_current_subject_is_never_clean_when_repo_is_dirty(tmp_path):
+    repo = _committed_repo(tmp_path)
+    (repo / "untracked.txt").write_text("dirty\n", encoding="utf-8")
+    subject = eval_pilot._current_subject(repo)
     assert subject.clean is False
 
 
 def test_current_subject_has_no_commit_or_tree_outside_a_git_repository(tmp_path):
-    subject = eval_pilot._current_subject(tmp_path, repo_dirty=False)
+    subject = eval_pilot._current_subject(tmp_path)
     assert subject.commit is None
     assert subject.tree is None
     # A non-Git directory must never read as a clean subject -- the prior
@@ -64,8 +77,8 @@ def test_current_subject_has_no_commit_or_tree_outside_a_git_repository(tmp_path
     assert subject.repository_id == "local-no-remote"
 
 
-def test_branch_is_populated_but_plays_no_part_in_the_subject_model():
-    subject = eval_pilot._current_subject(REPO_ROOT, repo_dirty=False)
+def test_branch_is_populated_but_plays_no_part_in_the_subject_model(tmp_path):
+    subject = eval_pilot._current_subject(_committed_repo(tmp_path))
     assert subject.branch is None or isinstance(subject.branch, str)
     assert "branch" in eval_pilot.EvaluationSubject.model_fields
 
@@ -74,6 +87,64 @@ def test_branch_is_populated_but_plays_no_part_in_the_subject_model():
 # 2. Contract: PilotRunResult.subject is required, closed, and load-time
 #    validated
 # ---------------------------------------------------------------------------
+
+
+def test_git_status_failure_is_treated_as_dirty(tmp_path, monkeypatch):
+    def fail_status(*_args, **_kwargs):
+        return subprocess.CompletedProcess([], 128, "", "status failed")
+
+    monkeypatch.setattr(eval_pilot.subprocess, "run", fail_status)
+    assert eval_pilot._git_dirty(tmp_path) is True
+
+
+def test_repository_identity_strips_remote_credentials(tmp_path):
+    repo = _committed_repo(tmp_path)
+    _git(repo, "remote", "add", "origin", "https://secret-token@example.test/org/repo.git")
+    identity = eval_pilot._repository_identity(repo)
+    assert identity == "https://example.test/org/repo.git"
+    assert "secret-token" not in identity
+
+
+def test_repository_identity_rejects_machine_local_remote(tmp_path):
+    repo = _committed_repo(tmp_path)
+    _git(repo, "remote", "add", "origin", str(tmp_path / "other.git"))
+    assert eval_pilot._repository_identity(repo) == "local-no-remote"
+    assert eval_pilot._canonical_remote_identity("https://[malformed") is None
+
+
+def test_subject_schema_rejects_noncanonical_credential_identity():
+    with pytest.raises(ValueError, match="canonical and credential-free"):
+        eval_pilot.EvaluationSubject(
+            repository_id="https://secret-token@example.test/org/repo.git",
+            commit="0" * 40,
+            tree="1" * 40,
+            clean=True,
+        )
+
+
+def test_sha256_repository_subject_and_blob_oids_are_supported(tmp_path):
+    initialized = subprocess.run(
+        ["git", "init", "-q", "--object-format=sha256"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if initialized.returncode != 0:
+        pytest.skip("installed Git does not support SHA-256 repositories")
+    _git(tmp_path, "config", "user.email", "sha256@example.test")
+    _git(tmp_path, "config", "user.name", "SHA256")
+    (tmp_path / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-q", "-m", "base")
+
+    subject = eval_pilot._current_subject(tmp_path)
+    assert subject.clean is True
+    assert subject.commit is not None and len(subject.commit) == 64
+    assert subject.tree is not None and len(subject.tree) == 64
+    assert improvement_control._worktree_blob_oid(
+        tmp_path, "tracked.txt"
+    ) == eval_pilot._git_oid(tmp_path, "HEAD:tracked.txt")
 
 
 def test_run_pilot_result_always_carries_a_real_resolvable_subject():
@@ -303,6 +374,33 @@ def test_later_unrelated_commit_with_identical_consequential_blobs_stays_applica
     assert review["next_permitted_action"] == "human_promotion_review"
 
 
+def test_concurrent_commit_during_evaluation_invalidates_clean_subject(tmp_path, monkeypatch):
+    repo, ctx = _build_evaluated_repo(tmp_path)
+    _git(repo, "add", ctx["manifest_path"].relative_to(repo).as_posix())
+    _git(repo, "commit", "-q", "-m", "track manifest")
+    original = eval_pilot.GRADERS["grade_no_egress_default"]
+
+    def commit_during_grade(case, repo_root, run_context):
+        (repo / "concurrent.txt").write_text("changed during grading\n", encoding="utf-8")
+        _git(repo, "add", "concurrent.txt")
+        _git(repo, "commit", "-q", "-m", "concurrent change")
+        return original(case, repo_root, run_context)
+
+    monkeypatch.setitem(eval_pilot.GRADERS, "grade_no_egress_default", commit_during_grade)
+    result = eval_pilot.run_pilot(
+        repo,
+        cases_path=repo / "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        lineage=eval_pilot.CandidateLineage(
+            candidate_id="concurrent",
+            repo_commit=None,
+            workflow="test",
+            tool="pytest",
+        ),
+    )
+    assert result.subject.clean is False
+    assert result.lineage.repo_dirty is True
+
+
 def test_changed_implementation_after_result_is_indeterminate_never_ready(tmp_path):
     """Acceptance: change implementation and update only the manifest hash
     without rerunning -- pre-promotion review must return a subject mismatch
@@ -320,6 +418,25 @@ def test_changed_implementation_after_result_is_indeterminate_never_ready(tmp_pa
     assert review["stage"] != "evaluated"
     assert review["next_permitted_action"] != "human_promotion_review"
     assert review["promotion"]["allowed"] is False
+
+
+def test_changed_committed_implementation_restored_only_in_worktree_is_indeterminate(tmp_path):
+    repo, ctx = _build_evaluated_repo(tmp_path)
+    impl = repo / "src/codesight/implementation.py"
+    evaluated_bytes = impl.read_bytes()
+    impl.write_text("VALUE = 2\n", encoding="utf-8")
+    _git(repo, "add", "src/codesight/implementation.py")
+    _git(repo, "commit", "-q", "-m", "change implementation")
+    impl.write_bytes(evaluated_bytes)
+    manifest = json.loads(ctx["manifest_path"].read_text(encoding="utf-8"))
+    manifest["link_hashes"]["src/codesight/implementation.py"] = _sha256(impl)
+    ctx["manifest_path"].write_text(json.dumps(manifest), encoding="utf-8")
+
+    review = _review(repo)
+    codes = {item["code"] for item in review["blockers"]}
+    assert "changed_consequential_artifact" in codes
+    assert review["stage"] != "evaluated"
+    assert review["next_permitted_action"] != "human_promotion_review"
 
 
 def test_tampered_tree_oid_is_indeterminate(tmp_path):
@@ -416,6 +533,31 @@ def test_renamed_implementation_path_after_result_is_indeterminate(tmp_path):
 # ---------------------------------------------------------------------------
 # 5. Unit: _subject_applicability_blockers and its small git helpers directly
 # ---------------------------------------------------------------------------
+
+
+def test_scorecard_uses_subject_commit_and_dirty_subject_is_not_promotion_relevant(tmp_path):
+    repo, ctx = _build_evaluated_repo(tmp_path)
+    result = eval_pilot.PilotRunResult.model_validate(
+        json.loads(ctx["result_path"].read_text(encoding="utf-8"))
+    )
+    dirty = result.model_copy(update={"subject": result.subject.model_copy(update={"clean": False})})
+    scorecard = eval_pilot.build_pilot_aggregate_scorecard(
+        dirty, repo="subject-test", repo_commit=result.subject.commit or "unknown"
+    )
+    assert scorecard["repo_commit"] == result.subject.commit
+    assert scorecard["gate_decision"] == "hold"
+    assert scorecard["diagnostics"]["promotion_relevant"] is False
+
+
+def test_scorecard_rejects_commit_that_differs_from_subject(tmp_path):
+    repo, ctx = _build_evaluated_repo(tmp_path)
+    result = eval_pilot.PilotRunResult.model_validate(
+        json.loads(ctx["result_path"].read_text(encoding="utf-8"))
+    )
+    with pytest.raises(ValueError, match="does not match"):
+        eval_pilot.build_pilot_aggregate_scorecard(
+            result, repo="subject-test", repo_commit="0" * len(result.subject.commit or "")
+        )
 
 
 def test_subject_applicability_blockers_flags_wrong_repository_identity(tmp_path):

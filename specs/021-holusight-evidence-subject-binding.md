@@ -30,30 +30,32 @@ repository state at evaluation time — never trusted from caller input:
 ```json
 {
   "repository_id": "https://github.com/camilojourney/holusight.git",
-  "commit": "<40-hex commit oid>",
-  "tree": "<40-hex tree oid>",
+  "commit": "<full Git commit oid>",
+  "tree": "<full Git tree oid>",
   "clean": true,
   "branch": "fm/holusight-subject-binding-v1"
 }
 ```
 
-- `repository_id` is the configured `origin` remote URL, or the fixed
-  sentinel `"local-no-remote"` when none is configured. It is one field of
-  the subject, not a portable registry key or a filesystem path.
-- `commit` and `tree` are full 40-hex Git object ids resolved from `HEAD` /
-  `HEAD^{tree}` at evaluation time, or `null` when unresolvable (no Git, or
-  an unborn branch).
-- `clean` is `true` only when both `commit` and `tree` resolved **and** the
-  worktree had no uncommitted changes. This closes a real pre-existing
-  loophole: `_git_dirty` silently returns `False` when `git` itself fails
-  (e.g. no Git repository at all), which previously let a non-Git directory
-  read as "not dirty" rather than "unable to establish a subject".
+- `repository_id` is the canonicalized configured `origin` remote URL with
+  userinfo, query, and fragment removed. Machine-local or malformed remotes,
+  and repositories with no remote, use the fixed `"local-no-remote"`
+  sentinel. Credentials and filesystem paths are never persisted.
+- `commit` and `tree` are full Git object ids resolved from `HEAD` /
+  `HEAD^{tree}` at evaluation time. Both 40-hex SHA-1 and 64-hex SHA-256
+  repositories are supported; an unresolvable object is `null`.
+- `clean` is `true` only when both `commit` and `tree` resolve, `git status`
+  succeeds with no uncommitted changes, and a second subject capture after
+  grading has the same repository identity, commit, tree, and clean state.
+  Git command failure and concurrent repository changes fail closed.
 - `branch` is recorded only as an annotation. Nothing in the applicability
   recomputation below reads it — a mutable branch name is never identity.
 
 `_validate_result` additionally rejects any result whose subject is not
 `clean` (with a resolved `commit` and `tree`) as promotion-relevant
-evidence, alongside its existing `corpus_trust`/`repo_dirty` check.
+evidence, alongside its existing `corpus_trust`/`repo_dirty` check. The
+aggregate scorecard derives promotion relevance and `repo_commit` from this
+subject and rejects a caller-supplied commit that does not match it.
 
 ## Review-time applicability recomputation
 
@@ -71,7 +73,9 @@ can reach `evaluated` stage:
 3. `subject.commit^{tree}` must still resolve (the commit must still exist),
    or the subject is `stale_evaluation_subject`.
 4. The resolved tree must equal `subject.tree`, or `wrong_tree_oid`.
-5. For every path linked under `implementation`, `tests`, `documentation`,
+5. The current `HEAD` must descend from the evaluated commit, or the subject
+   is stale after rewritten/rebased history.
+6. For every path linked under `implementation`, `tests`, `documentation`,
    and `evaluation_case` — the **consequential** roles whose bytes the
    result actually depended on (`governing` and `evaluation_result` are
    excluded: one governs, the other is the anchor itself) — the path must
@@ -81,24 +85,25 @@ can reach `evaluated` stage:
    path is a locator, never identity, so a renamed file that never existed
    at that path in the evaluated commit is indeterminate, never silently
    accepted because its current bytes happen to hash-match the manifest).
-6. That evaluated-commit blob must equal the path's current on-disk blob
-   (`git hash-object`), or it is `changed_consequential_artifact` — this is
-   the "equal path, differing blob" case: current bytes matching the
-   manifest's own hash is not enough if those bytes differ from what was
-   actually evaluated.
+7. That evaluated blob must equal both the current tracked `HEAD:<path>` blob
+   and the current worktree blob. The path must also be clean in the index and
+   worktree. A tracked mismatch is `changed_consequential_artifact`; staged,
+   unstaged, or untracked path state is `dirty_consequential_artifact`.
+   Current bytes matching the manifest hash cannot hide a different tracked
+   `HEAD` blob.
 
 Every one of these blocker codes shares a prefix (`dangling_`, `stale_`,
-`wrong_`, or the newly added `changed_`) that `_stage()` already treats as
+`wrong_`, `changed_`, or `dirty_`) that `_stage()` treats as
 disqualifying — so a manifest with any of them can never reach `evaluated`
 stage, and `pre_promotion` review can never return
 `human_promotion_review` for it. This preserves the existing promotion
 boundary rather than adding a new one: promotion was always
 `allowed: false`, and remains so.
 
-A later manifest-only descendant commit — one that touches nothing
-consequential — remains applicable, because every check above compares
-blobs and tree/commit identity, never commit recency or the manifest's own
-branch.
+A later manifest-only descendant commit - one that touches nothing
+consequential - remains applicable because every consequential `HEAD` blob
+and clean worktree path still matches the evaluated subject. Commit recency
+and the manifest's own branch play no part.
 
 ## Explicitly out of scope
 

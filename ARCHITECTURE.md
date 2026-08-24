@@ -680,10 +680,11 @@ run_pilot() -> PilotRunResult.subject = {repository_id, commit, tree,
 holus improve-review --phase pre_promotion
   -> _subject_applicability_blockers() recomputes, for implementation/
      tests/documentation/evaluation_case links only:
-       subject clean+resolvable, repository identity, commit still exists,
-       tree matches, every linked path resolves to the same Git blob at the
-       evaluated commit as it has on disk right now
-  -> any mismatch (dangling/stale/wrong_tree/changed) demotes stage away
+       subject clean+resolvable and stable before/after grading, sanitized
+       repository identity, commit/tree still resolve, current HEAD descends
+       from the subject, and every linked path has the same Git blob at the
+       evaluated commit, current HEAD, and clean worktree
+  -> any mismatch (dangling/stale/wrong_tree/changed/dirty) demotes stage away
      from "evaluated" via the existing _stage() blocker-prefix mechanism,
      so it can never reach pre_promotion's human_promotion_review
 ```
@@ -693,9 +694,11 @@ non-Git directory previously read as "not dirty" (`git status` simply fails
 there), letting an eval-pilot result produced outside a real repository
 still become promotion-relevant evidence. It is now `dangling_evaluation_subject`.
 A manifest-only descendant commit that touches nothing consequential stays
-applicable — the check compares blobs and tree/commit identity, never
-commit recency or the manifest's own branch name (an inert annotation
-only). `retrieval_variation.py`'s own applicability check (full
+applicable because tracked and worktree blobs remain identical. Commit recency
+and the manifest's own branch name remain irrelevant. SHA-1 and SHA-256 object
+formats are supported, remote identity credentials are stripped, and pilot
+scorecards derive commit identity and relevance from the bound subject.
+`retrieval_variation.py`'s own applicability check (full
 re-execution and byte-comparison against current tracked `HEAD` on every
 load) is untouched — a different, already-adequate mechanism for that
 subsystem. No new manifest field, link role, or promotion mechanism was

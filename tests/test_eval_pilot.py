@@ -336,7 +336,7 @@ def test_run_pilot_never_reads_a_real_voyage_key_by_accident(monkeypatch):
 def test_aggregate_scorecard_shape():
     result = eval_pilot.run_pilot(REPO_ROOT, cases_path=CASES_PATH, lineage=_lineage())
     scorecard = eval_pilot.build_pilot_aggregate_scorecard(
-        result, repo="holusight", repo_commit="abc123def4567890abc123def4567890abc123d"
+        result, repo="holusight", repo_commit=result.subject.commit or "unknown"
     )
     assert scorecard["schema"] == "fleet.eval_scorecard.v1.2"
     assert scorecard["gate_decision"] in {"pass", "fail", "hold"}
@@ -352,7 +352,7 @@ def test_aggregate_scorecard_shape():
 def test_aggregate_scorecard_contains_no_raw_case_content():
     result = eval_pilot.run_pilot(REPO_ROOT, cases_path=CASES_PATH, lineage=_lineage())
     scorecard = eval_pilot.build_pilot_aggregate_scorecard(
-        result, repo="holusight", repo_commit="abc123"
+        result, repo="holusight", repo_commit=result.subject.commit or "unknown"
     )
     serialized = json.dumps(scorecard)
     # synthetic marker strings used only inside grade.detail must never

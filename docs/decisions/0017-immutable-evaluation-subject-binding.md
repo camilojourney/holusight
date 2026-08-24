@@ -11,9 +11,10 @@ by `run_pilot` from real Git state, never from caller input. At review time,
 recompute every consequential linked artifact (`implementation`, `tests`,
 `documentation`, `evaluation_case`) against that subject by resolving each
 repository-relative path to a Git blob at the evaluated commit and comparing
-it to the path's current on-disk blob. Reuse the existing six manifest link
-roles unchanged; add no new role, manifest field, storage layer, or
-promotion mechanism.
+it to the clean current `HEAD` and worktree blobs. Require current `HEAD` to
+descend from the evaluated commit. Reuse the existing six manifest link roles
+unchanged; add no new role, manifest field, storage layer, or promotion
+mechanism.
 
 ## Consequences
 
@@ -30,13 +31,15 @@ promotion mechanism.
   as "not dirty" (because `git status` simply fails there), so an eval-pilot
   result produced outside a real Git repository could still become
   promotion-relevant evidence. `EvaluationSubject.clean` now requires a
-  resolvable commit and tree, so that case is `dangling_evaluation_subject`
-  instead.
+  resolvable commit and tree, successful clean status checks, and the same
+  subject before and after grading. Git failures and concurrent changes fail
+  closed.
 - A later manifest-only descendant commit remains applicable exactly when
-  every consequential artifact blob is unchanged — the check compares
-  blobs and tree/commit identity, never commit recency, so ordinary
-  unrelated commits (docs, unrelated files) do not invalidate an
-  already-evaluated result.
+  every consequential tracked `HEAD` blob and clean worktree path is unchanged.
+  Commit recency does not invalidate an already-evaluated result.
+- Repository identities are sanitized before persistence, SHA-1 and SHA-256
+  object formats are accepted, and aggregate scorecards derive their commit
+  and promotion relevance from the bound subject.
 - Mutable branch names are recorded only as an annotation
   (`EvaluationSubject.branch`); nothing in the applicability recomputation
   reads it.

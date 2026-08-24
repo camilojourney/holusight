@@ -61,7 +61,7 @@ _FORBIDDEN_FIELD_NAMES = frozenset(
     }
 )
 _CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
-_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
+_GIT_OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 # The four link roles whose *bytes* the evaluation result depended on: a
 # repository-relative path is a locator, never identity, so each of these is
 # re-resolved against the evaluated commit's Git subject at review time
@@ -342,9 +342,28 @@ def _git_show(repo_root: Path, *args: str) -> str | None:
 
 
 def _worktree_blob_oid(repo_root: Path, path: str) -> str | None:
-    """The blob id of ``path`` as it currently sits on disk, tracked or not."""
     value = _git_show(repo_root, "hash-object", "--", path)
     return value if value and _GIT_OID_RE.fullmatch(value) else None
+
+
+def _git_path_clean(repo_root: Path, path: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "status", "--porcelain", "--", path],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0 and not result.stdout.strip()
+
+
+def _git_is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "merge-base", "--is-ancestor", ancestor, descendant],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
 
 
 def _subject_applicability_blockers(
@@ -388,6 +407,16 @@ def _subject_applicability_blockers(
     if resolved_tree != subject.tree:
         blockers.append(_blocked("wrong_tree_oid", subject.tree, role="evaluation_result"))
         return blockers
+    current_commit = eval_pilot._git_oid(repo_root, "HEAD")
+    if current_commit is None or not _git_is_ancestor(repo_root, subject.commit, current_commit):
+        blockers.append(
+            _blocked(
+                "stale_evaluation_subject",
+                current_commit or "unresolved",
+                role="evaluation_result",
+            )
+        )
+        return blockers
     for role in _CONSEQUENTIAL_ROLES:
         for raw_path in manifest["links"].get(role, []):
             relative = _safe_relative(repo_root, raw_path)
@@ -400,9 +429,16 @@ def _subject_applicability_blockers(
                 # rebase/rename case: path is a locator, never identity.
                 blockers.append(_blocked("dangling_consequential_artifact", path, role=role))
                 continue
+            current_head_blob = eval_pilot._git_oid(repo_root, f"HEAD:{path}")
+            if current_head_blob is None or current_head_blob != evaluated_blob:
+                blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+                continue
             current_blob = _worktree_blob_oid(repo_root, path)
             if current_blob is None or current_blob != evaluated_blob:
                 blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+                continue
+            if not _git_path_clean(repo_root, path):
+                blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
     return blockers
 
 
@@ -683,7 +719,16 @@ def _stage(classification: str, links: dict[str, Any], blockers: list[dict[str, 
     integrity_codes = {item["code"] for item in blockers}
     if all_roles_present and not any(
         code.startswith(
-            ("missing_", "dangling_", "stale_", "unsafe_", "wrong_", "duplicate_", "changed_")
+            (
+                "missing_",
+                "dangling_",
+                "stale_",
+                "unsafe_",
+                "wrong_",
+                "duplicate_",
+                "changed_",
+                "dirty_",
+            )
         )
         for code in integrity_codes
     ):

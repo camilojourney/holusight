@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import re
 import subprocess
@@ -51,8 +52,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Callable, Literal
+from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
 from . import axi_providers, cli_axi, consistency
 from .control_storage import RESULTS_ROOT, UnsafeStoragePath, safe_atomic_write
@@ -135,7 +137,7 @@ class CandidateLineage(_ClosedResultModel):
     comparator_digest: str | None = None
 
 
-_GitOid = Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
+_GitOid = Annotated[str, Field(pattern=r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")]
 
 
 class EvaluationSubject(_ClosedResultModel):
@@ -151,6 +153,13 @@ class EvaluationSubject(_ClosedResultModel):
     tree: _GitOid | None
     clean: bool
     branch: str | None = None
+
+    @field_validator("repository_id")
+    @classmethod
+    def validate_repository_id(cls, value: str) -> str:
+        if value == "local-no-remote" or _canonical_remote_identity(value) == value:
+            return value
+        raise ValueError("repository_id must be canonical and credential-free")
 
 
 class CaseGrade(_ClosedResultModel):
@@ -835,31 +844,71 @@ def _git_dirty(repo_root: Path) -> bool:
         text=True,
         check=False,
     )
-    return result.returncode == 0 and bool(result.stdout.strip())
+    return result.returncode != 0 or bool(result.stdout.strip())
 
 
-_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
+_GIT_OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+_SCP_REMOTE_RE = re.compile(r"^(?:[^@/:\s]+@)?([^/:\s]+):(.+)$")
+_SAFE_REMOTE_SCHEMES = frozenset({"git", "http", "https", "ssh", "git+ssh"})
+
+
+def _machine_local_host(host: str) -> bool:
+    normalized = host.lower().rstrip(".")
+    if normalized in {"localhost", "localhost.localdomain"}:
+        return True
+    try:
+        address = ipaddress.ip_address(normalized)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_link_local or address.is_unspecified
+
+
+def _canonical_remote_identity(origin: str) -> str | None:
+    if not origin or len(origin) > 2048 or any(char.isspace() for char in origin):
+        return None
+    if "://" not in origin:
+        match = _SCP_REMOTE_RE.fullmatch(origin)
+        if not match:
+            return None
+        host, path = match.groups()
+        if _machine_local_host(host) or not path.strip("/"):
+            return None
+        return f"ssh://{host.lower()}/{path.lstrip('/').rstrip('/')}"
+
+    try:
+        parsed = urlsplit(origin)
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+    scheme = parsed.scheme.lower()
+    if scheme not in _SAFE_REMOTE_SCHEMES or not host or _machine_local_host(host):
+        return None
+    path = parsed.path.rstrip("/")
+    if not path:
+        return None
+    host = host.lower()
+    if ":" in host:
+        host = f"[{host}]"
+    default_ports = {"http": 80, "https": 443, "ssh": 22, "git+ssh": 22, "git": 9418}
+    netloc = host if port is None or port == default_ports[scheme] else f"{host}:{port}"
+    return urlunsplit((scheme, netloc, path, "", ""))
 
 
 def _repository_identity(repo_root: Path) -> str:
-    """A best-effort, non-authoritative repository identity.
-
-    Falls back to a fixed sentinel rather than a filesystem path, so identity
-    never leaks a machine-specific location — it is one field of the subject,
-    not a portable registry key.
-    """
     result = subprocess.run(
         ["git", "-C", str(repo_root), "remote", "get-url", "origin"],
         capture_output=True,
         text=True,
         check=False,
     )
-    origin = result.stdout.strip()
-    return origin if result.returncode == 0 and origin else "local-no-remote"
+    if result.returncode != 0:
+        return "local-no-remote"
+    return _canonical_remote_identity(result.stdout.strip()) or "local-no-remote"
 
 
 def _git_oid(repo_root: Path, rev: str) -> str | None:
-    """Resolve ``rev`` to a full 40-hex object id, or ``None`` if unresolvable."""
+    """Resolve ``rev`` to a full Git object id, or ``None`` if unresolvable."""
     result = subprocess.run(
         ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", rev],
         capture_output=True,
@@ -883,20 +932,15 @@ def _current_branch(repo_root: Path) -> str | None:
     return branch if result.returncode == 0 and branch else None
 
 
-def _current_subject(repo_root: Path, *, repo_dirty: bool) -> EvaluationSubject:
-    """The immutable Git subject this run is being produced against.
-
-    ``clean`` requires a resolvable commit and tree in addition to a clean
-    worktree — a non-Git or history-less directory can never be recorded as
-    a clean subject, closing the prior loophole where an absent ``git``
-    silently read as "not dirty" (see spec 021)."""
+def _current_subject(repo_root: Path) -> EvaluationSubject:
+    """The immutable Git subject this run is being produced against."""
     commit = _git_oid(repo_root, "HEAD")
     tree = _git_oid(repo_root, "HEAD^{tree}") if commit else None
     return EvaluationSubject(
         repository_id=_repository_identity(repo_root),
         commit=commit,
         tree=tree,
-        clean=bool(commit and tree and not repo_dirty),
+        clean=bool(commit and tree and not _git_dirty(repo_root)),
         branch=_current_branch(repo_root),
     )
 
@@ -922,8 +966,8 @@ def run_pilot(
     corpus_trust = (
         "canonical" if _is_canonical_cases(cases_path, repo_root) else "untrusted_advisory"
     )
-    lineage.repo_dirty = _git_dirty(repo_root)
-    subject = _current_subject(repo_root, repo_dirty=lineage.repo_dirty)
+    subject = _current_subject(repo_root)
+    lineage.repo_dirty = not subject.clean
     lineage.evaluator_digest = _tree_digest(
         repo_root, ("src/codesight/eval_pilot.py", "src/codesight/cli_axi.py")
     )
@@ -972,6 +1016,17 @@ def run_pilot(
             else "invalid"
         )
 
+    final_subject = _current_subject(repo_root)
+    subject_stable = (
+        subject.repository_id == final_subject.repository_id
+        and subject.commit == final_subject.commit
+        and subject.tree == final_subject.tree
+        and subject.clean == final_subject.clean
+    )
+    if not subject_stable or not final_subject.clean:
+        subject = subject.model_copy(update={"clean": False})
+    lineage.repo_dirty = not subject.clean
+
     result = PilotRunResult(
         run_id=f"eval-pilot-{lineage.candidate_id}-{_now()}",
         cases_file=_public_cases_path(repo_root, cases_path),
@@ -1012,7 +1067,16 @@ def build_pilot_aggregate_scorecard(
     controls_complete = (
         result.counts["comparative_total"] == result.counts["comparative_with_status_quo_verdict"]
     )
-    promotion_relevant = result.corpus_trust == "canonical" and not result.lineage.repo_dirty
+    subject_commit = result.subject.commit or "unknown"
+    if repo_commit != subject_commit:
+        raise ValueError("repo_commit does not match the evaluation subject")
+    promotion_relevant = (
+        result.corpus_trust == "canonical"
+        and result.subject.clean
+        and result.subject.commit is not None
+        and result.subject.tree is not None
+        and not result.lineage.repo_dirty
+    )
     gate_decision = (
         "pass"
         if no_regressions and controls_complete and promotion_relevant
@@ -1022,7 +1086,7 @@ def build_pilot_aggregate_scorecard(
 
     result_payload = result.model_dump(mode="json")
     result_hash = _sha256_hex(json.dumps(result_payload, sort_keys=True).encode("utf-8"))
-    input_hash = _sha256_hex(f"{result.cases_file_hash}:{repo_commit}".encode("utf-8"))
+    input_hash = _sha256_hex(f"{result.cases_file_hash}:{subject_commit}".encode("utf-8"))
 
     return {
         "schema": SCHEMA_PILOT_SCORECARD,
@@ -1045,7 +1109,7 @@ def build_pilot_aggregate_scorecard(
         "fixture_set_hash": result.cases_file_hash,
         "result_hash": result_hash,
         "evaluator_version": "codesight-eval-pilot/1",
-        "repo_commit": repo_commit,
+        "repo_commit": subject_commit,
         "environment": {
             "egress_allowed": result.egress_allowed,
             "semantic_allowed": result.semantic_allowed,
