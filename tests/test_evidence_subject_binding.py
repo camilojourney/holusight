@@ -157,6 +157,23 @@ def test_repository_identity_rejects_scp_remote_suffixes(tmp_path, origin):
     assert eval_pilot._repository_identity(repo) == "local-no-remote"
 
 
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://example.test/repos/sk-12345678/repo.git",
+        "https://example.test/repos/sk%2D12345678/repo.git",
+        "git@example.test:repos/sk-12345678/repo.git",
+    ],
+)
+def test_repository_identity_rejects_secret_like_remote_paths(tmp_path, origin):
+    repo = _committed_repo(tmp_path)
+    _git(repo, "remote", "add", "origin", origin)
+    identity = eval_pilot._repository_identity(repo)
+    assert identity == "local-no-remote"
+    assert "sk-12345678" not in identity
+    assert "sk%2D12345678" not in identity
+
+
 def test_repository_identity_rejects_filesystem_and_malformed_remotes(tmp_path):
     repo = _committed_repo(tmp_path)
     _git(repo, "remote", "add", "origin", str(tmp_path / "other.git"))

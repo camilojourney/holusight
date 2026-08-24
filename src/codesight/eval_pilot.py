@@ -53,7 +53,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Callable, Literal
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
@@ -905,6 +905,18 @@ def _machine_local_host(host: str) -> bool:
     return not address.is_global
 
 
+def _remote_path_contains_secret(path: str) -> bool:
+    decoded = path
+    for _ in range(3):
+        if _SECRET_LIKE.search(decoded):
+            return True
+        unescaped = unquote(decoded)
+        if unescaped == decoded:
+            return False
+        decoded = unescaped
+    return bool(_SECRET_LIKE.search(decoded))
+
+
 def _canonical_remote_identity(origin: str) -> str | None:
     if not origin or len(origin) > 2048 or any(char.isspace() for char in origin):
         return None
@@ -913,7 +925,13 @@ def _canonical_remote_identity(origin: str) -> str | None:
         if not match:
             return None
         host, path = match.groups()
-        if _machine_local_host(host) or not path.strip("/") or "?" in path or "#" in path:
+        if (
+            _machine_local_host(host)
+            or not path.strip("/")
+            or "?" in path
+            or "#" in path
+            or _remote_path_contains_secret(path)
+        ):
             return None
         return f"ssh://{host.lower()}/{path.lstrip('/').rstrip('/')}"
 
@@ -927,7 +945,7 @@ def _canonical_remote_identity(origin: str) -> str | None:
     if scheme not in _SAFE_REMOTE_SCHEMES or not host or _machine_local_host(host):
         return None
     path = parsed.path.rstrip("/")
-    if not path:
+    if not path or _remote_path_contains_secret(path):
         return None
     host = host.lower()
     if ":" in host:
