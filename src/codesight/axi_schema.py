@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-AXI_SCHEMA_VERSION = "0.4.0"
+AXI_SCHEMA_VERSION = "0.5.0"
 
 # The five stable jobs, per specs/011-holusight-product-architecture-research.md
 # ("holus-axi: smallest stable command surface") and
@@ -115,6 +115,12 @@ _RECORD_FLAG = AxiFlag(
     "Opt in to a content-minimized derived review record under .holusight/.",
     takes_value=False,
 )
+_VARIATION_SIGNAL_FLAG = AxiFlag(
+    "--signal",
+    "Privacy-safe aggregate real-use signal for human review.",
+    choices=("failure_case", "aggregate_outcome"),
+)
+_VARIATION_COUNT_FLAG = AxiFlag("--count", "Positive aggregate signal count.")
 
 AXI_COMMANDS: tuple[AxiCommand, ...] = (
     AxiCommand(
@@ -323,6 +329,32 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
             "holus improve-placement --artifact-type case "
             "--proposed-path tests/fixtures/my_case.jsonl",
             "holus improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md",
+        ),
+    ),
+    AxiCommand(
+        name="improve-variation-run",
+        usage="holus improve-variation-run",
+        description=(
+            "Run the fixed, local evidence-display variation baseline and two controlled "
+            "candidates. Hard constraints and rewards stay separate; promotion is always "
+            "human-guarded."
+        ),
+        flags=(_RECORD_FLAG, _FORMAT_FLAG, _HELP_FLAG),
+        examples=(
+            "holus improve-variation-run",
+            "holus improve-variation-run --record --format json",
+        ),
+    ),
+    AxiCommand(
+        name="improve-variation-feedback",
+        usage="holus improve-variation-feedback",
+        description=(
+            "Queue only an aggregate, privacy-safe real-use signal for human fixture-admission "
+            "review. It never changes a case, threshold, evaluator, or authority."
+        ),
+        flags=(_VARIATION_SIGNAL_FLAG, _VARIATION_COUNT_FLAG, _FORMAT_FLAG, _HELP_FLAG),
+        examples=(
+            "holus improve-variation-feedback --signal failure_case --count 2",
         ),
     ),
     AxiCommand(

@@ -1,0 +1,13 @@
+{
+  "schema_version": "holusight-retrieval-variation-benchmark/v1",
+  "behavior": "evidence_display_provider_coverage",
+  "source_fixtures": ["tests/fixtures/holusight_eval_pilot_cases.jsonl"],
+  "cases": [
+    {"case_id": "exact-only", "family": "exact", "cap": 3, "provider_item_counts": {"exact": 5}, "required_providers": ["exact"]},
+    {"case_id": "hybrid-balanced", "family": "hybrid", "cap": 4, "provider_item_counts": {"exact": 4, "semantic": 2}, "required_providers": ["exact", "semantic"]},
+    {"case_id": "graph-impact", "family": "graph_impact", "cap": 3, "provider_item_counts": {"structural": 3, "consistency": 2}, "required_providers": ["structural", "consistency"]},
+    {"case_id": "ambiguity", "family": "ambiguity", "cap": 4, "provider_item_counts": {"exact": 2, "structural": 1, "consistency": 1, "semantic": 1}, "required_providers": ["exact", "structural", "consistency", "semantic"]},
+    {"case_id": "no-evidence", "family": "no_evidence", "cap": 4, "provider_item_counts": {}, "required_providers": []},
+    {"case_id": "adversarial-provider-flood", "family": "adversarial", "cap": 20, "provider_item_counts": {"exact": 30, "structural": 1, "consistency": 1, "semantic": 5}, "required_providers": ["exact", "structural", "consistency", "semantic"]}
+  ]
+}

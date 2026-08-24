@@ -98,6 +98,7 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
 | `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
 | `improvement_control.py` | Deterministic tracked-manifest review, monotonic evidence-stage validation, constrained research signal, and bounded content-minimized derived records for the existing `holus improve-*` commands. See spec 019. |
+| `retrieval_variation.py` | Fixed local evidence-display baseline/candidate evaluator. It content-addresses benchmark and lineage, separates hard constraints from reward, and leaves promotion to independent human review. See spec 020. |
 | `control_storage.py` | Shared no-follow, restrictive, atomic durable writer for gitignored control-plane result/history state. It rejects canonical tracked destinations and symlink aliases. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
@@ -630,6 +631,33 @@ tracked *.change.json manifest
   for contradictions, material incompleteness/unfamiliarity, or repeated
   blocked history. It may name normal review or a precise GPT Deep Research
   question, always with `external_action: "not_launched"`.
+
+---
+
+## Controlled Retrieval Variation Program v1 (Added 2026-08-24)
+
+A small local experiment inside the existing `holus improve-*` control plane,
+not a candidate-generation framework. Full design record:
+`specs/020-controlled-retrieval-variation-program.md`; decision record:
+`docs/decisions/0016-controlled-retrieval-variation-boundary.md`; operator
+workflow: `docs/playbooks/run-retrieval-variation-program.md`.
+
+```
+frozen benchmark + frozen legacy baseline
+  -> two fixed display-selection candidates with hashes
+  -> deterministic baseline/candidate evaluation + byte-equivalent replay
+  -> hard constraints kept separate from provider-coverage reward
+  -> inconclusive/failed outcomes retained in optional no-follow derived state
+  -> independent holus improve-review human decision (never automatic promotion)
+```
+
+The benchmark covers exact, hybrid, graph/impact, ambiguity, no-evidence, and
+adversarial provider-flood cases. A synthetic semantic-provider case tests
+routing without invoking a model or egress. Every run pins the benchmark,
+supporting fixture, evaluator, baseline, candidate, and result identities.
+Malformed, partial, or tampered results fail closed. Aggregate-only feedback
+can propose a future ordinary fixture-review PR, but cannot change a label,
+threshold, evaluator, authority, or canonical truth.
 
 ---
 
