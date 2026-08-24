@@ -15,6 +15,7 @@ import json
 import os
 import re
 import stat
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,6 +61,12 @@ _FORBIDDEN_FIELD_NAMES = frozenset(
     }
 )
 _CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
+_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
+# The four link roles whose *bytes* the evaluation result depended on: a
+# repository-relative path is a locator, never identity, so each of these is
+# re-resolved against the evaluated commit's Git subject at review time
+# (governing docs and the result itself are excluded — spec 021, closing G1).
+_CONSEQUENTIAL_ROLES = ("implementation", "tests", "documentation", "evaluation_case")
 _EVALUATOR_PATHS = frozenset(
     {
         "src/codesight/eval_pilot.py",
@@ -326,6 +333,79 @@ def _placement(repo_root: Path, artifact_type: str, raw_path: str) -> list[dict[
     return []
 
 
+def _git_show(repo_root: Path, *args: str) -> str | None:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), *args], capture_output=True, text=True, check=False
+    )
+    value = result.stdout.strip()
+    return value if result.returncode == 0 else None
+
+
+def _worktree_blob_oid(repo_root: Path, path: str) -> str | None:
+    """The blob id of ``path`` as it currently sits on disk, tracked or not."""
+    value = _git_show(repo_root, "hash-object", "--", path)
+    return value if value and _GIT_OID_RE.fullmatch(value) else None
+
+
+def _subject_applicability_blockers(
+    repo_root: Path, manifest: dict[str, Any], result: Any
+) -> list[dict[str, str]]:
+    """Recompute a pilot evaluation result's applicability against its
+    immutable Git subject (spec 021, closing the G1 gap against specs
+    017-020).
+
+    A repository-relative link path is a locator, never identity. Stale,
+    dirty, wrong-tree, missing/renamed, or changed consequential artifacts
+    are every one indeterminate here — the caller demotes the manifest away
+    from ``evaluated`` for any blocker this returns, so none can reach
+    ``pre_promotion``. A later manifest-only descendant commit stays
+    applicable exactly when every consequential artifact blob is still
+    byte-identical to the one recorded at the evaluated subject; the
+    manifest's own commit and any branch name play no part in the check.
+    """
+    blockers: list[dict[str, str]] = []
+    subject = result.subject
+    if not subject.commit or not subject.tree or not subject.clean:
+        blockers.append(
+            _blocked(
+                "dangling_evaluation_subject",
+                subject.commit or "unresolved",
+                role="evaluation_result",
+            )
+        )
+        return blockers
+    if subject.repository_id != eval_pilot._repository_identity(repo_root):
+        blockers.append(
+            _blocked("wrong_repository_subject", subject.repository_id, role="evaluation_result")
+        )
+        return blockers
+    resolved_tree = eval_pilot._git_oid(repo_root, f"{subject.commit}^{{tree}}")
+    if resolved_tree is None:
+        blockers.append(
+            _blocked("stale_evaluation_subject", subject.commit, role="evaluation_result")
+        )
+        return blockers
+    if resolved_tree != subject.tree:
+        blockers.append(_blocked("wrong_tree_oid", subject.tree, role="evaluation_result"))
+        return blockers
+    for role in _CONSEQUENTIAL_ROLES:
+        for raw_path in manifest["links"].get(role, []):
+            relative = _safe_relative(repo_root, raw_path)
+            if relative is None:
+                continue  # already an unsafe_link blocker from the caller's own pass
+            path = relative.as_posix()
+            evaluated_blob = eval_pilot._git_oid(repo_root, f"{subject.commit}:{path}")
+            if evaluated_blob is None:
+                # Missing at the evaluated subject covers both deletion and the
+                # rebase/rename case: path is a locator, never identity.
+                blockers.append(_blocked("dangling_consequential_artifact", path, role=role))
+                continue
+            current_blob = _worktree_blob_oid(repo_root, path)
+            if current_blob is None or current_blob != evaluated_blob:
+                blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+    return blockers
+
+
 def _review_links(
     repo_root: Path,
     manifest: dict[str, Any],
@@ -489,6 +569,7 @@ def _review_links(
                             role="evaluation_result",
                         )
                     )
+                blockers.extend(_subject_applicability_blockers(repo_root, manifest, result))
                 continue
 
             matching_benchmark = any(
@@ -601,7 +682,9 @@ def _stage(classification: str, links: dict[str, Any], blockers: list[dict[str, 
     all_roles_present = all(links.get(role) for role in LINK_ROLES)
     integrity_codes = {item["code"] for item in blockers}
     if all_roles_present and not any(
-        code.startswith(("missing_", "dangling_", "stale_", "unsafe_", "wrong_", "duplicate_"))
+        code.startswith(
+            ("missing_", "dangling_", "stale_", "unsafe_", "wrong_", "duplicate_", "changed_")
+        )
         for code in integrity_codes
     ):
         return "evaluated"

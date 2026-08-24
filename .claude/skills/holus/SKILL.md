@@ -10,7 +10,7 @@ description: >
 
 # holus - Holusight-AXI repository evidence CLI
 
-Schema version: `0.5.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
+Schema version: `0.6.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
 
 ## When to use this
 

@@ -61,8 +61,8 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
-| `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
-| `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for the existing `holus improve-*` loop. It verifies tracked manifests, links, hashes, stages, and promotion blockers without egress or canonical writes. See spec 019. |
+| `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |
+| `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for the existing `holus improve-*` loop. It verifies tracked manifests, links, hashes, stages, promotion blockers, and (for pilot results) recomputed Git-subject applicability, without egress or canonical writes. See specs 019 and 021. |
 | `src/codesight/retrieval_variation.py` | Fixed, local evidence-display baseline/candidate evaluator. Content-addresses benchmark and lineage, separates hard constraints from reward, and only permits independent human review. See spec 020. |
 | `src/codesight/types.py` | Shared type definitions. |
 | `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |

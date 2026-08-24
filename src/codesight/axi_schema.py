@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-AXI_SCHEMA_VERSION = "0.5.0"
+AXI_SCHEMA_VERSION = "0.6.0"
 
 # The five stable jobs, per specs/011-holusight-product-architecture-research.md
 # ("holus-axi: smallest stable command surface") and

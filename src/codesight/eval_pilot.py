@@ -135,6 +135,24 @@ class CandidateLineage(_ClosedResultModel):
     comparator_digest: str | None = None
 
 
+_GitOid = Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
+
+
+class EvaluationSubject(_ClosedResultModel):
+    """The immutable Git subject this result was produced against (spec 021,
+    closing the G1 gap identified against specs 017-020).
+
+    A repository-relative link path is a locator, never identity — review-time
+    applicability is recomputed against this subject's ``commit``/``tree``,
+    never against ``branch``, which is annotation only per spec 021."""
+
+    repository_id: str
+    commit: _GitOid | None
+    tree: _GitOid | None
+    clean: bool
+    branch: str | None = None
+
+
 class CaseGrade(_ClosedResultModel):
     case_id: str
     family: str
@@ -168,6 +186,7 @@ class PilotRunResult(_ClosedResultModel):
     cases_file: str
     cases_file_hash: str
     lineage: CandidateLineage
+    subject: EvaluationSubject
     egress_allowed: bool
     semantic_allowed: bool
     grades: list[CaseGrade]
@@ -380,6 +399,8 @@ def _validate_result(result: PilotRunResult) -> None:
         raise ValueError("prior result has incomplete status-quo controls")
     if result.corpus_trust != "canonical" or result.lineage.repo_dirty:
         raise ValueError("prior result is not immutable promotion-relevant evidence")
+    if not result.subject.clean or not result.subject.commit or not result.subject.tree:
+        raise ValueError("prior result lacks a clean, resolvable immutable Git subject")
     if (
         not result.lineage.evaluator_digest
         or not result.lineage.candidate_digest
@@ -817,6 +838,69 @@ def _git_dirty(repo_root: Path) -> bool:
     return result.returncode == 0 and bool(result.stdout.strip())
 
 
+_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _repository_identity(repo_root: Path) -> str:
+    """A best-effort, non-authoritative repository identity.
+
+    Falls back to a fixed sentinel rather than a filesystem path, so identity
+    never leaks a machine-specific location — it is one field of the subject,
+    not a portable registry key.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "remote", "get-url", "origin"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    origin = result.stdout.strip()
+    return origin if result.returncode == 0 and origin else "local-no-remote"
+
+
+def _git_oid(repo_root: Path, rev: str) -> str | None:
+    """Resolve ``rev`` to a full 40-hex object id, or ``None`` if unresolvable."""
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", rev],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    value = result.stdout.strip()
+    return value if result.returncode == 0 and _GIT_OID_RE.fullmatch(value) else None
+
+
+def _current_branch(repo_root: Path) -> str | None:
+    """The current branch name, recorded as an annotation only — never an
+    identity or applicability input (spec 021)."""
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    branch = result.stdout.strip()
+    return branch if result.returncode == 0 and branch else None
+
+
+def _current_subject(repo_root: Path, *, repo_dirty: bool) -> EvaluationSubject:
+    """The immutable Git subject this run is being produced against.
+
+    ``clean`` requires a resolvable commit and tree in addition to a clean
+    worktree — a non-Git or history-less directory can never be recorded as
+    a clean subject, closing the prior loophole where an absent ``git``
+    silently read as "not dirty" (see spec 021)."""
+    commit = _git_oid(repo_root, "HEAD")
+    tree = _git_oid(repo_root, "HEAD^{tree}") if commit else None
+    return EvaluationSubject(
+        repository_id=_repository_identity(repo_root),
+        commit=commit,
+        tree=tree,
+        clean=bool(commit and tree and not repo_dirty),
+        branch=_current_branch(repo_root),
+    )
+
+
 def run_pilot(
     repo_root: Path,
     *,
@@ -839,6 +923,7 @@ def run_pilot(
         "canonical" if _is_canonical_cases(cases_path, repo_root) else "untrusted_advisory"
     )
     lineage.repo_dirty = _git_dirty(repo_root)
+    subject = _current_subject(repo_root, repo_dirty=lineage.repo_dirty)
     lineage.evaluator_digest = _tree_digest(
         repo_root, ("src/codesight/eval_pilot.py", "src/codesight/cli_axi.py")
     )
@@ -892,6 +977,7 @@ def run_pilot(
         cases_file=_public_cases_path(repo_root, cases_path),
         cases_file_hash=file_hash,
         lineage=lineage,
+        subject=subject,
         egress_allowed=allow_egress,
         semantic_allowed=allow_semantic,
         grades=grades,

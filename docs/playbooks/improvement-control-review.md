@@ -68,5 +68,36 @@ cannot change specs, ADRs, source, tests, frozen cases, or evaluation truth.
 holus improve-integration specs/019-example.change.json --phase pre_promotion --format json
 ```
 
+## 6. Immutable Git subject and recomputed applicability
+
+An `evaluation_case` result must be evaluated against a real, committed Git
+repository. A pilot result now carries `subject` — `repository_id`, `commit`,
+`tree`, `clean`, and an inert `branch` annotation — computed from real Git
+state when the result is produced, never from caller input (spec 021,
+`docs/decisions/0017-immutable-evaluation-subject-binding.md`).
+
+At `--phase pre_promotion`, review recomputes applicability against that
+subject for every `implementation`, `tests`, `documentation`, and
+`evaluation_case` link: each path must still resolve, at the evaluated
+commit, to the exact Git blob currently on disk. If you see any of these
+blockers, the fix is always to rerun evaluation against current code, never
+to hand-edit `link_hashes`:
+
+| Blocker | Meaning |
+|---|---|
+| `dangling_evaluation_subject` | The result has no clean, resolvable commit/tree (no Git, dirty worktree, or unborn branch at evaluation time). |
+| `wrong_repository_subject` | The result was evaluated in a different repository identity. |
+| `stale_evaluation_subject` | The evaluated commit no longer resolves (rewritten history, garbage-collected). |
+| `wrong_tree_oid` | The evaluated commit exists, but its tree does not match the recorded one. |
+| `dangling_consequential_artifact` | The linked path did not exist at the evaluated commit — including a rename/rebase where the current path is new. |
+| `changed_consequential_artifact` | The path existed at the evaluated commit, but its blob differs from the current on-disk bytes — including when a manifest's own `link_hashes` entry was updated to match new bytes without rerunning evaluation. |
+
+Every one of these blocks `evaluated` stage and therefore
+`human_promotion_review`, the same way `dangling_`/`stale_`/`wrong_` link
+blockers already did. A later commit that changes nothing consequential
+(docs, unrelated files) does not invalidate an already-evaluated result —
+only the linked paths' actual blobs matter, never commit recency or branch
+name.
+
 This is a stable local advisory payload for a future consumer. It is not a
 No Mistakes or Fleet integration and does not authorize automatic action.
