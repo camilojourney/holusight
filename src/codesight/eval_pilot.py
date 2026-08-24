@@ -896,8 +896,8 @@ def _git_dirty(repo_root: Path) -> bool:
 
 
 _GIT_OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
-_SCP_REMOTE_RE = re.compile(r"^(?:[^@/:\s]+@)?([^/:\s]+):(.+)$")
-_WINDOWS_DRIVE_REMOTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
+_SCP_REMOTE_RE = re.compile(r"^(?:[^@/:\s]+@)?([^/@:#?\s]+):(.+)$")
+_WINDOWS_DRIVE_REMOTE_RE = re.compile(r"^[A-Za-z]:")
 _SAFE_REMOTE_SCHEMES = frozenset({"git", "http", "https", "ssh", "git+ssh"})
 
 

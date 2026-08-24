@@ -215,10 +215,25 @@ def test_repository_identity_rejects_secret_like_remote_hosts(tmp_path, origin):
     [
         r"C:\Users\alice\repo.git",
         "C:/Users/alice/repo.git",
+        "C:repo.git",
         r"\\server\share\repo.git",
     ],
 )
 def test_repository_identity_rejects_windows_filesystem_remotes(tmp_path, origin):
+    repo = _committed_repo(tmp_path)
+    _git(repo, "remote", "add", "origin", origin)
+    assert eval_pilot._repository_identity(repo) == "local-no-remote"
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "user@alias@host:repo.git",
+        "user@host?alias:repo.git",
+        "user@host#alias:repo.git",
+    ],
+)
+def test_repository_identity_rejects_malformed_scp_hosts(tmp_path, origin):
     repo = _committed_repo(tmp_path)
     _git(repo, "remote", "add", "origin", origin)
     assert eval_pilot._repository_identity(repo) == "local-no-remote"
@@ -424,13 +439,15 @@ def test_run_pilot_grades_and_hashes_one_immutable_corpus_snapshot(tmp_path, mon
     assert result.lineage.repo_dirty is True
 
 
-def _build_evaluated_repo(tmp_path: Path) -> tuple[Path, dict]:
+def _build_evaluated_repo(
+    tmp_path: Path, implementation_relative: str = "src/codesight/implementation.py"
+) -> tuple[Path, dict]:
     """A committed repo with a genuinely evaluated, pre-promotion-ready manifest."""
     repo = tmp_path
     (repo / ".gitignore").write_text(".holusight/\n", encoding="utf-8")
     (repo / "src/codesight").mkdir(parents=True)
     (repo / "src/codesight/eval_pilot.py").write_text("protected evaluator\n", encoding="utf-8")
-    (repo / "src/codesight/implementation.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (repo / implementation_relative).write_text("VALUE = 1\n", encoding="utf-8")
     (repo / "tests").mkdir()
     (repo / "tests/test_implementation.py").write_text(
         "def test_value():\n    assert True\n", encoding="utf-8"
@@ -468,7 +485,7 @@ def _build_evaluated_repo(tmp_path: Path) -> tuple[Path, dict]:
 
     links = {
         "governing": ["specs/governing.md"],
-        "implementation": ["src/codesight/implementation.py"],
+        "implementation": [implementation_relative],
         "tests": ["tests/test_implementation.py"],
         "documentation": ["docs/README.md"],
         "evaluation_case": ["tests/fixtures/holusight_eval_pilot_cases.jsonl"],
@@ -592,6 +609,22 @@ def test_changed_committed_implementation_restored_only_in_worktree_is_indetermi
     review = _review(repo)
     codes = {item["code"] for item in review["blockers"]}
     assert "changed_consequential_artifact" in codes
+    assert review["stage"] != "evaluated"
+    assert review["next_permitted_action"] != "human_promotion_review"
+
+
+def test_staged_literal_metacharacter_path_is_indeterminate(tmp_path):
+    implementation_relative = "src/codesight/code[1].py"
+    repo, _ctx = _build_evaluated_repo(tmp_path, implementation_relative)
+    implementation = repo / implementation_relative
+    evaluated_bytes = implementation.read_bytes()
+    implementation.write_text("VALUE = 2\n", encoding="utf-8")
+    _git(repo, "add", "--", implementation_relative)
+    implementation.write_bytes(evaluated_bytes)
+
+    review = _review(repo)
+    codes = {item["code"] for item in review["blockers"]}
+    assert "dirty_consequential_artifact" in codes
     assert review["stage"] != "evaluated"
     assert review["next_permitted_action"] != "human_promotion_review"
 

@@ -455,7 +455,8 @@ def _batch_worktree_blob_oids(
 def _git_paths_clean(git: _GitReviewSession, paths: list[str]) -> bool:
     if not paths:
         return True
-    result = git.run("status", "--porcelain", "--", *dict.fromkeys(paths))
+    literal_paths = [f":(literal){path}" for path in dict.fromkeys(paths)]
+    result = git.run("status", "--porcelain", "--", *literal_paths)
     return result.returncode == 0 and not result.stdout.strip()
 
 
