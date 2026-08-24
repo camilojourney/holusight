@@ -23,7 +23,8 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Mapping
 
 from codesight import CodeSight
 from codesight.config import ServerConfig
@@ -39,6 +40,7 @@ DEFAULT_TOP_K = 10
 SCHEMA_VERSION = "holus-retrieval-variation/v1"
 PROGRAM_VERSION = "v1"
 DEFAULT_CANDIDATE_REGISTRY_VERSION = "v1"
+FROZEN_BENCHMARK_HASH = "003333a21744e49114c14c4939b523374b0b6cae05bb14ded689649ca582f744"
 BASELINE_CANDIDATE_ID = "baseline-hybrid"
 PRIMARY_METRIC = "mrr_at_10"
 PRIMARY_DELTA_MIN = 0.02
@@ -56,10 +58,37 @@ class CandidateDefinition:
     candidate_id: str
     version: str
     label: str
-    config_overrides: dict[str, Any]
+    config_overrides: Mapping[str, Any]
     controlled_variable: str
     controlled_value: str
     description: str
+
+
+_PINNED_BASE_CONFIG = {
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "embedding_backend": "local",
+    "embedding_dim": 384,
+    "top_k": 8,
+    "chunk_max_lines": 200,
+    "chunk_overlap_lines": 50,
+    "doc_chunk_max_chars": 1500,
+    "doc_chunk_overlap_chars": 200,
+    "stale_threshold_seconds": 300,
+    "llm_backend": "claude",
+    "llm_model": "claude-sonnet-4-20250514",
+    "reranker": False,
+    "reranker_backend": "local",
+    "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    "reranker_top_n": 20,
+    "query_enhancement": False,
+    "metadata_boost": True,
+    "cnfb_alpha": 0.0,
+}
+
+
+def _pinned_config(**changes: Any) -> Mapping[str, Any]:
+    values = {**_PINNED_BASE_CONFIG, **changes}
+    return MappingProxyType(values)
 
 
 DEFAULT_CANDIDATES: tuple[CandidateDefinition, ...] = (
@@ -67,28 +96,28 @@ DEFAULT_CANDIDATES: tuple[CandidateDefinition, ...] = (
         candidate_id="baseline-hybrid",
         version="v1",
         label="hybrid-search-baseline",
-        config_overrides={},
+        config_overrides=_pinned_config(),
         controlled_variable="none",
         controlled_value="default",
-        description="Production default hybrid retrieval configuration.",
+        description="Pinned production hybrid retrieval configuration.",
     ),
     CandidateDefinition(
         candidate_id="cnfb-alpha-0.25",
         version="v1",
         label="hybrid-cnfb-alpha",
-        config_overrides={"cnfb_alpha": 0.25},
+        config_overrides=_pinned_config(cnfb_alpha=0.25),
         controlled_variable="cnfb_alpha",
         controlled_value="0.25",
         description="Single controlled retrieval boost variable.",
     ),
     CandidateDefinition(
-        candidate_id="query-enhancement-on",
+        candidate_id="metadata-boost-off",
         version="v1",
-        label="hybrid-query-enhancement",
-        config_overrides={"query_enhancement": True},
-        controlled_variable="query_enhancement",
-        controlled_value="true",
-        description="Single controlled query expansion variable.",
+        label="hybrid-without-metadata-boost",
+        config_overrides=_pinned_config(metadata_boost=False),
+        controlled_variable="metadata_boost",
+        controlled_value="false",
+        description="Single controlled metadata-ranking variable.",
     ),
 )
 
@@ -101,6 +130,7 @@ class BenchmarkSpec:
     graded_query_count: int
     family_counts: dict[str, int]
     family_counts_graded: dict[str, int]
+    query_identities: tuple[tuple[str, str, str, str], ...] = ()
 
 
 def _sha256_hex(value: str) -> str:
@@ -131,9 +161,21 @@ def _candidate_definition_digest(candidates: tuple[CandidateDefinition, ...]) ->
 
 def _run_record_digest(run_payload: dict[str, Any]) -> str:
     sanitized = dict(run_payload)
-    sanitized.pop("run_id", None)
     sanitized.pop("run_digest", None)
     return _sha256_hex(_canonical_json(sanitized))
+
+
+def _run_record_id(run_payload: dict[str, Any], benchmark_hash: str) -> str:
+    return _sha256_hex(_canonical_json({
+        "candidate_id": run_payload.get("candidate_id"),
+        "candidate_version": run_payload.get("version"),
+        "registry_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
+        "query_set_hash": run_payload.get("run_stats", {}).get("query_set_hash"),
+        "config_overrides": run_payload.get("config_overrides"),
+        "benchmark_hash": benchmark_hash,
+        "metrics": run_payload.get("metrics"),
+        "per_query": run_payload.get("per_query"),
+    }))[:20]
 
 
 def _query_row_to_eval_query(row: dict[str, Any], *, index: int) -> EvalQuery:
@@ -192,6 +234,15 @@ def _load_benchmark_queries(path: Path) -> tuple[list[EvalQuery], list[dict[str,
         graded_query_count=sum(1 for q in queries if not q.is_diagnostic_probe),
         family_counts=family_counts,
         family_counts_graded=family_counts_graded,
+        query_identities=tuple(
+            (
+                str(row.get("id", "")),
+                row["query"],
+                row["family"],
+                row["expected_file"],
+            )
+            for row in rows
+        ),
     )
     return queries, rows, spec
 
@@ -262,13 +313,29 @@ def _run_candidate(
 
     per_query: list[dict[str, Any]] = []
     hit_sequence: list[bool] = []
-    for entry in result.per_query:
+    for row, entry in zip(rows, result.per_query):
+        diagnostic_only = bool(entry.get("diagnostic_only", False))
+        family = entry.get("family")
+        if diagnostic_only:
+            top_result_file = entry.get("top_result_file")
+            routing_outcome = "deny" if top_result_file is None else "unsupported_evidence"
+            expected_routing_outcome = "deny"
+        elif family == "ambiguity":
+            top_result_file = None
+            routing_outcome = "clarify"
+            expected_routing_outcome = "clarify"
+        else:
+            top_result_file = None
+            routing_outcome = "evidence" if entry.get("hit", False) else "insufficient_evidence"
+            expected_routing_outcome = "evidence"
+
         q = {
+            "id": str(row.get("id", "")),
             "query": entry["query"],
-            "family": entry.get("family"),
+            "family": family,
             "split": entry.get("split"),
             "expected_file": entry.get("expected_file"),
-            "diagnostic_only": bool(entry.get("diagnostic_only", False)),
+            "diagnostic_only": diagnostic_only,
             "hit": bool(entry.get("hit", False)),
             "rank": entry.get("rank"),
             "rr": entry.get("rr", 0.0),
@@ -276,6 +343,11 @@ def _run_candidate(
             "evidence_completeness": entry.get("evidence_completeness", 0.0),
             "latency_ms": entry.get("latency_ms"),
             "query_tokens": entry.get("query_tokens"),
+            "top_result_file": top_result_file,
+            "expected_routing_outcome": expected_routing_outcome,
+            "routing_outcome": routing_outcome,
+            "routing_pass": routing_outcome == expected_routing_outcome,
+            "measurement": "expected_file_at_rank",
         }
         per_query.append(q)
         if not q["diagnostic_only"]:
@@ -284,14 +356,7 @@ def _run_candidate(
     run_payload["per_query"] = per_query
     run_payload["family_breakdown"] = _family_breakdown(per_query)
     run_payload["hit_sequence"] = hit_sequence
-    run_payload["run_id"] = _sha256_hex(_canonical_json({
-        "candidate_id": candidate.candidate_id,
-        "query_set_hash": run_payload["run_stats"]["query_set_hash"],
-        "config_overrides": candidate.config_overrides,
-        "benchmark_hash": benchmark_path_hash,
-        "metrics": run_payload["metrics"],
-    }))[:20]
-    run_payload["run_digest"] = _run_record_digest(run_payload)
+    run_payload["run_id"] = _run_record_id(run_payload, benchmark_path_hash)
     run_payload["lineage"] = {
         "candidate_id": candidate.candidate_id,
         "candidate_version": candidate.version,
@@ -301,6 +366,7 @@ def _run_candidate(
         "benchmark_hash": benchmark_path_hash,
         "recorded_utc": datetime.now(timezone.utc).isoformat(),
     }
+    run_payload["run_digest"] = _run_record_digest(run_payload)
     return run_payload
 
 
@@ -331,6 +397,156 @@ def _paired_sign_test(
     return p_value, wins, losses
 
 
+def _registered_candidate(candidate_id: str) -> CandidateDefinition | None:
+    return next(
+        (candidate for candidate in DEFAULT_CANDIDATES if candidate.candidate_id == candidate_id),
+        None,
+    )
+
+
+def _validate_run_record(
+    benchmark: BenchmarkSpec,
+    run: dict[str, Any],
+    *,
+    expected_candidate_id: str,
+) -> list[dict[str, str]]:
+    violations: list[dict[str, str]] = []
+
+    def invalid(kind: str, message: str) -> None:
+        violations.append({"type": kind, "message": message})
+
+    registered = _registered_candidate(expected_candidate_id)
+    if registered is None:
+        invalid("unregistered_candidate", f"unknown candidate: {expected_candidate_id}")
+        return violations
+
+    if run.get("status") == "failed":
+        error = run.get("error")
+        message = error.get("message", "failed") if isinstance(error, dict) else "failed"
+        invalid("candidate_execution_failed", str(message))
+        return violations
+
+    if run.get("candidate_id") != expected_candidate_id:
+        invalid("candidate_identity_mismatch", "candidate_id does not match the compared registry entry")
+    if run.get("version") != registered.version:
+        invalid("candidate_version_mismatch", "candidate version is not registered")
+    if run.get("config_overrides") != dict(registered.config_overrides):
+        invalid("candidate_configuration_mismatch", "candidate configuration is not registered")
+
+    lineage = run.get("lineage")
+    if not isinstance(lineage, dict):
+        invalid("missing_lineage", "run lineage must be present")
+        lineage = {}
+    expected_lineage = {
+        "candidate_id": expected_candidate_id,
+        "candidate_version": registered.version,
+        "registry_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
+        "run_id": run.get("run_id"),
+        "query_set_hash": benchmark.path_hash,
+        "benchmark_hash": benchmark.path_hash,
+    }
+    for field, expected in expected_lineage.items():
+        if lineage.get(field) != expected:
+            invalid("lineage_mismatch", f"lineage.{field} does not match frozen evidence")
+
+    run_stats = run.get("run_stats")
+    if not isinstance(run_stats, dict):
+        invalid("missing_run_stats", "run_stats must be present")
+        run_stats = {}
+    if run_stats.get("query_set_hash") != benchmark.path_hash:
+        invalid("query_set_mismatch", "run query-set hash does not match the frozen benchmark")
+    if run_stats.get("total_queries") != benchmark.query_count:
+        invalid("query_count_mismatch", "run query count does not match the frozen benchmark")
+    if run_stats.get("graded_queries") != benchmark.graded_query_count:
+        invalid("graded_count_mismatch", "graded query count does not match the frozen benchmark")
+
+    per_query = run.get("per_query")
+    if (
+        not isinstance(per_query, list)
+        or len(per_query) != benchmark.query_count
+        or not all(isinstance(entry, dict) for entry in per_query)
+    ):
+        invalid("query_evidence_mismatch", "per-query evidence does not cover the frozen benchmark")
+        per_query = []
+
+    if benchmark.query_identities and per_query:
+        observed_identities = tuple(
+            (
+                str(entry.get("id", "")),
+                entry.get("query"),
+                entry.get("family"),
+                entry.get("expected_file"),
+            )
+            for entry in per_query
+        )
+        if observed_identities != benchmark.query_identities:
+            invalid("query_identity_mismatch", "per-query identities or order differ from the benchmark")
+
+    graded = [entry for entry in per_query if not entry.get("diagnostic_only", False)]
+    metrics = run.get("metrics")
+    if not isinstance(metrics, dict):
+        invalid("missing_metrics", "metrics must be present")
+        metrics = {}
+    if graded:
+        try:
+            recalculated = {
+                "mrr_at_10": round(sum(float(entry.get("rr", 0.0)) for entry in graded) / len(graded), 6),
+                "hit_rate": round(sum(bool(entry.get("hit", False)) for entry in graded) / len(graded), 6),
+                "recall_at_10": round(sum(bool(entry.get("hit", False)) for entry in graded) / len(graded), 6),
+                "ndcg_at_10": round(sum(float(entry.get("ndcg", 0.0)) for entry in graded) / len(graded), 6),
+                "evidence_completeness": round(
+                    sum(float(entry.get("evidence_completeness", 0.0)) for entry in graded) / len(graded),
+                    6,
+                ),
+            }
+        except (TypeError, ValueError):
+            invalid("metric_integrity_failure", "per-query metrics contain invalid values")
+            recalculated = {}
+        for metric, expected in recalculated.items():
+            try:
+                observed = round(float(metrics[metric]), 6)
+            except (KeyError, TypeError, ValueError):
+                invalid("metric_integrity_failure", f"metric {metric} is missing or invalid")
+                continue
+            if (
+                not math.isfinite(observed)
+                or not math.isfinite(expected)
+                or abs(observed - expected) > 0.0001
+            ):
+                invalid("metric_integrity_failure", f"metric {metric} does not match per-query evidence")
+
+    try:
+        expected_run_id = _run_record_id(run, benchmark.path_hash)
+        expected_digest = _run_record_digest(run)
+    except (TypeError, ValueError):
+        invalid("noncanonical_run_evidence", "run evidence is not canonical JSON data")
+    else:
+        if run.get("run_id") != expected_run_id:
+            invalid("run_id_mismatch", "run id is not reproducible from run evidence")
+        if run.get("run_digest") != expected_digest:
+            invalid("run_digest_mismatch", "run digest is not reproducible from the final record")
+
+    for entry in per_query:
+        diagnostic = bool(entry.get("diagnostic_only", False))
+        family = entry.get("family")
+        if diagnostic:
+            expected_outcome = "deny"
+            observed_outcome = "deny" if entry.get("top_result_file") is None else "unsupported_evidence"
+        elif family == "ambiguity":
+            expected_outcome = observed_outcome = "clarify"
+        else:
+            expected_outcome = "evidence"
+            observed_outcome = "evidence" if entry.get("hit", False) else "insufficient_evidence"
+        if (
+            entry.get("expected_routing_outcome") != expected_outcome
+            or entry.get("routing_outcome") != observed_outcome
+            or entry.get("routing_pass") != (expected_outcome == observed_outcome)
+        ):
+            invalid("routing_evidence_mismatch", "routing outcome is inconsistent with query evidence")
+
+    return violations
+
+
 def _compare_candidate(
     benchmark: BenchmarkSpec,
     baseline: dict[str, Any],
@@ -339,13 +555,19 @@ def _compare_candidate(
     candidate_id = candidate_run.get("candidate_id")
     candidate_run_id = candidate_run.get("run_id")
     baseline_run_id = baseline.get("run_id")
+    candidate_lineage = candidate_run.get("lineage")
+    baseline_lineage = baseline.get("lineage")
+    if not isinstance(candidate_lineage, dict):
+        candidate_lineage = {}
+    if not isinstance(baseline_lineage, dict):
+        baseline_lineage = {}
 
     if candidate_id is None:
-        candidate_id = candidate_run.get("lineage", {}).get("candidate_id")
+        candidate_id = candidate_lineage.get("candidate_id")
     if candidate_run_id is None:
-        candidate_run_id = candidate_run.get("lineage", {}).get("run_id")
+        candidate_run_id = candidate_lineage.get("run_id")
     if baseline_run_id is None:
-        baseline_run_id = baseline.get("lineage", {}).get("run_id")
+        baseline_run_id = baseline_lineage.get("run_id")
 
     comparison: dict[str, Any] = {
         "candidate_id": candidate_id,
@@ -386,6 +608,25 @@ def _compare_candidate(
         comparison["constraints"]["violations"].append(
             {"type": "missing_run_identifier", "message": "run must include candidate_id and run_id"}
         )
+        return comparison
+
+    integrity_violations = _validate_run_record(
+        benchmark,
+        baseline,
+        expected_candidate_id=BASELINE_CANDIDATE_ID,
+    )
+    integrity_violations.extend(
+        _validate_run_record(
+            benchmark,
+            candidate_run,
+            expected_candidate_id=str(candidate_id),
+        )
+    )
+    if integrity_violations:
+        comparison["status"] = "invalid"
+        comparison["decision"] = "invalid_comparison"
+        comparison["reason"] = "run evidence failed integrity validation"
+        comparison["constraints"]["violations"].extend(integrity_violations)
         return comparison
 
     if baseline["run_stats"]["graded_queries"] != candidate_run["run_stats"]["graded_queries"]:
@@ -447,6 +688,21 @@ def _compare_candidate(
         candidate_wins > candidate_losses
     )
 
+    routing_failures = [
+        entry
+        for entry in candidate_run["per_query"]
+        if entry.get("family") in {"adversarial", "contradiction_no_answer", "ambiguity"}
+        and not entry.get("routing_pass", False)
+    ]
+    if routing_failures:
+        comparison["constraints"]["violations"].append(
+            {
+                "type": "evidence_routing_failure",
+                "failed_query_ids": [entry.get("id") for entry in routing_failures],
+                "message": "candidate failed ambiguity or denial routing",
+            }
+        )
+
     if comparison["constraints"]["violations"]:
         comparison["status"] = "reject"
         comparison["decision"] = "human_review_required"
@@ -486,8 +742,66 @@ def _normalize_candidate_selection(candidates: tuple[CandidateDefinition, ...] |
             f"benchmark run must include immutable baseline candidate '{BASELINE_CANDIDATE_ID}'"
         )
 
-    selected_sorted = sorted(selected, key=lambda c: 0 if c.candidate_id == BASELINE_CANDIDATE_ID else 1)
-    return selected_sorted
+    for candidate in selected:
+        registered = _registered_candidate(candidate.candidate_id)
+        if registered is None or candidate != registered:
+            raise ValueError(
+                f"candidate definition is not in immutable registry: {candidate.candidate_id}@{candidate.version}"
+            )
+
+    return tuple(
+        sorted(selected, key=lambda c: 0 if c.candidate_id == BASELINE_CANDIDATE_ID else 1)
+    )
+
+
+def _failed_run_record(
+    candidate: CandidateDefinition,
+    benchmark: BenchmarkSpec,
+    error: Exception,
+) -> dict[str, Any]:
+    run_id = _sha256_hex(_canonical_json({
+        "candidate_id": candidate.candidate_id,
+        "candidate_version": candidate.version,
+        "benchmark_hash": benchmark.path_hash,
+        "registry_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
+        "status": "failed",
+        "error_type": type(error).__name__,
+        "error_message": str(error),
+    }))[:20]
+    record: dict[str, Any] = {
+        "candidate_id": candidate.candidate_id,
+        "version": candidate.version,
+        "run_id": run_id,
+        "status": "failed",
+        "decision": "retain_candidate",
+        "config_overrides": dict(candidate.config_overrides),
+        "controlled_variable": candidate.controlled_variable,
+        "controlled_value": candidate.controlled_value,
+        "label": candidate.label,
+        "description": candidate.description,
+        "error": {"type": type(error).__name__, "message": str(error)},
+        "metrics": {},
+        "run_stats": {
+            "total_queries": benchmark.query_count,
+            "graded_queries": benchmark.graded_query_count,
+            "diagnostic_queries": benchmark.query_count - benchmark.graded_query_count,
+            "query_set_hash": benchmark.path_hash,
+        },
+        "per_query": [],
+        "hit_sequence": [],
+        "family_breakdown": {},
+        "lineage": {
+            "candidate_id": candidate.candidate_id,
+            "candidate_version": candidate.version,
+            "registry_version": DEFAULT_CANDIDATE_REGISTRY_VERSION,
+            "run_id": run_id,
+            "query_set_hash": benchmark.path_hash,
+            "benchmark_hash": benchmark.path_hash,
+            "recorded_utc": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+    record["run_digest"] = _run_record_digest(record)
+    return record
 
 
 def run_variation_suite(
@@ -501,24 +815,31 @@ def run_variation_suite(
         raise ValueError(f"top_k must be {DEFAULT_TOP_K} for {PRIMARY_METRIC}")
 
     benchmark_file = Path(benchmark_path or DEFAULT_BENCHMARK)
+    if benchmark_file.resolve() != DEFAULT_BENCHMARK.resolve():
+        raise ValueError("benchmark must use the immutable registered benchmark path")
     if not benchmark_file.exists():
         raise FileNotFoundError(f"benchmark file not found: {benchmark_file}")
 
     queries, rows, spec = _load_benchmark_queries(benchmark_file)
+    if spec.path_hash != FROZEN_BENCHMARK_HASH:
+        raise ValueError("benchmark content does not match the immutable registered hash")
     selected_candidates = _normalize_candidate_selection(candidates)
 
-    run_records = [
-        _run_candidate(
-            Path(repo_root),
-            queries,
-            rows,
-            candidate,
-            benchmark_path_hash=spec.path_hash,
-            top_k=top_k,
-            force_rebuild=force_rebuild,
-        )
-        for candidate in selected_candidates
-    ]
+    run_records: list[dict[str, Any]] = []
+    for candidate in selected_candidates:
+        try:
+            record = _run_candidate(
+                Path(repo_root),
+                queries,
+                rows,
+                candidate,
+                benchmark_path_hash=spec.path_hash,
+                top_k=top_k,
+                force_rebuild=force_rebuild,
+            )
+        except Exception as error:
+            record = _failed_run_record(candidate, spec, error)
+        run_records.append(record)
 
     baseline = run_records[0]
     if baseline["candidate_id"] != BASELINE_CANDIDATE_ID:
@@ -623,6 +944,12 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
+    repo_root = args.repo.resolve()
+    if args.output:
+        output_path = args.output.resolve()
+        if output_path == repo_root or repo_root in output_path.parents:
+            parser.error("output path must be outside the indexed repository")
+
     selected_candidates: tuple[CandidateDefinition, ...] = DEFAULT_CANDIDATES
     if args.candidate:
         requested_candidate_ids = set(args.candidate)
@@ -638,7 +965,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     payload = run_variation_suite(
-        repo_root=args.repo,
+        repo_root=repo_root,
         benchmark_path=args.benchmark,
         top_k=args.top_k,
         candidates=selected_candidates,
