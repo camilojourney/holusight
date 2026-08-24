@@ -39,6 +39,7 @@ PROGRAM_HISTORY_ROOT = HISTORY_ROOT / "retrieval-variation"
 PROGRAM_RESULTS_ROOT = RESULTS_ROOT / "retrieval-variation"
 RETRIEVAL_SOURCE_PATH = Path("src/codesight/retrieval_variation.py")
 PRODUCTION_SELECTOR_SOURCE_PATH = Path("src/codesight/cli_axi.py")
+PROVIDER_MODELS_SOURCE_PATH = Path("src/codesight/axi_providers.py")
 PROVIDERS = ("exact", "structural", "consistency", "semantic")
 MAX_PROVIDER_ITEMS = 100
 MAX_FEEDBACK_COUNT = 1_000_000
@@ -128,7 +129,11 @@ CANDIDATES = (
         "display-selection=round-robin",
         "One item per available provider per fixed-order round.",
         _production_round_robin,
-        (RETRIEVAL_SOURCE_PATH, PRODUCTION_SELECTOR_SOURCE_PATH),
+        (
+            RETRIEVAL_SOURCE_PATH,
+            PRODUCTION_SELECTOR_SOURCE_PATH,
+            PROVIDER_MODELS_SOURCE_PATH,
+        ),
     ),
     Strategy(
         "candidate-equal-quota-no-redistribution-v1",
@@ -163,7 +168,7 @@ def _repo_path(repo_root: Path, path: Path) -> Path:
 
 
 def _source_hashes(repo_root: Path) -> dict[str, str]:
-    from . import cli_axi
+    from . import axi_providers, cli_axi
 
     paths = {
         path
@@ -173,10 +178,13 @@ def _source_hashes(repo_root: Path) -> dict[str, str]:
     executed = {
         RETRIEVAL_SOURCE_PATH: Path(__file__),
         PRODUCTION_SELECTOR_SOURCE_PATH: Path(cli_axi.__file__),
+        PROVIDER_MODELS_SOURCE_PATH: Path(axi_providers.__file__),
     }
     hashes: dict[str, str] = {}
     for relative in sorted(paths):
         full_path = _repo_path(repo_root, relative)
+        if not is_clean_tracked_file(repo_root, full_path):
+            raise ValueError("variation implementations must be clean and tracked at HEAD")
         repo_bytes = full_path.read_bytes()
         if repo_bytes != executed[relative].read_bytes():
             raise ValueError("executed variation implementation differs from repository bytes")

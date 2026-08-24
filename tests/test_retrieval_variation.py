@@ -43,6 +43,7 @@ def _frozen_repo(tmp_path: Path, benchmark: dict | None = None) -> Path:
         Path("tests/fixtures/holusight_eval_pilot_cases.jsonl"),
         retrieval_variation.RETRIEVAL_SOURCE_PATH,
         retrieval_variation.PRODUCTION_SELECTOR_SOURCE_PATH,
+        retrieval_variation.PROVIDER_MODELS_SOURCE_PATH,
     )
     for relative in paths:
         destination = root / relative
@@ -75,6 +76,7 @@ def test_baseline_and_benchmark_are_content_addressed_and_all_case_families_run(
     assert set(result["program"]["implementation_hashes"]) == {
         "src/codesight/retrieval_variation.py",
         "src/codesight/cli_axi.py",
+        "src/codesight/axi_providers.py",
     }
     assert result["baseline"]["candidate"]["candidate_id"] == (
         "baseline-legacy-concatenate-v1"
@@ -178,6 +180,23 @@ def test_result_validation_recomputes_frozen_evidence_after_digest_resealing():
     )
     with pytest.raises(ValueError, match="partial"):
         retrieval_variation.validate_result(partial, repo_root=REPO_ROOT)
+
+
+@pytest.mark.parametrize(
+    "implementation_path",
+    [
+        retrieval_variation.RETRIEVAL_SOURCE_PATH,
+        retrieval_variation.PRODUCTION_SELECTOR_SOURCE_PATH,
+        retrieval_variation.PROVIDER_MODELS_SOURCE_PATH,
+    ],
+)
+def test_program_rejects_dirty_implementation_inputs(tmp_path, implementation_path):
+    root = _frozen_repo(tmp_path)
+    path = root / implementation_path
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="implementations must be clean and tracked"):
+        retrieval_variation.run_program(root)
 
 
 def test_benchmark_rejects_unbounded_counts_dirty_bytes_and_alternate_paths(tmp_path):
@@ -293,6 +312,20 @@ def test_variation_result_reaches_existing_independent_review_boundary(tmp_path)
     assert "untrusted_evaluation_anchor" not in blocker_codes
     assert blocker_codes == {"variation_result_not_eligible"}
     assert review["review"]["promotion"]["allowed"] is False
+
+    provider_models = root / retrieval_variation.PROVIDER_MODELS_SOURCE_PATH
+    provider_models.write_text(
+        provider_models.read_text(encoding="utf-8") + "\n", encoding="utf-8"
+    )
+    dirty_review = improvement_control.review_change(
+        root, manifest_path.relative_to(root).as_posix(), phase="pre_promotion"
+    )
+    dirty_blocker_codes = {
+        item["code"] for item in dirty_review["review"]["blockers"]
+    }
+    assert "invalid_evaluation_result" in dirty_blocker_codes
+    assert "stale_link" in dirty_blocker_codes
+    assert dirty_review["review"]["promotion"]["allowed"] is False
 
 
 def test_feedback_is_aggregate_privacy_safe_and_review_only():
