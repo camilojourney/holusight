@@ -33,7 +33,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `tasks/` | Temporary session task files (delete when done). |
 | `.claude/` | Claude Code configuration, rules, agents. |
 | `.self-improvement/` | Autonomous improvement system. |
-| `.holusight/` | Holusight-AXI consistency cache and opt-in improvement review records. Gitignored derived state, never canonical truth - safe to delete and rebuild. See specs 013 and 019. |
+| `.holusight/` | Gitignored derived state, never canonical truth. See the authoritative storage and rebuild rules in `.claude/rules/structure.md`. |
 | `agentic/` | Fleet repository-evaluation-adapter manifest (`fleet.repo_agent_manifest.v1.2`) and memory policy (`fleet.memory_policy.v1.1`). Committed, Holusight-owned data conforming to schemas owned by the Fleet repository, not vendored here. See spec 016. |
 
 **Never create files at root** unless they are one of the above.

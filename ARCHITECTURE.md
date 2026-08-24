@@ -645,7 +645,7 @@ workflow: `docs/playbooks/run-retrieval-variation-program.md`.
 ```
 clean tracked benchmark + frozen legacy baseline
   -> production display selector + one fixed alternate, with executable hashes
-  -> deterministic baseline/candidate evaluation + byte-equivalent replay
+  -> deterministic baseline/candidate evaluation + identical typed replay
   -> hard constraints kept separate from provider-coverage reward
   -> failed/inconclusive outcomes retained in no-follow typed derived state
   -> recomputation + clean tracked manifest anchor at holus improve-review

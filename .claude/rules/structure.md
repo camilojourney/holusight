@@ -24,7 +24,7 @@
 | `tasks/` | Temporary session task files (delete when done). |
 | `.claude/` | Claude Code configuration, rules, agents. |
 | `.self-improvement/` | Autonomous improvement system. |
-| `.holusight/` | Holusight-AXI consistency cache. Gitignored derived state, never canonical truth — safe to delete, rebuilt via `python -m codesight consistency refresh`. See spec 013. |
+| `.holusight/` | Gitignored Holusight-AXI cache and opt-in improvement records/results. Derived state only, never canonical truth, and safe to delete and rebuild through the governing `holus` workflow. See specs 013, 019, and 020. |
 | `agentic/` | Fleet repository-evaluation-adapter manifest (`fleet.repo_agent_manifest.v1.2`) and memory policy (`fleet.memory_policy.v1.1`). Committed, Holusight-owned data conforming to schemas owned by the Fleet repository, not vendored here. See spec 016. |
 
 **Never create files at root** unless they are one of the above.

@@ -13,12 +13,6 @@ The benchmark is synthetic, repository-owned, and backed by the existing
 `holusight_eval_pilot_cases.jsonl` evidence-routing regression fixture. No model
 is invoked and no external service is contacted.
 
-Graphify lookup was attempted first through the project-mandated
-`/Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py`
-wrapper. The exact fallback was: the configured script was absent (`[Errno 2]`),
-so this design uses the already-verified local control-plane contracts and
-fixtures only.
-
 ## Fixed experiment contract
 
 - **Baseline:** `baseline-legacy-concatenate-v1`, the pre-fix fixed-order
@@ -49,14 +43,17 @@ capacity, or represent no evidence as evidence. The declared reward is mean
 required-provider coverage.
 
 A candidate needs a practical reward delta of at least `0.05`, an exact
-paired-sign-test result below `0.05`, no hard-constraint failure, and a
-byte-equivalent replay before it can be *eligible for independent review*. That still cannot promote it:
-`promotion.allowed` is always false. Promotion additionally requires an
-independent human review through the existing tracked-manifest
-`holus improve-review` control plane. A malformed, partial, tampered, stale, or untrusted result is rejected before
-inspection and never counts as an improvement. Digest verification is only an
-integrity check: reusable evidence is recomputed from the frozen inputs and
-must be hash-linked by a separate clean tracked change manifest.
+paired-sign-test result below `0.05`, no hard-constraint failure, and an
+identical typed evaluation on deterministic replay before it can be *eligible
+for independent review*. That still cannot promote it: `promotion.allowed` is
+always false. Promotion additionally requires an independent human review
+through the existing tracked-manifest `holus improve-review` control plane.
+Promotion review reads only a no-follow regular evaluation-result file of at
+most 2 MiB before hashing and parsing it. A malformed, partial, tampered, stale,
+oversized, or untrusted result never counts as an improvement. Digest
+verification is only an integrity check: reusable evidence is recomputed from
+the frozen inputs and must be hash-linked by a separate clean tracked change
+manifest.
 
 Both failed and inconclusive candidates remain in the result. With the v1
 small benchmark, the successful round-robin candidate is intentionally
