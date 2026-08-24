@@ -643,19 +643,21 @@ not a candidate-generation framework. Full design record:
 workflow: `docs/playbooks/run-retrieval-variation-program.md`.
 
 ```
-frozen benchmark + frozen legacy baseline
-  -> two fixed display-selection candidates with hashes
+clean tracked benchmark + frozen legacy baseline
+  -> production display selector + one fixed alternate, with executable hashes
   -> deterministic baseline/candidate evaluation + byte-equivalent replay
   -> hard constraints kept separate from provider-coverage reward
-  -> inconclusive/failed outcomes retained in optional no-follow derived state
-  -> independent holus improve-review human decision (never automatic promotion)
+  -> failed/inconclusive outcomes retained in no-follow typed derived state
+  -> recomputation + clean tracked manifest anchor at holus improve-review
+  -> independent human decision (never automatic promotion)
 ```
 
 The benchmark covers exact, hybrid, graph/impact, ambiguity, no-evidence, and
 adversarial provider-flood cases. A synthetic semantic-provider case tests
 routing without invoking a model or egress. Every run pins the benchmark,
-supporting fixture, evaluator, baseline, candidate, and result identities.
-Malformed, partial, or tampered results fail closed. Aggregate-only feedback
+supporting fixture, evaluator, executable baseline/candidate definitions, and
+result identities. Malformed, partial, tampered, unanchored, or independently
+unrecomputable results fail closed. Aggregate-only feedback
 can propose a future ordinary fixture-review PR, but cannot change a label,
 threshold, evaluator, authority, or canonical truth.
 

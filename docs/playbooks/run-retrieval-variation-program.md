@@ -11,13 +11,13 @@ for the placement decision.
 holus improve-variation-run --format json
 ```
 
-Inspect `program.benchmark_hash`, `program.source_fixture_hashes`, and
-`program.evaluator_digest`. Confirm both candidate definition hashes are
-present. Read `hard_constraints` independently from `reward`; do not treat a
+Inspect `program.benchmark_hash`, `program.source_fixture_hashes`,
+`program.implementation_hashes`, and `program.evaluator_digest`. Confirm both
+candidate definition hashes are present. Read `hard_constraints` independently from `reward`; do not treat a
 higher reward as permission to ignore a protected failure.
 
-The result always has `promotion.allowed: false`. An `inconclusive` result is
-retained evidence, not a failure to be hidden or rewritten.
+The result always has `promotion.allowed: false`. Failed and `inconclusive`
+results are retained evidence, not outcomes to hide or rewrite.
 
 ## 2. Retain an operator-requested derived record
 
@@ -25,11 +25,12 @@ retained evidence, not a failure to be hidden or rewritten.
 holus improve-variation-run --record --format json
 ```
 
-This writes only a minimal record under the gitignored
-`.holusight/improvement-runs/retrieval-variation/` tree. Never copy it into a
-fixture or use it as canonical promotion evidence by itself. If a write is
-refused because of an unsafe path, investigate rather than bypassing the
-no-follow storage guard.
+The AXI response keeps the sealed run under `run` and returns paths separately
+under `derived_state`. It writes a minimal history record under
+`.holusight/improvement-runs/retrieval-variation/` and a complete typed result
+under `.holusight/improvement-results/retrieval-variation/`. Neither is
+canonical promotion evidence by itself. If a write is refused because of an
+unsafe path, investigate rather than bypassing the no-follow storage guard.
 
 ## 3. Request independent promotion review
 
@@ -41,7 +42,11 @@ human create the normal tracked change manifest and use:
 holus improve-review specs/<change>.change.json --phase pre_promotion
 ```
 
-That review still reports `promotion.allowed: false`; the independent human
+The tracked manifest must hash-link the canonical benchmark, its source
+fixture, both implementation files, and the complete typed result. The result
+is independently recomputed from clean tracked inputs, and the manifest itself
+must be clean and tracked. Failed or inconclusive candidates remain blocked.
+The review still reports `promotion.allowed: false`; the independent human
 reviewer decides whether to approve a separate production change. A baseline,
 benchmark, evaluator, or candidate must not be modified to make a result pass.
 

@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from . import eval_pilot
+from . import eval_pilot, retrieval_variation
 from .control_storage import (
     HISTORY_ROOT,
     UnsafeStoragePath,
@@ -60,7 +60,12 @@ _FORBIDDEN_FIELD_NAMES = frozenset(
 )
 _CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
 _EVALUATOR_PATHS = frozenset(
-    {"src/codesight/eval_pilot.py", "tests/fixtures/holusight_eval_pilot_cases.jsonl"}
+    {
+        "src/codesight/eval_pilot.py",
+        "src/codesight/retrieval_variation.py",
+        "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+        "tests/fixtures/holusight_retrieval_variation_benchmark.json",
+    }
 )
 _ALLOWED_MANIFEST_FIELDS = frozenset(
     {
@@ -227,7 +232,9 @@ def _role_path_is_canonical(role: str, path: str) -> bool:
     if role == "documentation":
         return path == "ARCHITECTURE.md" or path.startswith("docs/")
     if role == "evaluation_case":
-        return path.startswith("tests/fixtures/") and path.endswith(".jsonl")
+        return path == retrieval_variation.BENCHMARK_PATH.as_posix() or (
+            path.startswith("tests/fixtures/") and path.endswith(".jsonl")
+        )
     if role == "evaluation_result":
         return path.startswith(".holusight/improvement-results/")
     return False
@@ -292,7 +299,10 @@ def _placement(repo_root: Path, artifact_type: str, raw_path: str) -> list[dict[
 
 
 def _review_links(
-    repo_root: Path, manifest: dict[str, Any]
+    repo_root: Path,
+    manifest: dict[str, Any],
+    *,
+    manifest_trusted: bool = False,
 ) -> tuple[list[dict[str, str]], list[str]]:
     """Validate closed typed links and prove eval result applicability."""
     blockers: list[dict[str, str]] = []
@@ -303,7 +313,8 @@ def _review_links(
     hashes = manifest["link_hashes"]
     seen: dict[str, str] = {}
     validated_cases: dict[str, tuple[Path, str, dict[str, str]]] = {}
-    validated_results: list[tuple[Path, eval_pilot.PilotRunResult]] = []
+    validated_variation_cases: dict[str, tuple[Path, str]] = {}
+    validated_results: list[tuple[Path, str, Any]] = []
 
     for role in LINK_ROLES:
         paths = links.get(role, [])
@@ -347,26 +358,37 @@ def _review_links(
                     )
             elif role == "evaluation_case":
                 try:
-                    cases = eval_pilot.load_cases(full_path)
-                    if not eval_pilot._is_canonical_cases(full_path, repo_root):
-                        raise ValueError(
-                            "evaluation case corpus is not the canonical frozen corpus"
+                    if path == retrieval_variation.BENCHMARK_PATH.as_posix():
+                        _benchmark, digest = retrieval_variation.load_benchmark(
+                            repo_root, relative
                         )
-                    case_kinds = {case["case_id"]: case["kind"] for case in cases}
-                    if len(case_kinds) != len(cases):
-                        raise ValueError("duplicate case IDs")
-                    validated_cases[path] = (
-                        full_path,
-                        eval_pilot.cases_file_hash(full_path),
-                        case_kinds,
-                    )
+                        validated_variation_cases[path] = (full_path, digest)
+                    else:
+                        cases = eval_pilot.load_cases(full_path)
+                        if not eval_pilot._is_canonical_cases(full_path, repo_root):
+                            raise ValueError(
+                                "evaluation case corpus is not the canonical frozen corpus"
+                            )
+                        case_kinds = {case["case_id"]: case["kind"] for case in cases}
+                        if len(case_kinds) != len(cases):
+                            raise ValueError("duplicate case IDs")
+                        validated_cases[path] = (
+                            full_path,
+                            eval_pilot.cases_file_hash(full_path),
+                            case_kinds,
+                        )
                 except (ValueError, OSError, json.JSONDecodeError):
                     blockers.append(_blocked("invalid_evaluation_case", path, role=role))
             elif role == "evaluation_result":
                 try:
-                    result = eval_pilot.load_prior_run(full_path)
-                    validated_results.append((full_path, result))
-                except (ValueError, OSError, json.JSONDecodeError):
+                    raw_result = json.loads(full_path.read_text(encoding="utf-8"))
+                    if raw_result.get("schema_version") == retrieval_variation.SCHEMA_RUN:
+                        result = retrieval_variation.load_result(repo_root, relative)
+                        validated_results.append((full_path, "variation", result))
+                    else:
+                        result = eval_pilot.load_prior_run(full_path)
+                        validated_results.append((full_path, "pilot", result))
+                except (ValueError, OSError, json.JSONDecodeError, AttributeError):
                     blockers.append(_blocked("invalid_evaluation_result", path, role=role))
 
     explicit_evidence = manifest.get("classification_evidence")
@@ -375,33 +397,87 @@ def _review_links(
     if requires_full_evidence and not _REQUIRED_SECTIONS <= set(manifest["structured_sections"]):
         blockers.append(_blocked("missing_structured_section", "context,evidence,decision"))
     if classification == "evaluated":
-        if not validated_cases or not validated_results:
+        if not (validated_cases or validated_variation_cases) or not validated_results:
             blockers.append(_blocked("missing_verified_evaluation", manifest["change_id"]))
-        for _path, result in validated_results:
-            matching_case_kinds = [
-                case_kinds
-                for _case_path, digest, case_kinds in validated_cases.values()
-                if result.cases_file_hash == digest
-            ]
-            result_case_kinds = {grade.case_id: grade.kind for grade in result.grades}
-            grades_match_corpus = any(
-                len(result_case_kinds) == len(result.grades)
-                and result_case_kinds == case_kinds
-                for case_kinds in matching_case_kinds
+        for _path, result_kind, result in validated_results:
+            if result_kind == "pilot":
+                matching_case_kinds = [
+                    case_kinds
+                    for _case_path, digest, case_kinds in validated_cases.values()
+                    if result.cases_file_hash == digest
+                ]
+                result_case_kinds = {grade.case_id: grade.kind for grade in result.grades}
+                grades_match_corpus = any(
+                    len(result_case_kinds) == len(result.grades)
+                    and result_case_kinds == case_kinds
+                    for case_kinds in matching_case_kinds
+                )
+                if (
+                    not grades_match_corpus
+                    or result.lineage.candidate_id != manifest["change_id"]
+                    or result.counts["failed"]
+                    or result.counts["errored"]
+                    or result.status_quo_control == "invalid"
+                    or result.corpus_trust != "canonical"
+                    or result.lineage.repo_dirty
+                ):
+                    blockers.append(
+                        _blocked(
+                            "inapplicable_evaluation_result",
+                            manifest["change_id"],
+                            role="evaluation_result",
+                        )
+                    )
+                continue
+
+            matching_benchmark = any(
+                result["program"]["benchmark"] == case_path
+                and result["program"]["benchmark_hash"] == digest
+                for case_path, (_case_path, digest) in validated_variation_cases.items()
             )
+            candidate_id = manifest.get("lineage", {}).get("candidate_id")
+            candidate_verdicts = {
+                item["evaluation"]["candidate"]["candidate_id"]: item["verdict"]
+                for item in result["candidates"]
+            }
+            implementation_hashes = result["program"]["implementation_hashes"]
+            implementation_links = set(manifest["links"].get("implementation", []))
+            implementation_anchored = set(implementation_hashes) <= implementation_links and all(
+                manifest["link_hashes"].get(path) == digest
+                for path, digest in implementation_hashes.items()
+            )
+            source_hashes = result["program"]["source_fixture_hashes"]
+            case_links = set(manifest["links"].get("evaluation_case", []))
+            sources_anchored = set(source_hashes) <= case_links and all(
+                manifest["link_hashes"].get(path) == digest
+                for path, digest in source_hashes.items()
+            )
+            if not manifest_trusted:
+                blockers.append(
+                    _blocked(
+                        "untrusted_evaluation_anchor",
+                        manifest["change_id"],
+                        role="evaluation_result",
+                    )
+                )
             if (
-                not grades_match_corpus
-                or result.lineage.candidate_id != manifest["change_id"]
-                or result.counts["failed"]
-                or result.counts["errored"]
-                or result.status_quo_control == "invalid"
-                or result.corpus_trust != "canonical"
-                or result.lineage.repo_dirty
+                not matching_benchmark
+                or candidate_id not in candidate_verdicts
+                or not implementation_anchored
+                or not sources_anchored
             ):
                 blockers.append(
                     _blocked(
                         "inapplicable_evaluation_result",
                         manifest["change_id"],
+                        role="evaluation_result",
+                    )
+                )
+            elif candidate_verdicts[candidate_id]["status"] != "eligible_for_independent_review":
+                blockers.append(
+                    _blocked(
+                        "variation_result_not_eligible",
+                        candidate_id,
                         role="evaluation_result",
                     )
                 )
@@ -439,7 +515,9 @@ def trusted_evaluation_result_anchor(repo_root: Path, result_path: Path) -> str 
                 continue
             if manifest["link_hashes"].get(result_relative) != result_hash:
                 continue
-            blockers, _missing = _review_links(repo_root, manifest)
+            blockers, _missing = _review_links(
+                repo_root, manifest, manifest_trusted=True
+            )
             if not blockers:
                 return relative.as_posix()
         except (OSError, ValueError, json.JSONDecodeError):
@@ -621,7 +699,10 @@ def review_change(
     if phase not in PHASES:
         raise ValueError(f"phase must be one of {PHASES}")
     manifest, manifest_relative = _load_manifest(repo_root, change_path)
-    blockers, missing = _review_links(repo_root, manifest)
+    manifest_trusted = is_clean_tracked_file(repo_root, repo_root / manifest_relative)
+    blockers, missing = _review_links(
+        repo_root, manifest, manifest_trusted=manifest_trusted
+    )
     for artifact in manifest.get("proposed_artifacts", []):
         if not isinstance(artifact, dict):
             blockers.append(_blocked("invalid_proposed_artifact", "entry must be an object"))

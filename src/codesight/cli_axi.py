@@ -931,7 +931,15 @@ def _cmd_improve_variation_run(
     try:
         result = retrieval_variation.run_program(repo_root)
         if values.get("--record"):
-            result["derived_record"] = retrieval_variation.record_run(repo_root, result)
+            payload = {
+                "schema_version": AXI_SCHEMA_VERSION,
+                "run": result,
+                "derived_state": {
+                    "record": retrieval_variation.record_run(repo_root, result),
+                    "evaluation_result": retrieval_variation.persist_result(repo_root, result),
+                },
+            }
+            return payload, 0
     except ValueError as exc:
         cmd = command_by_name("improve-variation-run")
         raise UsageError(str(exc), help_text=_command_help_text(cmd)) from exc

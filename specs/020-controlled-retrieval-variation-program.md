@@ -26,14 +26,18 @@ fixtures only.
   every run and it is never overwritten.
 - **Candidates:** `candidate-round-robin-v1` and
   `candidate-equal-quota-no-redistribution-v1`. They vary only display
-  selection. They cannot supply executable code, modify the evaluator, or
-  select their own benchmark.
-- **Benchmark:** content-addressed before every run, with exact, hybrid,
-  graph/impact, ambiguity, no-evidence, and adversarial provider-flood cases.
+  selection. The round-robin candidate executes the same production selector
+  used by `holus evidence`; it is not a duplicate evaluator implementation.
+  Candidates cannot supply executable code, modify the evaluator, or select
+  their own benchmark.
+- **Benchmark:** restricted to the canonical clean tracked fixture and
+  content-addressed before every run, with bounded provider counts and exact,
+  hybrid, graph/impact, ambiguity, no-evidence, and adversarial provider-flood cases.
   A semantic-provider case is synthetic, so it tests display routing without
   model usage or egress.
 - **Lineage:** baseline/candidate definition hashes, benchmark hash, supporting
-  fixture hashes, evaluator digest, and result digest are retained. Raw
+  fixture hashes, implementation-file hashes, evaluator digest, and result
+  digest are retained. Raw
   prompts, evidence excerpts, secrets, customer content, absolute paths, and
   telemetry are not output or stored.
 
@@ -49,9 +53,10 @@ paired-sign-test result below `0.05`, no hard-constraint failure, and a
 byte-equivalent replay before it can be *eligible for independent review*. That still cannot promote it:
 `promotion.allowed` is always false. Promotion additionally requires an
 independent human review through the existing tracked-manifest
-`holus improve-review` control plane. A malformed, partial, tampered, stale,
-or untrusted result is rejected before inspection and never counts as an
-improvement.
+`holus improve-review` control plane. A malformed, partial, tampered, stale, or untrusted result is rejected before
+inspection and never counts as an improvement. Digest verification is only an
+integrity check: reusable evidence is recomputed from the frozen inputs and
+must be hash-linked by a separate clean tracked change manifest.
 
 Both failed and inconclusive candidates remain in the result. With the v1
 small benchmark, the successful round-robin candidate is intentionally
@@ -61,8 +66,10 @@ rather than an automatic claim of significance.
 ## Storage and feedback
 
 `holus improve-variation-run --record` explicitly writes a content-minimized
-record only under `.holusight/improvement-runs/retrieval-variation/`, through
-the established no-follow atomic storage guard. Canonical source, fixtures,
+record under `.holusight/improvement-runs/retrieval-variation/` and a complete
+typed review result under `.holusight/improvement-results/retrieval-variation/`,
+through the established no-follow atomic storage guard. The AXI response keeps
+those paths outside the sealed run object. Canonical source, fixtures,
 baseline, evaluator, and benchmark are never writable destinations. Random
 record IDs plus atomic replacement make concurrent derived writes safe; a
 symlinked path is refused.
