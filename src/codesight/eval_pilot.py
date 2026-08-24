@@ -77,7 +77,8 @@ _KNOWN_ORIGINS = frozenset(
 _SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")
 _SECRET_LIKE = re.compile(
     r"(?i)(?:sk-[a-z0-9_-]{8,}|github_pat_[a-z0-9_]{8,}|gh[pousr]_[a-z0-9]{8,}|"
-    r"gl(?:pat|ptt|rt|cbt|ft|imt|agent|soat|oas)-[a-z0-9_-]{8,}|api[_ -]?key|"
+    r"gl(?:pat|ptt|rt|cbt|ft|imt|agent|soat|oas|dt|rtr|wt|ffct)-[a-z0-9_-]{8,}|"
+    r"api[_ -]?key|"
     r"authorization:\s*bearer|private|raw\s+prompt|password|token)[^\s]{0,160}"
 )
 _CONTROLLED_COMPARATORS = frozenset({"grade_display_quota_case"})

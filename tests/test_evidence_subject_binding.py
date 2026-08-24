@@ -115,6 +115,10 @@ def test_branch_is_populated_but_plays_no_part_in_the_subject_model(tmp_path):
         "ghp_1234567890abcdefghijklmnopqrstuvwxyz",
         "github_pat_1234567890abcdef",
         "glpat-1234567890abcdef",
+        "gldt-1234567890abcdef",
+        "glrtr-1234567890abcdef",
+        "glwt-1234567890abcdef",
+        "glffct-1234567890abcdef",
     ],
 )
 def test_secret_like_branch_is_not_persisted_in_subject(tmp_path, secret):
@@ -199,6 +203,10 @@ def test_repository_identity_rejects_scp_remote_suffixes(tmp_path, origin):
         "https://example.test/repos/ghp_1234567890abcdefghijklmnopqrstuvwxyz/repo.git",
         "https://example.test/repos/github_pat_1234567890abcdef/repo.git",
         "git@example.test:repos/glpat-1234567890abcdef/repo.git",
+        "https://example.test/repos/gldt-1234567890abcdef/repo.git",
+        "git@example.test:repos/glrtr-1234567890abcdef/repo.git",
+        "https://example.test/repos/glwt-1234567890abcdef/repo.git",
+        "git@example.test:repos/glffct-1234567890abcdef/repo.git",
     ],
 )
 def test_repository_identity_rejects_secret_like_remote_paths(tmp_path, origin):
