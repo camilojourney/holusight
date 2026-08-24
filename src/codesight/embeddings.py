@@ -23,6 +23,12 @@ from .config import (
 
 logger = logging.getLogger(__name__)
 
+# SentenceTransformer tokenizes an entire input before applying a model's sequence
+# limit. Bound text and encode batches by characters first so one pathological
+# line cannot turn a local index into an unbounded tokenizer/attention workload.
+_MAX_EMBEDDING_TEXT_CHARS = 16_384
+_MAX_EMBEDDING_BATCH_CHARS = 16_384
+
 
 class Embedder(Protocol):
     """Protocol for embedding backends."""
@@ -80,16 +86,56 @@ class LocalEmbedder:
         return self._model
 
     def embed(self, texts: list[str]) -> np.ndarray:
-        """Embed a list of texts, returning an (N, dim) float32 array."""
+        """Embed texts with deterministic per-text and per-call character bounds.
+
+        Long inputs are segmented without dropping content. Segment vectors are
+        mean-pooled per original input and normalized, preserving one vector per
+        caller-provided text while bounding tokenizer and attention work.
+        """
         if not texts:
             return np.empty((0, self.expected_dim), dtype=np.float32)
-        embeddings = self.model.encode(
-            texts,
-            show_progress_bar=len(texts) > 100,
+
+        segments: list[tuple[int, str]] = []
+        for text_index, text in enumerate(texts):
+            text_segments = [
+                text[offset : offset + _MAX_EMBEDDING_TEXT_CHARS]
+                for offset in range(0, len(text), _MAX_EMBEDDING_TEXT_CHARS)
+            ] or [""]
+            segments.extend((text_index, segment) for segment in text_segments)
+
+        per_text_vectors: list[list[np.ndarray]] = [[] for _ in texts]
+        batch: list[tuple[int, str]] = []
+        batch_chars = 0
+        for segment in segments:
+            segment_chars = max(1, len(segment[1]))
+            if batch and batch_chars + segment_chars > _MAX_EMBEDDING_BATCH_CHARS:
+                self._embed_segment_batch(batch, per_text_vectors)
+                batch = []
+                batch_chars = 0
+            batch.append(segment)
+            batch_chars += segment_chars
+        if batch:
+            self._embed_segment_batch(batch, per_text_vectors)
+
+        pooled = np.vstack([
+            np.mean(vectors, axis=0) for vectors in per_text_vectors
+        ])
+        return _normalize_rows(pooled).astype(np.float32)
+
+    def _embed_segment_batch(
+        self,
+        batch: list[tuple[int, str]],
+        per_text_vectors: list[list[np.ndarray]],
+    ) -> None:
+        """Embed one character-bounded batch and associate vectors to inputs."""
+        vectors = self.model.encode(
+            [text for _, text in batch],
+            show_progress_bar=False,
             convert_to_numpy=True,
             normalize_embeddings=True,
         )
-        return embeddings.astype(np.float32)
+        for (text_index, _), vector in zip(batch, vectors, strict=True):
+            per_text_vectors[text_index].append(vector)
 
     def embed_query(self, query: str) -> np.ndarray:
         """Embed a single query string, returning a (dim,) float32 array."""
