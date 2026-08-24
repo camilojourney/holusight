@@ -20,7 +20,9 @@ import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Annotated, Any, Callable, Literal
+
+from pydantic import BaseModel, BeforeValidator, ConfigDict, ValidationError
 
 from .control_storage import (
     HISTORY_ROOT,
@@ -40,12 +42,117 @@ PROGRAM_RESULTS_ROOT = RESULTS_ROOT / "retrieval-variation"
 RETRIEVAL_SOURCE_PATH = Path("src/codesight/retrieval_variation.py")
 PRODUCTION_SELECTOR_SOURCE_PATH = Path("src/codesight/cli_axi.py")
 PROVIDER_MODELS_SOURCE_PATH = Path("src/codesight/axi_providers.py")
+CONTROL_STORAGE_SOURCE_PATH = Path("src/codesight/control_storage.py")
 PROVIDERS = ("exact", "structural", "consistency", "semantic")
 MAX_PROVIDER_ITEMS = 100
 MAX_FEEDBACK_COUNT = 1_000_000
 MINIMUM_PRACTICAL_DELTA = 0.05
 MAX_SIGN_TEST_P_VALUE = 0.05
 _SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
+
+
+def _require_exact_float(value: Any) -> Any:
+    if type(value) is not float:
+        raise ValueError("value must be a JSON floating-point number")
+    return value
+
+
+_ExactFloat = Annotated[float, BeforeValidator(_require_exact_float)]
+_Family = Literal[
+    "exact", "hybrid", "graph_impact", "ambiguity", "no_evidence", "adversarial"
+]
+
+
+class _ClosedVariationModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class _StrategyIdentityModel(_ClosedVariationModel):
+    candidate_id: str
+    variable: str
+    description: str
+    implementation: str
+    implementation_hashes: dict[str, str]
+    definition_hash: str
+
+
+class _CaseOutcomeModel(_ClosedVariationModel):
+    case_id: str
+    family: _Family
+    hard_constraints: list[str]
+    required_provider_coverage: _ExactFloat
+
+
+class _HardConstraintsModel(_ClosedVariationModel):
+    protected_case_failures: int
+    all_protected_cases_pass: bool
+
+
+class _RewardModel(_ClosedVariationModel):
+    primary_metric: Literal["mean_required_provider_coverage"]
+    primary_value: _ExactFloat
+
+
+class _EvaluationModel(_ClosedVariationModel):
+    candidate: _StrategyIdentityModel
+    case_outcomes: list[_CaseOutcomeModel]
+    hard_constraints: _HardConstraintsModel
+    reward: _RewardModel
+
+
+class _CandidatePromotionModel(_ClosedVariationModel):
+    allowed: Literal[False]
+    status: Literal["human_review_required"]
+    independent_verification_required: Literal[True]
+    candidate_self_promotion: Literal["denied"]
+
+
+class _VerdictModel(_ClosedVariationModel):
+    status: Literal["failed", "inconclusive", "eligible_for_independent_review"]
+    baseline_primary_value: _ExactFloat
+    candidate_primary_value: _ExactFloat
+    primary_delta: _ExactFloat
+    paired_wins: int
+    paired_losses: int
+    paired_sign_test_p_value: _ExactFloat
+    hard_constraints_pass: bool
+    reproducible: bool
+    practically_meaningful: bool
+    statistically_meaningful: bool
+    reasons: list[str]
+    promotion: _CandidatePromotionModel
+
+
+class _CandidateResultModel(_ClosedVariationModel):
+    evaluation: _EvaluationModel
+    verdict: _VerdictModel
+
+
+class _ProgramModel(_ClosedVariationModel):
+    behavior: Literal["evidence_display_provider_coverage"]
+    benchmark: Literal["tests/fixtures/holusight_retrieval_variation_benchmark.json"]
+    benchmark_hash: str
+    source_fixture_hashes: dict[str, str]
+    evaluator_digest: str
+    implementation_hashes: dict[str, str]
+    evidence_mode: Literal["declared_deterministic"]
+    external_egress: Literal["denied"]
+    model_judging: Literal["not_used"]
+
+
+class _RunPromotionModel(_ClosedVariationModel):
+    allowed: Literal[False]
+    authority: Literal["independent_human_review_via_holus_improve_review"]
+    requirements: list[str]
+
+
+class _VariationRunModel(_ClosedVariationModel):
+    schema_version: Literal["holusight-retrieval-variation-run/v1"]
+    program: _ProgramModel
+    baseline: _EvaluationModel
+    candidates: list[_CandidateResultModel]
+    promotion: _RunPromotionModel
+    result_digest: str
 
 
 @dataclass(frozen=True)
@@ -121,7 +228,7 @@ BASELINE = Strategy(
     "none",
     "Frozen pre-fix concatenate-then-slice control from the existing eval pilot.",
     _legacy_concatenate,
-    (RETRIEVAL_SOURCE_PATH,),
+    (RETRIEVAL_SOURCE_PATH, CONTROL_STORAGE_SOURCE_PATH),
 )
 CANDIDATES = (
     Strategy(
@@ -133,6 +240,7 @@ CANDIDATES = (
             RETRIEVAL_SOURCE_PATH,
             PRODUCTION_SELECTOR_SOURCE_PATH,
             PROVIDER_MODELS_SOURCE_PATH,
+            CONTROL_STORAGE_SOURCE_PATH,
         ),
     ),
     Strategy(
@@ -140,7 +248,7 @@ CANDIDATES = (
         "display-selection=equal-quota-without-redistribution",
         "Equal initial quota but intentionally no unused-capacity redistribution.",
         _equal_quota_without_redistribution,
-        (RETRIEVAL_SOURCE_PATH,),
+        (RETRIEVAL_SOURCE_PATH, CONTROL_STORAGE_SOURCE_PATH),
     ),
 )
 
@@ -168,7 +276,7 @@ def _repo_path(repo_root: Path, path: Path) -> Path:
 
 
 def _source_hashes(repo_root: Path) -> dict[str, str]:
-    from . import axi_providers, cli_axi
+    from . import axi_providers, cli_axi, control_storage
 
     paths = {
         path
@@ -179,6 +287,7 @@ def _source_hashes(repo_root: Path) -> dict[str, str]:
         RETRIEVAL_SOURCE_PATH: Path(__file__),
         PRODUCTION_SELECTOR_SOURCE_PATH: Path(cli_axi.__file__),
         PROVIDER_MODELS_SOURCE_PATH: Path(axi_providers.__file__),
+        CONTROL_STORAGE_SOURCE_PATH: Path(control_storage.__file__),
     }
     hashes: dict[str, str] = {}
     for relative in sorted(paths):
@@ -511,67 +620,25 @@ def validate_result(
     payload: dict[str, Any], *, repo_root: Path | None = None
 ) -> dict[str, Any]:
     """Fail closed before a persisted result can be inspected or reused."""
-    required_fields = {
-        "schema_version", "program", "baseline", "candidates", "promotion", "result_digest"
-    }
-    if not isinstance(payload, dict) or set(payload) != required_fields:
-        raise ValueError("variation result has an unsupported or partial schema")
-    if payload.get("schema_version") != SCHEMA_RUN:
-        raise ValueError("unsupported variation result schema")
-    digest = payload.get("result_digest")
-    if not isinstance(digest, str):
-        raise ValueError("variation result lacks a digest")
+    try:
+        _VariationRunModel.model_validate(payload)
+    except ValidationError as exc:
+        raise ValueError("variation result has an unsupported or partial strict schema") from exc
+
+    digest = payload["result_digest"]
     unsealed = dict(payload)
-    unsealed.pop("result_digest", None)
+    unsealed.pop("result_digest")
     if digest != _canonical_hash(unsealed):
         raise ValueError("variation result digest does not match its bytes")
-    program = payload.get("program")
-    expected_program_fields = {
-        "behavior", "benchmark", "benchmark_hash", "source_fixture_hashes", "evaluator_digest",
-        "implementation_hashes", "evidence_mode", "external_egress", "model_judging"
-    }
-    if not isinstance(program, dict) or set(program) != expected_program_fields:
-        raise ValueError("variation result has incomplete program lineage")
-    if payload.get("promotion", {}).get("allowed") is not False:
-        raise ValueError("variation result may never authorize promotion")
-    candidates = payload.get("candidates")
+
+    candidates = payload["candidates"]
     expected_ids = {strategy.candidate_id for strategy in CANDIDATES}
-    if not isinstance(candidates, list) or len(candidates) != len(CANDIDATES):
-        raise ValueError("variation result is partial or has unsupported candidates")
-    observed_ids: set[str] = set()
-    required_families = {
-        "exact", "hybrid", "graph_impact", "ambiguity", "no_evidence", "adversarial"
+    observed_ids = {
+        candidate["evaluation"]["candidate"]["candidate_id"] for candidate in candidates
     }
-    for candidate in candidates:
-        if not isinstance(candidate, dict) or set(candidate) != {"evaluation", "verdict"}:
-            raise ValueError("variation result has unsupported candidate fields")
-        evaluation = candidate["evaluation"]
-        verdict = candidate["verdict"]
-        if not isinstance(evaluation, dict) or set(evaluation) != {
-            "candidate", "case_outcomes", "hard_constraints", "reward"
-        }:
-            raise ValueError("variation result has incomplete candidate evidence")
-        identity = evaluation["candidate"]
-        grades = evaluation["case_outcomes"]
-        grade_families = (
-            {grade.get("family") for grade in grades if isinstance(grade, dict)}
-            if isinstance(grades, list)
-            else set()
-        )
-        if (
-            not isinstance(identity, dict)
-            or identity.get("candidate_id") not in expected_ids
-            or not isinstance(grades, list)
-            or grade_families != required_families
-            or not isinstance(verdict, dict)
-            or not isinstance(verdict.get("reasons"), list)
-        ):
-            raise ValueError("variation result has incomplete candidate evidence")
-        observed_ids.add(identity["candidate_id"])
-        if verdict.get("promotion", {}).get("allowed") is not False:
-            raise ValueError("candidate result may never authorize promotion")
-    if observed_ids != expected_ids:
+    if len(candidates) != len(CANDIDATES) or observed_ids != expected_ids:
         raise ValueError("variation result is partial or has duplicate candidates")
+
     root = repo_root.resolve() if repo_root is not None else Path(__file__).resolve().parents[2]
     if payload != run_program(root):
         raise ValueError("variation result does not match independently recomputed frozen evidence")

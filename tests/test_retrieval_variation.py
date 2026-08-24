@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -44,6 +45,7 @@ def _frozen_repo(tmp_path: Path, benchmark: dict | None = None) -> Path:
         retrieval_variation.RETRIEVAL_SOURCE_PATH,
         retrieval_variation.PRODUCTION_SELECTOR_SOURCE_PATH,
         retrieval_variation.PROVIDER_MODELS_SOURCE_PATH,
+        retrieval_variation.CONTROL_STORAGE_SOURCE_PATH,
     )
     for relative in paths:
         destination = root / relative
@@ -68,8 +70,8 @@ def _frozen_repo(tmp_path: Path, benchmark: dict | None = None) -> Path:
     return root
 
 
-def test_baseline_and_benchmark_are_content_addressed_and_all_case_families_run():
-    result = retrieval_variation.run_program(REPO_ROOT)
+def test_baseline_and_benchmark_are_content_addressed_and_all_case_families_run(tmp_path):
+    result = retrieval_variation.run_program(_frozen_repo(tmp_path))
     assert result["program"]["benchmark_hash"].startswith("sha256:")
     assert result["program"]["source_fixture_hashes"]
     assert result["program"]["evaluator_digest"].startswith("sha256:")
@@ -77,6 +79,7 @@ def test_baseline_and_benchmark_are_content_addressed_and_all_case_families_run(
         "src/codesight/retrieval_variation.py",
         "src/codesight/cli_axi.py",
         "src/codesight/axi_providers.py",
+        "src/codesight/control_storage.py",
     }
     assert result["baseline"]["candidate"]["candidate_id"] == (
         "baseline-legacy-concatenate-v1"
@@ -92,8 +95,10 @@ def test_baseline_and_benchmark_are_content_addressed_and_all_case_families_run(
     }
 
 
-def test_two_fixed_candidates_have_lineage_and_hard_constraints_are_separate_from_reward():
-    result = retrieval_variation.run_program(REPO_ROOT)
+def test_two_fixed_candidates_have_lineage_and_hard_constraints_are_separate_from_reward(
+    tmp_path,
+):
+    result = retrieval_variation.run_program(_frozen_repo(tmp_path))
     assert len(result["candidates"]) == 2
     for candidate in result["candidates"]:
         evaluation = candidate["evaluation"]
@@ -113,12 +118,12 @@ def test_two_fixed_candidates_have_lineage_and_hard_constraints_are_separate_fro
     assert "available_capacity_unused" in rejected_constraints
 
 
-def test_program_candidate_executes_the_production_display_boundary(monkeypatch):
+def test_program_candidate_executes_the_production_display_boundary(monkeypatch, tmp_path):
     def concatenate(results, cap):
         return [item for result in results for item in result.items][:cap]
 
     monkeypatch.setattr(cli_axi, "_select_display_items", concatenate)
-    result = retrieval_variation.run_program(REPO_ROOT)
+    result = retrieval_variation.run_program(_frozen_repo(tmp_path))
     adversarial = next(
         grade
         for grade in result["candidates"][0]["evaluation"]["case_outcomes"]
@@ -127,8 +132,10 @@ def test_program_candidate_executes_the_production_display_boundary(monkeypatch)
     assert "required_provider_hidden" in adversarial["hard_constraints"]
 
 
-def test_adversarial_provider_flood_is_fixed_only_by_candidate_and_baseline_stays_immutable():
-    result = retrieval_variation.run_program(REPO_ROOT)
+def test_adversarial_provider_flood_is_fixed_only_by_candidate_and_baseline_stays_immutable(
+    tmp_path,
+):
+    result = retrieval_variation.run_program(_frozen_repo(tmp_path))
     baseline = next(
         grade
         for grade in result["baseline"]["case_outcomes"]
@@ -150,8 +157,8 @@ def test_adversarial_provider_flood_is_fixed_only_by_candidate_and_baseline_stay
     ]
 
 
-def test_failed_and_inconclusive_outcomes_are_retained_and_never_promote():
-    result = retrieval_variation.run_program(REPO_ROOT)
+def test_failed_and_inconclusive_outcomes_are_retained_and_never_promote(tmp_path):
+    result = retrieval_variation.run_program(_frozen_repo(tmp_path))
     statuses = {candidate["verdict"]["status"] for candidate in result["candidates"]}
     assert statuses == {"failed", "inconclusive"}
     first_verdict = result["candidates"][0]["verdict"]
@@ -163,15 +170,16 @@ def test_failed_and_inconclusive_outcomes_are_retained_and_never_promote():
         assert candidate["verdict"]["promotion"]["candidate_self_promotion"] == "denied"
 
 
-def test_result_validation_recomputes_frozen_evidence_after_digest_resealing():
-    result = retrieval_variation.run_program(REPO_ROOT)
+def test_result_validation_recomputes_frozen_evidence_after_digest_resealing(tmp_path):
+    root = _frozen_repo(tmp_path)
+    result = retrieval_variation.run_program(root)
     tampered = json.loads(json.dumps(result))
     tampered["candidates"][0]["evaluation"]["reward"]["primary_value"] = 0.123456
     tampered["result_digest"] = retrieval_variation._canonical_hash(
         {key: value for key, value in tampered.items() if key != "result_digest"}
     )
     with pytest.raises(ValueError, match="recomputed"):
-        retrieval_variation.validate_result(tampered, repo_root=REPO_ROOT)
+        retrieval_variation.validate_result(tampered, repo_root=root)
 
     partial = json.loads(json.dumps(result))
     partial["candidates"] = partial["candidates"][:1]
@@ -179,7 +187,29 @@ def test_result_validation_recomputes_frozen_evidence_after_digest_resealing():
         {key: value for key, value in partial.items() if key != "result_digest"}
     )
     with pytest.raises(ValueError, match="partial"):
-        retrieval_variation.validate_result(partial, repo_root=REPO_ROOT)
+        retrieval_variation.validate_result(partial, repo_root=root)
+
+
+def test_result_validation_rejects_numeric_type_substitutions(tmp_path):
+    root = _frozen_repo(tmp_path)
+    result = retrieval_variation.run_program(root)
+    malformed_fields = (
+        ("hard_constraints_pass", 1),
+        ("primary_value", 1),
+    )
+    for field, value in malformed_fields:
+        malformed = json.loads(json.dumps(result))
+        target = (
+            malformed["candidates"][0]["verdict"]
+            if field == "hard_constraints_pass"
+            else malformed["candidates"][0]["evaluation"]["reward"]
+        )
+        target[field] = value
+        malformed["result_digest"] = retrieval_variation._canonical_hash(
+            {key: item for key, item in malformed.items() if key != "result_digest"}
+        )
+        with pytest.raises(ValueError, match="strict schema"):
+            retrieval_variation.validate_result(malformed, repo_root=root)
 
 
 @pytest.mark.parametrize(
@@ -188,6 +218,7 @@ def test_result_validation_recomputes_frozen_evidence_after_digest_resealing():
         retrieval_variation.RETRIEVAL_SOURCE_PATH,
         retrieval_variation.PRODUCTION_SELECTOR_SOURCE_PATH,
         retrieval_variation.PROVIDER_MODELS_SOURCE_PATH,
+        retrieval_variation.CONTROL_STORAGE_SOURCE_PATH,
     ],
 )
 def test_program_rejects_dirty_implementation_inputs(tmp_path, implementation_path):
@@ -222,19 +253,16 @@ def test_benchmark_rejects_unbounded_counts_dirty_bytes_and_alternate_paths(tmp_
 
 
 def test_recording_preserves_typed_run_and_safe_content_minimized_history(tmp_path):
-    result = retrieval_variation.run_program(REPO_ROOT)
-    record_path = retrieval_variation.record_run(REPO_ROOT, result)
-    result_path = retrieval_variation.persist_result(REPO_ROOT, result)
-    try:
-        record = json.loads((REPO_ROOT / record_path).read_text(encoding="utf-8"))
-        assert {item["status"] for item in record["candidate_outcomes"]} == {
-            "failed",
-            "inconclusive",
-        }
-        assert retrieval_variation.load_result(REPO_ROOT, Path(result_path)) == result
-    finally:
-        (REPO_ROOT / record_path).unlink(missing_ok=True)
-        (REPO_ROOT / result_path).unlink(missing_ok=True)
+    record_root = _frozen_repo(tmp_path / "record")
+    result = retrieval_variation.run_program(record_root)
+    record_path = retrieval_variation.record_run(record_root, result)
+    result_path = retrieval_variation.persist_result(record_root, result)
+    record = json.loads((record_root / record_path).read_text(encoding="utf-8"))
+    assert {item["status"] for item in record["candidate_outcomes"]} == {
+        "failed",
+        "inconclusive",
+    }
+    assert retrieval_variation.load_result(record_root, Path(result_path)) == result
 
     root = _frozen_repo(tmp_path / "unsafe")
     unsafe_result = retrieval_variation.run_program(root)
@@ -337,19 +365,24 @@ def test_feedback_is_aggregate_privacy_safe_and_review_only():
         retrieval_variation.build_feedback_proposal("raw_prompt", 1)
 
 
-def test_public_operator_run_and_record_envelope_are_closed_and_non_promoting():
+def test_public_operator_run_and_record_envelope_are_closed_and_non_promoting(tmp_path):
+    root = _frozen_repo(tmp_path)
+    environment = {**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")}
     completed = subprocess.run(
         [sys.executable, "-m", "codesight.cli_axi", "improve-variation-run", "--format", "json"],
-        cwd=REPO_ROOT,
+        cwd=root,
+        env=environment,
         capture_output=True,
         text=True,
         check=False,
         timeout=30,
     )
     assert completed.returncode == 0, completed.stderr
-    result = json.loads(completed.stdout)
-    assert result["program"]["external_egress"] == "denied"
-    assert result["promotion"]["allowed"] is False
+    envelope = json.loads(completed.stdout)
+    assert envelope["schema_version"] == cli_axi.AXI_SCHEMA_VERSION
+    assert set(envelope) == {"schema_version", "run"}
+    assert envelope["run"]["program"]["external_egress"] == "denied"
+    assert envelope["run"]["promotion"]["allowed"] is False
 
     recorded = subprocess.run(
         [
@@ -361,18 +394,19 @@ def test_public_operator_run_and_record_envelope_are_closed_and_non_promoting():
             "--format",
             "json",
         ],
-        cwd=REPO_ROOT,
+        cwd=root,
+        env=environment,
         capture_output=True,
         text=True,
         check=False,
         timeout=30,
     )
     assert recorded.returncode == 0, recorded.stderr
-    envelope = json.loads(recorded.stdout)
-    retrieval_variation.validate_result(envelope["run"], repo_root=REPO_ROOT)
-    assert set(envelope) == {"schema_version", "run", "derived_state"}
-    for path in envelope["derived_state"].values():
-        (REPO_ROOT / path).unlink(missing_ok=True)
+    recorded_envelope = json.loads(recorded.stdout)
+    retrieval_variation.validate_result(recorded_envelope["run"], repo_root=root)
+    assert set(recorded_envelope) == {"schema_version", "run", "derived_state"}
+    for path in recorded_envelope["derived_state"].values():
+        (root / path).unlink(missing_ok=True)
 
 
 def test_public_feedback_command_is_aggregate_only_and_schema_registered():

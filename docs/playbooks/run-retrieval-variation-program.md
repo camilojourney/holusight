@@ -11,12 +11,13 @@ for the placement decision.
 holus improve-variation-run --format json
 ```
 
-Inspect `program.benchmark_hash`, `program.source_fixture_hashes`,
-`program.implementation_hashes`, and `program.evaluator_digest`. Confirm both
-candidate definition hashes are present. Read `hard_constraints` independently from `reward`; do not treat a
-higher reward as permission to ignore a protected failure.
+Inspect `run.program.benchmark_hash`, `run.program.source_fixture_hashes`,
+`run.program.implementation_hashes`, and `run.program.evaluator_digest`. Confirm
+both candidate definition hashes are present. Read `hard_constraints`
+independently from `reward`; do not treat a higher reward as permission to
+ignore a protected failure.
 
-The result always has `promotion.allowed: false`. Failed and `inconclusive`
+The result always has `run.promotion.allowed: false`. Failed and `inconclusive`
 results are retained evidence, not outcomes to hide or rewrite.
 
 ## 2. Retain an operator-requested derived record
@@ -43,8 +44,9 @@ holus improve-review specs/<change>.change.json --phase pre_promotion
 ```
 
 The tracked manifest must hash-link the canonical benchmark, its source
-fixture, both implementation files, and the complete typed result. The result
-is independently recomputed from clean tracked inputs, and the manifest itself
+fixture, every path emitted in `run.program.implementation_hashes`, and the
+complete typed result. The result is independently recomputed from clean
+tracked inputs, and the manifest itself
 must be clean and tracked. Failed or inconclusive candidates remain blocked.
 The review still reports `promotion.allowed: false`; the independent human
 reviewer decides whether to approve a separate production change. A baseline,
