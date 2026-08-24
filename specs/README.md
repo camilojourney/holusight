@@ -23,6 +23,10 @@ Feature specifications for codesight.
 | 014 | [Retrieval Evaluation Harness Expansion](014-retrieval-evaluation-harness-expansion.md) | Vertical slice implemented | Direct-PR |
 | 015 | [Holusight-AXI Command Surface](015-holusight-axi-command-surface.md) | Phase 1 implemented | Direct-PR |
 | 016 | [Fleet v1.2 Protocol Pilot](016-fleet-v1.2-protocol-pilot.md) | Pilot implemented | Direct-PR |
+| 017 | [Holusight Safe Continuous Evaluation Pilot](017-holusight-safe-continuous-evaluation-pilot.md) | Pilot implemented | Direct-PR |
+| 018 | [Holusight Continuous Improvement Loop](018-holusight-continuous-improvement-loop.md) | Implemented | Direct-PR |
+| 019 | [Research to Improvement Control Plane](019-research-to-improvement-control-plane.md) | Implemented | Direct-PR |
+| 020 | [Controlled Retrieval Variation Program](020-controlled-retrieval-variation-program.md) | Implemented | Direct-PR |
 
 ## Implementation History
 

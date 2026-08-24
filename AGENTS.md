@@ -33,7 +33,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `tasks/` | Temporary session task files (delete when done). |
 | `.claude/` | Claude Code configuration, rules, agents. |
 | `.self-improvement/` | Autonomous improvement system. |
-| `.holusight/` | Holusight-AXI consistency cache and opt-in improvement review records. Gitignored derived state, never canonical truth - safe to delete and rebuild. See specs 013 and 019. |
+| `.holusight/` | Gitignored derived state, never canonical truth. See the authoritative storage and rebuild rules in `.claude/rules/structure.md`. |
 | `agentic/` | Fleet repository-evaluation-adapter manifest (`fleet.repo_agent_manifest.v1.2`) and memory policy (`fleet.memory_policy.v1.1`). Committed, Holusight-owned data conforming to schemas owned by the Fleet repository, not vendored here. See spec 016. |
 
 **Never create files at root** unless they are one of the above.
@@ -63,6 +63,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
 | `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
 | `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for the existing `holus improve-*` loop. It verifies tracked manifests, links, hashes, stages, and promotion blockers without egress or canonical writes. See spec 019. |
+| `src/codesight/retrieval_variation.py` | Fixed, local evidence-display baseline/candidate evaluator. Content-addresses benchmark and lineage, separates hard constraints from reward, and only permits independent human review. See spec 020. |
 | `src/codesight/types.py` | Shared type definitions. |
 | `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |
 | `src/codesight/web/static/` | Browser UI assets for the FastAPI pilot server. |

@@ -24,7 +24,7 @@
 | `tasks/` | Temporary session task files (delete when done). |
 | `.claude/` | Claude Code configuration, rules, agents. |
 | `.self-improvement/` | Autonomous improvement system. |
-| `.holusight/` | Holusight-AXI consistency cache. Gitignored derived state, never canonical truth — safe to delete, rebuilt via `python -m codesight consistency refresh`. See spec 013. |
+| `.holusight/` | Gitignored Holusight-AXI cache and opt-in improvement records/results. Derived state only, never canonical truth, and safe to delete and rebuild through the governing `holus` workflow. See specs 013, 019, and 020. |
 | `agentic/` | Fleet repository-evaluation-adapter manifest (`fleet.repo_agent_manifest.v1.2`) and memory policy (`fleet.memory_policy.v1.1`). Committed, Holusight-owned data conforming to schemas owned by the Fleet repository, not vendored here. See spec 016. |
 
 **Never create files at root** unless they are one of the above.
@@ -54,6 +54,7 @@
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents. Local, no-spend. See spec 016. |
 | `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
 | `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for existing `holus improve-*` review commands. It validates tracked manifests, typed links, hashes, monotonic stages, and promotion blockers. See spec 019. |
+| `src/codesight/retrieval_variation.py` | Fixed local evidence-display variation evaluator using the existing improvement-control storage and promotion boundary. See spec 020. |
 | `src/codesight/control_storage.py` | Shared no-follow, atomic control-plane derived-state writer. It permits only gitignored result/history paths inside the repository and rejects tracked or symlinked destinations. |
 | `src/codesight/types.py` | Shared type definitions. |
 

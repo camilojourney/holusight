@@ -10,7 +10,7 @@ description: >
 
 # holus - Holusight-AXI repository evidence CLI
 
-Schema version: `0.4.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
+Schema version: `0.5.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
 
 ## When to use this
 
@@ -186,6 +186,37 @@ holus improve-placement --artifact-type case --proposed-path tests/fixtures/my_c
 python -m codesight.cli_axi improve-placement --artifact-type case --proposed-path tests/fixtures/my_case.jsonl
 holus improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
 python -m codesight.cli_axi improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
+```
+
+### `holus improve-variation-run`
+
+Run the fixed, local evidence-display variation baseline and two controlled candidates. Hard constraints and rewards stay separate; promotion is always human-guarded.
+
+Flags:
+- `--record` - Opt in to a content-minimized derived review record under .holusight/.
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-variation-run
+python -m codesight.cli_axi improve-variation-run
+holus improve-variation-run --record --format json
+python -m codesight.cli_axi improve-variation-run --record --format json
+```
+
+### `holus improve-variation-feedback`
+
+Queue only an aggregate, privacy-safe real-use signal for human fixture-admission review. It never changes a case, threshold, evaluator, or authority.
+
+Flags:
+- `--signal` (failure_case/aggregate_outcome) - Privacy-safe aggregate real-use signal for human review.
+- `--count` - Positive aggregate signal count.
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus improve-variation-feedback --signal failure_case --count 2
+python -m codesight.cli_axi improve-variation-feedback --signal failure_case --count 2
 ```
 
 ### `holus improve-review <change-manifest.json>`

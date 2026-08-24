@@ -155,6 +155,35 @@ def test_complete_accepted_conclusion_has_deterministic_stage_and_links(tmp_path
     assert payload["research_needed"] is None
 
 
+def test_oversized_evaluation_result_is_blocked_before_hashing_or_parsing(tmp_path):
+    root = _repo(tmp_path)
+    manifest = _manifest(root)
+    value = json.loads(manifest.read_text(encoding="utf-8"))
+    result_relative = value["links"]["evaluation_result"][0]
+    result_path = root / result_relative
+    with result_path.open("wb") as handle:
+        handle.truncate(improvement_control._MAX_EVALUATION_RESULT_BYTES + 1)
+    value["link_hashes"][result_relative] = "sha256:" + ("0" * 64)
+    manifest.write_text(json.dumps(value), encoding="utf-8")
+
+    payload, _fmt, _exit = _run(
+        [
+            "improve-review",
+            str(manifest.relative_to(root)),
+            "--phase",
+            "pre_promotion",
+            "--format",
+            "json",
+        ],
+        root,
+    )
+
+    blocker_codes = {item["code"] for item in payload["review"]["blockers"]}
+    assert "invalid_evaluation_result" in blocker_codes
+    assert "stale_link" not in blocker_codes
+    assert payload["review"]["promotion"]["allowed"] is False
+
+
 def test_missing_accepted_implementation_and_evaluation_are_exact_blockers(tmp_path):
     root = _repo(tmp_path)
     manifest = _manifest(root)

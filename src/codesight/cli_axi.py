@@ -60,6 +60,8 @@ _JOB_NAMES = {
     "improve-intake",
     "improve-run",
     "improve-placement",
+    "improve-variation-run",
+    "improve-variation-feedback",
     "improve-review",
     "improve-history",
     "improve-integration",
@@ -920,6 +922,47 @@ def _cmd_improve_run(repo_root: Path, values: dict, positionals: list[str]) -> t
     return _apply_fields(payload, values.get("--fields")), (1 if evaluation_failed else 0)
 
 
+def _cmd_improve_variation_run(
+    repo_root: Path, values: dict, positionals: list[str]
+) -> tuple[dict, int]:
+    from . import retrieval_variation
+
+    _reject_extra_positionals("improve-variation-run", positionals)
+    try:
+        result = retrieval_variation.run_program(repo_root)
+        payload = {"schema_version": AXI_SCHEMA_VERSION, "run": result}
+        if values.get("--record"):
+            payload["derived_state"] = {
+                "record": retrieval_variation.record_run(repo_root, result),
+                "evaluation_result": retrieval_variation.persist_result(repo_root, result),
+            }
+    except ValueError as exc:
+        cmd = command_by_name("improve-variation-run")
+        raise UsageError(str(exc), help_text=_command_help_text(cmd)) from exc
+    return payload, 0
+
+
+def _cmd_improve_variation_feedback(
+    repo_root: Path, values: dict, positionals: list[str]
+) -> tuple[dict, int]:
+    from . import retrieval_variation
+
+    _reject_extra_positionals("improve-variation-feedback", positionals)
+    signal = values.get("--signal")
+    raw_count = values.get("--count")
+    if not signal or raw_count is None:
+        cmd = command_by_name("improve-variation-feedback")
+        raise UsageError(
+            "both --signal and --count are required", help_text=_command_help_text(cmd)
+        )
+    try:
+        payload = retrieval_variation.build_feedback_proposal(signal, int(raw_count))
+    except ValueError as exc:
+        cmd = command_by_name("improve-variation-feedback")
+        raise UsageError(str(exc), help_text=_command_help_text(cmd)) from exc
+    return {"schema_version": AXI_SCHEMA_VERSION, **payload}, 0
+
+
 def _cmd_improve_review(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
     from . import improvement_control
 
@@ -1301,6 +1344,8 @@ _HANDLERS = {
     "improve-intake": _cmd_improve_intake,
     "improve-run": _cmd_improve_run,
     "improve-placement": _cmd_improve_placement,
+    "improve-variation-run": _cmd_improve_variation_run,
+    "improve-variation-feedback": _cmd_improve_variation_feedback,
     "improve-review": _cmd_improve_review,
     "improve-history": _cmd_improve_history,
     "improve-integration": _cmd_improve_integration,
