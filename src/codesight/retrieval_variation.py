@@ -17,6 +17,7 @@ import hashlib
 import json
 import math
 import re
+import subprocess
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -275,6 +276,31 @@ def _repo_path(repo_root: Path, path: Path) -> Path:
     return candidate
 
 
+def _bootstrap_control_storage(
+    repo_root: Path, repository_path: Path, executed_path: Path
+) -> bytes:
+    head = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "show",
+            f"HEAD:{CONTROL_STORAGE_SOURCE_PATH.as_posix()}",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if head.returncode != 0:
+        raise ValueError("variation implementations must be clean and tracked at HEAD")
+    for path in (repository_path, executed_path):
+        if path.is_symlink() or not path.is_file() or path.stat().st_size != len(head.stdout):
+            raise ValueError("variation implementations must be clean and tracked at HEAD")
+        if path.read_bytes() != head.stdout:
+            raise ValueError("variation implementations must be clean and tracked at HEAD")
+    return head.stdout
+
+
 def _source_hashes(repo_root: Path) -> dict[str, str]:
     from . import axi_providers, cli_axi, control_storage
 
@@ -289,8 +315,12 @@ def _source_hashes(repo_root: Path) -> dict[str, str]:
         PROVIDER_MODELS_SOURCE_PATH: Path(axi_providers.__file__),
         CONTROL_STORAGE_SOURCE_PATH: Path(control_storage.__file__),
     }
-    hashes: dict[str, str] = {}
-    for relative in sorted(paths):
+    control_path = _repo_path(repo_root, CONTROL_STORAGE_SOURCE_PATH)
+    control_bytes = _bootstrap_control_storage(
+        repo_root, control_path, executed[CONTROL_STORAGE_SOURCE_PATH]
+    )
+    hashes = {CONTROL_STORAGE_SOURCE_PATH.as_posix(): _hash_bytes(control_bytes)}
+    for relative in sorted(paths - {CONTROL_STORAGE_SOURCE_PATH}):
         full_path = _repo_path(repo_root, relative)
         if not is_clean_tracked_file(repo_root, full_path):
             raise ValueError("variation implementations must be clean and tracked at HEAD")
@@ -298,7 +328,7 @@ def _source_hashes(repo_root: Path) -> dict[str, str]:
         if repo_bytes != executed[relative].read_bytes():
             raise ValueError("executed variation implementation differs from repository bytes")
         hashes[relative.as_posix()] = _hash_bytes(repo_bytes)
-    return hashes
+    return dict(sorted(hashes.items()))
 
 
 def _strategy_identity(

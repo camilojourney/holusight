@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -92,10 +93,37 @@ _SECRET_LIKE_RE = re.compile(
 )
 _HISTORY_MAX_RECORDS = 200
 _HISTORY_PAGE_SIZE = 50
+_MAX_EVALUATION_RESULT_BYTES = 2 * 1024 * 1024
 
 
 def _sha256(path: Path) -> str:
     return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _sha256_bytes(value: bytes) -> str:
+    return "sha256:" + hashlib.sha256(value).hexdigest()
+
+
+def _read_bounded_regular_file(path: Path, *, max_bytes: int) -> bytes:
+    flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    fd = os.open(path, flags)
+    try:
+        file_stat = os.fstat(fd)
+        if not stat.S_ISREG(file_stat.st_mode) or file_stat.st_size > max_bytes:
+            raise ValueError("evaluation result must be a bounded regular file")
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = os.read(fd, min(64 * 1024, max_bytes + 1 - total))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > max_bytes:
+                raise ValueError("evaluation result exceeds the size limit")
+        return b"".join(chunks)
+    finally:
+        os.close(fd)
 
 
 def _json_hash(value: Any) -> str:
@@ -339,11 +367,23 @@ def _review_links(
             if full_path.is_symlink() or not full_path.is_file():
                 blockers.append(_blocked(f"dangling_{role}", path, role=role))
                 continue
+            result_bytes: bytes | None = None
+            if role == "evaluation_result":
+                try:
+                    result_bytes = _read_bounded_regular_file(
+                        full_path, max_bytes=_MAX_EVALUATION_RESULT_BYTES
+                    )
+                except (OSError, ValueError):
+                    blockers.append(_blocked("invalid_evaluation_result", path, role=role))
+                    continue
             expected_hash = hashes.get(path)
             if expected_hash is None:
                 blockers.append(_blocked("missing_link_hash", path, role=role))
                 continue
-            if expected_hash != _sha256(full_path):
+            actual_hash = (
+                _sha256_bytes(result_bytes) if result_bytes is not None else _sha256(full_path)
+            )
+            if expected_hash != actual_hash:
                 blockers.append(_blocked("stale_link", path, role=role))
                 continue
             if role == "governing":
@@ -381,14 +421,35 @@ def _review_links(
                     blockers.append(_blocked("invalid_evaluation_case", path, role=role))
             elif role == "evaluation_result":
                 try:
-                    raw_result = json.loads(full_path.read_text(encoding="utf-8"))
+                    raw_result = json.loads(result_bytes)
                     if raw_result.get("schema_version") == retrieval_variation.SCHEMA_RUN:
-                        result = retrieval_variation.load_result(repo_root, relative)
+                        result = retrieval_variation.validate_result(
+                            raw_result, repo_root=repo_root
+                        )
                         validated_results.append((full_path, "variation", result))
                     else:
-                        result = eval_pilot.load_prior_run(full_path)
+                        required_keys = {
+                            "run_id",
+                            "counts",
+                            "lineage",
+                            "cases_file_hash",
+                            "cases_file",
+                            "schema_version",
+                        }
+                        if not isinstance(raw_result, dict) or not required_keys <= set(
+                            raw_result
+                        ):
+                            raise ValueError("evaluation result is not a pilot result")
+                        result = eval_pilot.PilotRunResult.model_validate(raw_result)
+                        eval_pilot._validate_result(result)
                         validated_results.append((full_path, "pilot", result))
-                except (ValueError, OSError, json.JSONDecodeError, AttributeError):
+                except (
+                    ValueError,
+                    OSError,
+                    UnicodeDecodeError,
+                    json.JSONDecodeError,
+                    AttributeError,
+                ):
                     blockers.append(_blocked("invalid_evaluation_result", path, role=role))
 
     explicit_evidence = manifest.get("classification_evidence")
@@ -500,7 +561,13 @@ def trusted_evaluation_result_anchor(repo_root: Path, result_path: Path) -> str 
         return None
     if result_path.is_symlink() or not result_path.is_file():
         return None
-    result_hash = _sha256(result_path)
+    try:
+        result_bytes = _read_bounded_regular_file(
+            result_path, max_bytes=_MAX_EVALUATION_RESULT_BYTES
+        )
+    except (OSError, ValueError):
+        return None
+    result_hash = _sha256_bytes(result_bytes)
     specs_root = repo_root / "specs"
     if not specs_root.is_dir():
         return None

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from codesight import cli_axi, improvement_control, retrieval_variation
+from codesight import cli_axi, control_storage, improvement_control, retrieval_variation
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -225,6 +225,21 @@ def test_program_rejects_dirty_implementation_inputs(tmp_path, implementation_pa
     root = _frozen_repo(tmp_path)
     path = root / implementation_path
     path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="implementations must be clean and tracked"):
+        retrieval_variation.run_program(root)
+
+
+def test_control_storage_clean_check_is_bootstrapped_from_head(monkeypatch, tmp_path):
+    root = _frozen_repo(tmp_path)
+    control_path = root / retrieval_variation.CONTROL_STORAGE_SOURCE_PATH
+    control_path.write_text(
+        control_path.read_text(encoding="utf-8")
+        + "\ndef is_clean_tracked_file(repo_root, path):\n    return True\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(control_storage, "__file__", str(control_path))
+    monkeypatch.setattr(retrieval_variation, "is_clean_tracked_file", lambda *_args: True)
 
     with pytest.raises(ValueError, match="implementations must be clean and tracked"):
         retrieval_variation.run_program(root)
