@@ -27,6 +27,7 @@ Feature specifications for codesight.
 | 018 | [Holusight Continuous Improvement Loop](018-holusight-continuous-improvement-loop.md) | Implemented | Direct-PR |
 | 019 | [Research to Improvement Control Plane](019-research-to-improvement-control-plane.md) | Implemented | Direct-PR |
 | 020 | [Controlled Retrieval Variation Program](020-controlled-retrieval-variation-program.md) | Implemented | Direct-PR |
+| 021 | [Holusight Evidence Subject Binding](021-holusight-evidence-subject-binding.md) | Implemented | Direct-PR |
 
 ## Implementation History
 

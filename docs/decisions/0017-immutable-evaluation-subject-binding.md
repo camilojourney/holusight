@@ -22,7 +22,7 @@ mechanism.
   identity: a candidate cannot change implementation and update only a
   manifest hash to reach `evaluated` stage without rerunning evaluation.
 - A stale, dirty, wrong-tree, unknown/rewritten-commit, renamed/rebased, or
-  changed consequential artifact is indeterminate — it demotes stage away
+  changed consequential artifact is indeterminate - it demotes stage away
   from `evaluated` via the existing blocker-prefix mechanism in `_stage()`,
   so it can never reach `pre_promotion`'s `human_promotion_review`. No new
   top-level outcome vocabulary was introduced; the existing blocker/stage
@@ -31,9 +31,9 @@ mechanism.
   as "not dirty" (because `git status` simply fails there), so an eval-pilot
   result produced outside a real Git repository could still become
   promotion-relevant evidence. `EvaluationSubject.clean` now requires a
-  resolvable commit and tree, successful clean status checks, and the same
-  subject before and after grading. Git failures and concurrent changes fail
-  closed.
+  resolvable commit and tree, successful clean status checks, an evaluated
+  case corpus matching its blob at that commit, and the same subject before
+  and after grading. Git failures and concurrent changes fail closed.
 - A later manifest-only descendant commit remains applicable exactly when
   every consequential tracked `HEAD` blob and clean worktree path is unchanged.
   Commit recency does not invalidate an already-evaluated result.
@@ -44,11 +44,11 @@ mechanism.
   (`EvaluationSubject.branch`); nothing in the applicability recomputation
   reads it.
 - `retrieval_variation.py`'s own result schema and applicability check are
-  untouched — it already fully re-executes and byte-compares against
+  untouched - it already fully re-executes and byte-compares against
   current tracked `HEAD` on every load, which is a different, already
   adequate mechanism for that subsystem (see ADR-0016).
 
 An evaluator-subject pin (G2), a frozen comparison packet (G3), and a
 normative `pass | block | indeterminate` integration outcome (G4) remain
-separate, later corrections in the same dependency-ordered queue — adding
+separate, later corrections in the same dependency-ordered queue - adding
 them here would widen this change beyond the one gap it closes.

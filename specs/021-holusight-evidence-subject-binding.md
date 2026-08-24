@@ -25,7 +25,7 @@ or external integration. `.holusight/` remains derived, non-canonical state.
 
 Every `PilotRunResult` (`src/codesight/eval_pilot.py`) now carries a
 `subject: EvaluationSubject`, computed fresh by `run_pilot` from the real
-repository state at evaluation time — never trusted from caller input:
+repository state at evaluation time - never trusted from caller input:
 
 ```json
 {
@@ -45,11 +45,13 @@ repository state at evaluation time — never trusted from caller input:
   `HEAD^{tree}` at evaluation time. Both 40-hex SHA-1 and 64-hex SHA-256
   repositories are supported; an unresolvable object is `null`.
 - `clean` is `true` only when both `commit` and `tree` resolve, `git status`
-  succeeds with no uncommitted changes, and a second subject capture after
-  grading has the same repository identity, commit, tree, and clean state.
-  Git command failure and concurrent repository changes fail closed.
+  succeeds with no uncommitted changes, the evaluated case corpus bytes match
+  its blob at that commit, and a second subject capture after grading has the
+  same repository identity, commit, tree, and clean state. Git command failure,
+  an untracked or mismatched corpus, and concurrent repository changes fail
+  closed.
 - `branch` is recorded only as an annotation. Nothing in the applicability
-  recomputation below reads it — a mutable branch name is never identity.
+  recomputation below reads it - a mutable branch name is never identity.
 
 `_validate_result` additionally rejects any result whose subject is not
 `clean` (with a resolved `commit` and `tree`) as promotion-relevant
@@ -60,14 +62,15 @@ subject and rejects a caller-supplied commit that does not match it.
 ## Review-time applicability recomputation
 
 `improvement_control._review_links` reuses the existing six link roles as
-typed relations — no new role. For a manifest at `classification: evaluated`
+typed relations - no new role. For a manifest at `classification: evaluated`
 whose linked evaluation result is a pilot result, review now recomputes
 applicability against that result's subject
 (`improvement_control._subject_applicability_blockers`) before the manifest
 can reach `evaluated` stage:
 
-1. The subject itself must be `clean` with a resolvable `commit`/`tree`, or
-   the result is `dangling_evaluation_subject`.
+1. The subject must have a resolvable `commit`/`tree`, or the result gets
+   `dangling_evaluation_subject`. An unclean subject or dirty lineage gets
+   `dirty_evaluation_subject`; either condition also fails result validation.
 2. The current repository's identity must match `subject.repository_id`, or
    `wrong_repository_subject`.
 3. `subject.commit^{tree}` must still resolve (the commit must still exist),
@@ -76,11 +79,10 @@ can reach `evaluated` stage:
 5. The current `HEAD` must descend from the evaluated commit, or the subject
    is stale after rewritten/rebased history.
 6. For every path linked under `implementation`, `tests`, `documentation`,
-   and `evaluation_case` — the **consequential** roles whose bytes the
+   and `evaluation_case` - the **consequential** roles whose bytes the
    result actually depended on (`governing` and `evaluation_result` are
-   excluded: one governs, the other is the anchor itself) — the path must
-   resolve to a Git blob at the evaluated commit
-   (`git rev-parse <commit>:<path>`), or it is
+   excluded: one governs, the other is the anchor itself) - the path must
+   resolve as a Git blob at `<commit>:<path>`, or it is
    `dangling_consequential_artifact` (this is also the rebase/rename case: a
    path is a locator, never identity, so a renamed file that never existed
    at that path in the evaluated commit is indeterminate, never silently
@@ -94,7 +96,7 @@ can reach `evaluated` stage:
 
 Every one of these blocker codes shares a prefix (`dangling_`, `stale_`,
 `wrong_`, `changed_`, or `dirty_`) that `_stage()` treats as
-disqualifying — so a manifest with any of them can never reach `evaluated`
+disqualifying - so a manifest with any of them can never reach `evaluated`
 stage, and `pre_promotion` review can never return
 `human_promotion_review` for it. This preserves the existing promotion
 boundary rather than adding a new one: promotion was always
@@ -110,12 +112,12 @@ and the manifest's own branch play no part.
 - No change to the `retrieval_variation.py` result schema or its own
   applicability check, which already fully recomputes its result by
   re-executing `run_program` against current tracked `HEAD` bytes
-  (`retrieval_variation.validate_result`) — a different, already-adequate
+  (`retrieval_variation.validate_result`) - a different, already-adequate
   mechanism for that subsystem. G1 only closes the gap for pilot results.
 - No new manifest field or link role (`holus-improvement-change/v1`'s six
   roles are unchanged).
 - No evaluator-subject pinning (G2), comparison packet (G3), or normative
-  `pass | block | indeterminate` integration outcome (G4) — later,
+  `pass | block | indeterminate` integration outcome (G4) - later,
   independent corrections in the same dependency-ordered queue.
 
 ## Evidence and verification
@@ -128,14 +130,12 @@ the manifest hash updated (never rerun) becoming indeterminate; a tampered
 tree OID; an unknown/rewritten evaluated commit; a dirty-worktree
 evaluation; and a renamed/rebased path whose current bytes hash-match but
 never existed at the evaluated commit. `tests/test_improvement_control.py`
-and `tests/test_control_plane_adversarial_e2e.py` continue to prove the
-unchanged parts of the review contract, now against real committed Git
-fixtures (a genuinely evaluated result can only ever have a real subject).
+now uses real committed Git fixtures because promotion-eligible results require
+a real subject. `tests/test_control_plane_adversarial_e2e.py` continues to
+prove the unchanged public-command safety boundaries.
 
-Graphify was checked first. `graphify-out/graph.json` existed but
-`built_at_commit` (`923af1f`) predated this repository's current `HEAD`
-(`6e868df`, merged PR #28), and neither the `graphify` CLI nor the
-`fleet_graphify.py` wrapper this repository's own `AGENTS.md` names was
-present on this execution host. Direct source and Git history evidence was
-used instead, per the same fallback already recorded in spec 019. The stale
+Graphify was queried first during documentation review, but
+`graphify-out/graph.json` predated the G1 implementation and did not contain
+its new spec or symbols. Current direct source and Git history provided the
+missing evidence, using the fallback already recorded in spec 019. The stale
 graph was not modified.

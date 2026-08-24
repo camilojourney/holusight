@@ -790,7 +790,9 @@ def test_scorecard_uses_subject_commit_and_dirty_subject_is_not_promotion_releva
     result = eval_pilot.PilotRunResult.model_validate(
         json.loads(ctx["result_path"].read_text(encoding="utf-8"))
     )
-    dirty = result.model_copy(update={"subject": result.subject.model_copy(update={"clean": False})})
+    dirty = result.model_copy(
+        update={"subject": result.subject.model_copy(update={"clean": False})}
+    )
     scorecard = eval_pilot.build_pilot_aggregate_scorecard(
         dirty, repo="subject-test", repo_commit=result.subject.commit or "unknown"
     )

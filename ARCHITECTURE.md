@@ -676,12 +676,14 @@ bytes a linked eval-pilot result was evaluated against. Full design record:
 run_pilot() -> PilotRunResult.subject = {repository_id, commit, tree,
                                           clean, branch (annotation only)}
                                           computed from real Git state, not
-                                          caller input
+                                          caller input; clean only when the
+                                          committed case blob matches and the
+                                          subject is stable after grading
 holus improve-review --phase pre_promotion
   -> _subject_applicability_blockers() recomputes, for implementation/
      tests/documentation/evaluation_case links only:
-       subject clean+resolvable and stable before/after grading, sanitized
-       repository identity, commit/tree still resolve, current HEAD descends
+       subject clean+resolvable, sanitized repository identity, commit/tree
+       still resolve, current HEAD descends
        from the subject, and every linked path has the same Git blob at the
        evaluated commit, current HEAD, and clean worktree
   -> any mismatch (dangling/stale/wrong_tree/changed/dirty) demotes stage away
@@ -700,7 +702,7 @@ formats are supported, remote identity credentials are stripped, and pilot
 scorecards derive commit identity and relevance from the bound subject.
 `retrieval_variation.py`'s own applicability check (full
 re-execution and byte-comparison against current tracked `HEAD` on every
-load) is untouched — a different, already-adequate mechanism for that
+load) is untouched - a different, already-adequate mechanism for that
 subsystem. No new manifest field, link role, or promotion mechanism was
 added; the six existing link roles and the `promotion.allowed: false`
 boundary are unchanged. `AXI_SCHEMA_VERSION` moved `0.5.0` -> `0.6.0`
