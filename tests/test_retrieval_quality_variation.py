@@ -84,7 +84,7 @@ def _fake_run_candidate_factory(payloads: dict[str, dict]):
     return _run_candidate
 
 
-def test_variant_loop_records_rejected_and_promotable_candidates(
+def test_variant_loop_records_rejected_and_inconclusive_candidates(
     monkeypatch, _fixture_query_rows, tmp_path
 ):
     benchmark = rv.BenchmarkSpec(
@@ -132,9 +132,9 @@ def test_variant_loop_records_rejected_and_promotable_candidates(
             },
             "hit_sequence": [True, False],
             "per_query": [
-                {"query": "a", "hit": True},
-                {"query": "b", "hit": False},
-                {"query": "c", "diagnostic_only": True},
+                {"query": "a", "hit": True, "rr": 1.0},
+                {"query": "b", "hit": False, "rr": 0.0},
+                {"query": "c", "diagnostic_only": True, "rr": 0.0},
             ],
         },
         "cnfb-alpha-0.25": {
@@ -159,9 +159,9 @@ def test_variant_loop_records_rejected_and_promotable_candidates(
             },
             "hit_sequence": [True, False],
             "per_query": [
-                {"query": "a", "hit": True},
-                {"query": "b", "hit": False},
-                {"query": "c", "diagnostic_only": True},
+                {"query": "a", "hit": True, "rr": 1.0},
+                {"query": "b", "hit": False, "rr": 0.0},
+                {"query": "c", "diagnostic_only": True, "rr": 0.0},
             ],
         },
         "query-enhancement-on": {
@@ -186,9 +186,9 @@ def test_variant_loop_records_rejected_and_promotable_candidates(
             },
             "hit_sequence": [True, True],
             "per_query": [
-                {"query": "a", "hit": True},
-                {"query": "b", "hit": True},
-                {"query": "c", "diagnostic_only": True},
+                {"query": "a", "hit": True, "rr": 1.0},
+                {"query": "b", "hit": True, "rr": 1.0},
+                {"query": "c", "diagnostic_only": True, "rr": 0.0},
             ],
         },
     }
@@ -205,8 +205,9 @@ def test_variant_loop_records_rejected_and_promotable_candidates(
 
     cnfb_comparison, query_enhanced_comparison = report["comparisons"]
     assert cnfb_comparison["status"] == "reject"
-    assert query_enhanced_comparison["status"] == "promotable"
-    assert query_enhanced_comparison["decision"] == "human_review_required"
+    assert query_enhanced_comparison["status"] == "inconclusive"
+    assert query_enhanced_comparison["decision"] == "retain_candidate"
+    assert query_enhanced_comparison["primary_p_value"] == 1.0
 
 
 def test_compare_candidate_blocks_regression():
@@ -222,6 +223,7 @@ def test_compare_candidate_blocks_regression():
             "evidence_completeness": 0.80,
         },
         "hit_sequence": [True, False],
+        "per_query": [{"rr": 1.0}, {"rr": 0.0}],
     }
     candidate = {
         "candidate_id": "cnfb-alpha-0.25",
@@ -235,6 +237,7 @@ def test_compare_candidate_blocks_regression():
             "evidence_completeness": 0.80,
         },
         "hit_sequence": [True, True],
+        "per_query": [{"rr": 1.0}, {"rr": 1.0}],
     }
 
     comparison = rv._compare_candidate(

@@ -304,23 +304,30 @@ def _run_candidate(
     return run_payload
 
 
-def _paired_sign_two_sided_p_value(base_hits: list[bool], candidate_hits: list[bool]) -> float:
-    if len(base_hits) != len(candidate_hits):
-        raise ValueError("hit sequences must have equal length")
+def _paired_sign_two_sided_p_value(
+    baseline_reciprocal_ranks: list[float],
+    candidate_reciprocal_ranks: list[float],
+) -> float:
+    if len(baseline_reciprocal_ranks) != len(candidate_reciprocal_ranks):
+        raise ValueError("reciprocal-rank sequences must have equal length")
 
     wins = losses = 0
-    for base_hit, cand_hit in zip(base_hits, candidate_hits):
-        if cand_hit and not base_hit:
+    for baseline_rr, candidate_rr in zip(
+        baseline_reciprocal_ranks,
+        candidate_reciprocal_ranks,
+    ):
+        if candidate_rr > baseline_rr:
             wins += 1
-        elif base_hit and not cand_hit:
+        elif candidate_rr < baseline_rr:
             losses += 1
 
     paired = wins + losses
     if paired == 0:
         return 1.0
 
-    z = (wins - losses) / math.sqrt(paired * 0.25)
-    return 2.0 * (1.0 - 0.5 * (1.0 + math.erf(abs(z) / math.sqrt(2.0))))
+    minority = min(wins, losses)
+    lower_tail_count = sum(math.comb(paired, successes) for successes in range(minority + 1))
+    return min(1.0, 2.0 * lower_tail_count / (2**paired))
 
 
 def _compare_candidate(
@@ -383,10 +390,20 @@ def _compare_candidate(
         comparison["reason"] = "graded-query count mismatch"
         return comparison
 
-    if len(baseline["hit_sequence"]) != len(candidate_run["hit_sequence"]):
+    baseline_reciprocal_ranks = [
+        float(entry["rr"])
+        for entry in baseline["per_query"]
+        if not entry.get("diagnostic_only", False)
+    ]
+    candidate_reciprocal_ranks = [
+        float(entry["rr"])
+        for entry in candidate_run["per_query"]
+        if not entry.get("diagnostic_only", False)
+    ]
+    if len(baseline_reciprocal_ranks) != len(candidate_reciprocal_ranks):
         comparison["status"] = "invalid"
         comparison["decision"] = "invalid_comparison"
-        comparison["reason"] = "hit-sequence length mismatch"
+        comparison["reason"] = "reciprocal-rank sequence length mismatch"
         return comparison
 
     baseline_metrics = baseline["metrics"]
@@ -408,7 +425,10 @@ def _compare_candidate(
                 }
             )
 
-    p_value = _paired_sign_two_sided_p_value(baseline["hit_sequence"], candidate_run["hit_sequence"])
+    p_value = _paired_sign_two_sided_p_value(
+        baseline_reciprocal_ranks,
+        candidate_reciprocal_ranks,
+    )
     comparison["primary_p_value"] = round(p_value, 6)
 
     primary_delta = round(candidate_metrics[PRIMARY_METRIC] - baseline_metrics[PRIMARY_METRIC], 6)
