@@ -27,7 +27,13 @@ def _sha(path: Path) -> str:
     return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+
 def _repo(tmp_path: Path) -> Path:
+    """A real, committed Git repo — a pilot evaluation result's immutable
+    subject (spec 021) can only ever be clean and resolvable against one."""
     _write(tmp_path, ".gitignore", ".holusight/\n")
     _write(tmp_path, ".claude/rules/structure.md", "# structure\n")
     _write(tmp_path, "specs/019-control.md", "# Control\n\n**Status:** Evaluated\n")
@@ -53,6 +59,11 @@ def _repo(tmp_path: Path) -> Path:
         },
     }
     _write(tmp_path, "tests/fixtures/holusight_eval_pilot_cases.jsonl", json.dumps(case) + "\n")
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.email", "control-plane@example.test")
+    _git(tmp_path, "config", "user.name", "Control Plane Test")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-q", "-m", "base")
     return tmp_path
 
 

@@ -44,15 +44,18 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
+import os
 import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Callable, Literal
+from urllib.parse import unquote, urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
 from . import axi_providers, cli_axi, consistency
 from .control_storage import RESULTS_ROOT, UnsafeStoragePath, safe_atomic_write
@@ -73,8 +76,10 @@ _KNOWN_ORIGINS = frozenset(
 )
 _SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")
 _SECRET_LIKE = re.compile(
-    r"(?i)(?:sk-[a-z0-9_-]{8,}|api[_ -]?key|authorization:\s*bearer|private|"
-    r"raw\s+prompt|password|token)[^\s]{0,160}"
+    r"(?i)(?:sk-[a-z0-9_-]{8,}|github_pat_[a-z0-9_]{8,}|gh[pousr]_[a-z0-9]{8,}|"
+    r"gl(?:pat|ptt|rt|cbt|ft|imt|agent|soat|oas|dt|rtr|wt|ffct)-[a-z0-9_-]{8,}|"
+    r"api[_ -]?key|"
+    r"authorization:\s*bearer|private|raw\s+prompt|password|token)[^\s]{0,160}"
 )
 _CONTROLLED_COMPARATORS = frozenset({"grade_display_quota_case"})
 
@@ -135,6 +140,40 @@ class CandidateLineage(_ClosedResultModel):
     comparator_digest: str | None = None
 
 
+_GitOid = Annotated[str, Field(pattern=r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")]
+
+
+class EvaluationSubject(_ClosedResultModel):
+    """The immutable Git subject this result was produced against (spec 021,
+    closing the G1 gap identified against specs 017-020).
+
+    A repository-relative link path is a locator, never identity — review-time
+    applicability is recomputed against this subject's ``commit``/``tree``,
+    never against ``branch``, which is annotation only per spec 021."""
+
+    repository_id: str
+    commit: _GitOid | None
+    tree: _GitOid | None
+    clean: bool
+    branch: str | None = None
+
+    @field_validator("repository_id")
+    @classmethod
+    def validate_repository_id(cls, value: str) -> str:
+        if value == "local-no-remote" or _canonical_remote_identity(value) == value:
+            return value
+        raise ValueError("repository_id must be canonical and credential-free")
+
+    @field_validator("branch")
+    @classmethod
+    def validate_branch(cls, value: str | None) -> str | None:
+        if value is None or (
+            _SAFE_IDENTIFIER.fullmatch(value) and not _SECRET_LIKE.search(value)
+        ):
+            return value
+        raise ValueError("branch must be a bounded non-secret annotation")
+
+
 class CaseGrade(_ClosedResultModel):
     case_id: str
     family: str
@@ -168,6 +207,7 @@ class PilotRunResult(_ClosedResultModel):
     cases_file: str
     cases_file_hash: str
     lineage: CandidateLineage
+    subject: EvaluationSubject
     egress_allowed: bool
     semantic_allowed: bool
     grades: list[CaseGrade]
@@ -192,33 +232,14 @@ def cases_file_hash(cases_path: Path) -> str:
     return _sha256_hex(cases_path.read_bytes())
 
 
-def _short_hash(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
-
-
-def _validate_identifier(label: str, value: str | None) -> None:
-    if value is None or not _SAFE_IDENTIFIER.fullmatch(value) or _SECRET_LIKE.search(value):
-        raise ValueError(f"{label} must be a bounded non-secret identifier")
-
-
-def _is_canonical_cases(cases_path: Path, repo_root: Path = REPO_ROOT) -> bool:
+def _parse_cases(cases_path: Path, corpus_bytes: bytes) -> list[dict]:
     try:
-        return (
-            cases_path.resolve()
-            == (repo_root / "tests/fixtures/holusight_eval_pilot_cases.jsonl").resolve()
-        )
-    except OSError:
-        return False
+        corpus_text = corpus_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{cases_path}: case corpus must be valid UTF-8") from exc
 
-
-def load_cases(cases_path: Path) -> list[dict]:
-    """Load and structurally validate the frozen case corpus. Every case
-    must declare a supported schema_version, kind, and provenance block —
-    a case admitted without full provenance is rejected rather than
-    silently run, per the case-admission contract
-    (docs/playbooks/eval-pilot-case-admission.md)."""
     cases: list[dict] = []
-    for lineno, raw_line in enumerate(cases_path.read_text(encoding="utf-8").splitlines(), start=1):
+    for lineno, raw_line in enumerate(corpus_text.splitlines(), start=1):
         line = raw_line.strip()
         if not line:
             continue
@@ -261,6 +282,34 @@ def load_cases(cases_path: Path) -> list[dict]:
     if not cases:
         raise ValueError("case corpus must contain at least one valid case")
     return cases
+
+
+def _short_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+
+
+def _validate_identifier(label: str, value: str | None) -> None:
+    if value is None or not _SAFE_IDENTIFIER.fullmatch(value) or _SECRET_LIKE.search(value):
+        raise ValueError(f"{label} must be a bounded non-secret identifier")
+
+
+def _is_canonical_cases(cases_path: Path, repo_root: Path = REPO_ROOT) -> bool:
+    try:
+        return (
+            cases_path.resolve()
+            == (repo_root / "tests/fixtures/holusight_eval_pilot_cases.jsonl").resolve()
+        )
+    except OSError:
+        return False
+
+
+def load_cases(cases_path: Path) -> list[dict]:
+    """Load and structurally validate the frozen case corpus. Every case
+    must declare a supported schema_version, kind, and provenance block —
+    a case admitted without full provenance is rejected rather than
+    silently run, per the case-admission contract
+    (docs/playbooks/eval-pilot-case-admission.md)."""
+    return _parse_cases(cases_path, cases_path.read_bytes())
 
 
 def build_intake_proposal(
@@ -380,6 +429,8 @@ def _validate_result(result: PilotRunResult) -> None:
         raise ValueError("prior result has incomplete status-quo controls")
     if result.corpus_trust != "canonical" or result.lineage.repo_dirty:
         raise ValueError("prior result is not immutable promotion-relevant evidence")
+    if not result.subject.clean or not result.subject.commit or not result.subject.tree:
+        raise ValueError("prior result lacks a clean, resolvable immutable Git subject")
     if (
         not result.lineage.evaluator_digest
         or not result.lineage.candidate_digest
@@ -454,11 +505,8 @@ def _comparison_progress(
 
 
 def _is_ancestor_commit(repo_root: Path, ancestor: str, descendant: str) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "merge-base", "--is-ancestor", ancestor, descendant],
-        capture_output=True,
-        text=True,
-        check=False,
+    result = _git_run(
+        repo_root, "merge-base", "--is-ancestor", ancestor, descendant, text=True
     )
     return result.returncode == 0
 
@@ -807,14 +855,197 @@ def _tree_digest(repo_root: Path, prefixes: tuple[str, ...]) -> str:
     return "sha256:" + digest.hexdigest()
 
 
-def _git_dirty(repo_root: Path) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "status", "--porcelain"],
+def _git_run(
+    repo_root: Path,
+    *args: str,
+    text: bool = False,
+    input: bytes | None = None,
+) -> subprocess.CompletedProcess:
+    command = ["git", "-C", str(repo_root), *args]
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    try:
+        expected_root = repo_root.resolve(strict=True)
+    except OSError:
+        expected_root = None
+    probe = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
-    return result.returncode == 0 and bool(result.stdout.strip())
+    try:
+        actual_root = Path(probe.stdout.strip()).resolve(strict=True)
+    except OSError:
+        actual_root = None
+    if probe.returncode != 0 or expected_root is None or actual_root != expected_root:
+        empty = "" if text else b""
+        error = "requested path is not the resolved Git worktree root"
+        return subprocess.CompletedProcess(command, 128, empty, error if text else error.encode())
+    return subprocess.run(
+        command,
+        input=input,
+        capture_output=True,
+        text=text,
+        check=False,
+        env=env,
+    )
+
+
+def _git_dirty(repo_root: Path) -> bool:
+    result = _git_run(repo_root, "status", "--porcelain", text=True)
+    return result.returncode != 0 or bool(result.stdout.strip())
+
+
+_GIT_OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+_SCP_REMOTE_RE = re.compile(r"^(?:[^@/:\s]+@)?([^/@:#?\s]+):(.+)$")
+_WINDOWS_DRIVE_REMOTE_RE = re.compile(r"^[A-Za-z]:")
+_SAFE_REMOTE_SCHEMES = frozenset({"git", "http", "https", "ssh", "git+ssh"})
+
+
+def _machine_local_host(host: str) -> bool:
+    normalized = host.lower().rstrip(".")
+    if (
+        normalized in {"localhost", "localhost.localdomain"}
+        or normalized.endswith((".local", ".localhost", ".home.arpa", ".internal"))
+    ):
+        return True
+    try:
+        address = ipaddress.ip_address(normalized)
+    except ValueError:
+        return "." not in normalized
+    return not address.is_global
+
+
+def _remote_component_contains_secret(value: str) -> bool:
+    decoded = value
+    for _ in range(3):
+        if _SECRET_LIKE.search(decoded):
+            return True
+        unescaped = unquote(decoded)
+        if unescaped == decoded:
+            return False
+        decoded = unescaped
+    return bool(_SECRET_LIKE.search(decoded))
+
+
+def _canonical_remote_identity(origin: str) -> str | None:
+    if (
+        not origin
+        or len(origin) > 2048
+        or any(char.isspace() for char in origin)
+        or "\\" in origin
+        or _WINDOWS_DRIVE_REMOTE_RE.match(origin)
+    ):
+        return None
+    if "://" not in origin:
+        match = _SCP_REMOTE_RE.fullmatch(origin)
+        if not match:
+            return None
+        host, path = match.groups()
+        if (
+            _machine_local_host(host)
+            or not path.strip("/")
+            or "?" in path
+            or "#" in path
+            or _remote_component_contains_secret(host)
+            or _remote_component_contains_secret(path)
+        ):
+            return None
+        return f"ssh://{host.lower()}/{path.lstrip('/').rstrip('/')}"
+
+    try:
+        parsed = urlsplit(origin)
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+    scheme = parsed.scheme.lower()
+    if (
+        scheme not in _SAFE_REMOTE_SCHEMES
+        or not host
+        or _machine_local_host(host)
+        or _remote_component_contains_secret(host)
+    ):
+        return None
+    path = parsed.path.rstrip("/")
+    if not path or _remote_component_contains_secret(path):
+        return None
+    host = host.lower()
+    if ":" in host:
+        host = f"[{host}]"
+    default_ports = {"http": 80, "https": 443, "ssh": 22, "git+ssh": 22, "git": 9418}
+    netloc = host if port is None or port == default_ports[scheme] else f"{host}:{port}"
+    return urlunsplit((scheme, netloc, path, "", ""))
+
+
+def _repository_identity(repo_root: Path) -> str:
+    result = _git_run(repo_root, "remote", "get-url", "origin", text=True)
+    if result.returncode != 0:
+        return "local-no-remote"
+    return _canonical_remote_identity(result.stdout.strip()) or "local-no-remote"
+
+
+def _git_oid(repo_root: Path, rev: str) -> str | None:
+    """Resolve ``rev`` to a full Git object id, or ``None`` if unresolvable."""
+    result = _git_run(repo_root, "rev-parse", "--verify", "--quiet", rev, text=True)
+    value = result.stdout.strip()
+    return value if result.returncode == 0 and _GIT_OID_RE.fullmatch(value) else None
+
+
+def _current_branch(repo_root: Path) -> str | None:
+    """The current branch name, recorded as an annotation only — never an
+    identity or applicability input (spec 021)."""
+    result = _git_run(repo_root, "symbolic-ref", "--quiet", "--short", "HEAD", text=True)
+    branch = result.stdout.strip()
+    return (
+        branch
+        if result.returncode == 0
+        and _SAFE_IDENTIFIER.fullmatch(branch)
+        and not _SECRET_LIKE.search(branch)
+        else None
+    )
+
+
+def _current_subject(repo_root: Path) -> EvaluationSubject:
+    """The immutable Git subject this run is being produced against."""
+    commit = _git_oid(repo_root, "HEAD")
+    tree = _git_oid(repo_root, "HEAD^{tree}") if commit else None
+    return EvaluationSubject(
+        repository_id=_repository_identity(repo_root),
+        commit=commit,
+        tree=tree,
+        clean=bool(commit and tree and not _git_dirty(repo_root)),
+        branch=_current_branch(repo_root),
+    )
+
+
+def _git_blob_oid_for_bytes(repo_root: Path, content: bytes) -> str | None:
+    result = _git_run(repo_root, "hash-object", "--stdin", input=content)
+    try:
+        value = result.stdout.decode("ascii").strip()
+    except UnicodeDecodeError:
+        return None
+    return value if result.returncode == 0 and _GIT_OID_RE.fullmatch(value) else None
+
+
+def _cases_match_subject(
+    repo_root: Path,
+    cases_path: Path,
+    corpus_bytes: bytes,
+    subject: EvaluationSubject,
+) -> bool:
+    if not subject.commit:
+        return False
+    try:
+        relative = cases_path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except (OSError, ValueError):
+        return False
+    evaluated_blob = _git_oid(repo_root, f"{subject.commit}:{relative}")
+    return bool(
+        evaluated_blob
+        and _git_blob_oid_for_bytes(repo_root, corpus_bytes) == evaluated_blob
+    )
 
 
 def run_pilot(
@@ -833,12 +1064,17 @@ def run_pilot(
     worktree's own ``.holusight/`` cache.
     """
     cases_path = cases_path or DEFAULT_CASES_PATH
-    file_hash = cases_file_hash(cases_path)
-    cases = load_cases(cases_path)
+    corpus_bytes = cases_path.read_bytes()
+    file_hash = _sha256_hex(corpus_bytes)
+    cases = _parse_cases(cases_path, corpus_bytes)
     corpus_trust = (
         "canonical" if _is_canonical_cases(cases_path, repo_root) else "untrusted_advisory"
     )
-    lineage.repo_dirty = _git_dirty(repo_root)
+    subject = _current_subject(repo_root)
+    cases_bound_to_subject = _cases_match_subject(
+        repo_root, cases_path, corpus_bytes, subject
+    )
+    lineage.repo_dirty = not subject.clean
     lineage.evaluator_digest = _tree_digest(
         repo_root, ("src/codesight/eval_pilot.py", "src/codesight/cli_axi.py")
     )
@@ -887,11 +1123,23 @@ def run_pilot(
             else "invalid"
         )
 
+    final_subject = _current_subject(repo_root)
+    subject_stable = (
+        subject.repository_id == final_subject.repository_id
+        and subject.commit == final_subject.commit
+        and subject.tree == final_subject.tree
+        and subject.clean == final_subject.clean
+    )
+    if not subject_stable or not final_subject.clean or not cases_bound_to_subject:
+        subject = subject.model_copy(update={"clean": False})
+    lineage.repo_dirty = not subject.clean
+
     result = PilotRunResult(
         run_id=f"eval-pilot-{lineage.candidate_id}-{_now()}",
         cases_file=_public_cases_path(repo_root, cases_path),
         cases_file_hash=file_hash,
         lineage=lineage,
+        subject=subject,
         egress_allowed=allow_egress,
         semantic_allowed=allow_semantic,
         grades=grades,
@@ -926,7 +1174,16 @@ def build_pilot_aggregate_scorecard(
     controls_complete = (
         result.counts["comparative_total"] == result.counts["comparative_with_status_quo_verdict"]
     )
-    promotion_relevant = result.corpus_trust == "canonical" and not result.lineage.repo_dirty
+    subject_commit = result.subject.commit or "unknown"
+    if repo_commit != subject_commit:
+        raise ValueError("repo_commit does not match the evaluation subject")
+    promotion_relevant = (
+        result.corpus_trust == "canonical"
+        and result.subject.clean
+        and result.subject.commit is not None
+        and result.subject.tree is not None
+        and not result.lineage.repo_dirty
+    )
     gate_decision = (
         "pass"
         if no_regressions and controls_complete and promotion_relevant
@@ -936,7 +1193,7 @@ def build_pilot_aggregate_scorecard(
 
     result_payload = result.model_dump(mode="json")
     result_hash = _sha256_hex(json.dumps(result_payload, sort_keys=True).encode("utf-8"))
-    input_hash = _sha256_hex(f"{result.cases_file_hash}:{repo_commit}".encode("utf-8"))
+    input_hash = _sha256_hex(f"{result.cases_file_hash}:{subject_commit}".encode("utf-8"))
 
     return {
         "schema": SCHEMA_PILOT_SCORECARD,
@@ -959,7 +1216,7 @@ def build_pilot_aggregate_scorecard(
         "fixture_set_hash": result.cases_file_hash,
         "result_hash": result_hash,
         "evaluator_version": "codesight-eval-pilot/1",
-        "repo_commit": repo_commit,
+        "repo_commit": subject_commit,
         "environment": {
             "egress_allowed": result.egress_allowed,
             "semantic_allowed": result.semantic_allowed,

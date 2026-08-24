@@ -96,8 +96,8 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
 | `toon.py`       | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
-| `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
-| `improvement_control.py` | Deterministic tracked-manifest review, monotonic evidence-stage validation, constrained research signal, and bounded content-minimized derived records for the existing `holus improve-*` commands. See spec 019. |
+| `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |
+| `improvement_control.py` | Deterministic tracked-manifest review, monotonic evidence-stage validation, recomputed Git-subject applicability for pilot results, constrained research signal, and bounded content-minimized derived records for the existing `holus improve-*` commands. See specs 019 and 021. |
 | `retrieval_variation.py` | Fixed local evidence-display baseline/candidate evaluator. It content-addresses benchmark and lineage, separates hard constraints from reward, and leaves promotion to independent human review. See spec 020. |
 | `control_storage.py` | Shared no-follow, restrictive, atomic durable writer for gitignored control-plane result/history state. It rejects canonical tracked destinations and symlink aliases. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
@@ -660,6 +660,53 @@ result identities. Malformed, partial, tampered, unanchored, or independently
 unrecomputable results fail closed. Aggregate-only feedback
 can propose a future ordinary fixture-review PR, but cannot change a label,
 threshold, evaluator, authority, or canonical truth.
+
+---
+
+## Evidence Subject Binding v1 (Added 2026-08-24)
+
+Closes gap G1 from a captain-authorized completeness review of specs
+017-020: a manifest link path was a locator, but review never proved the
+linked implementation/tests/documentation/evaluation-case were the exact
+bytes a linked eval-pilot result was evaluated against. Full design record:
+`specs/021-holusight-evidence-subject-binding.md`; decision record:
+`docs/decisions/0017-immutable-evaluation-subject-binding.md`.
+
+```
+run_pilot() -> PilotRunResult.subject = {repository_id, commit, tree,
+                                          clean, branch (annotation only)}
+                                          computed from real Git state, not
+                                          caller input; clean only when the
+                                          committed case blob matches and the
+                                          subject is stable after grading
+holus improve-review --phase pre_promotion
+  -> _subject_applicability_blockers() recomputes, for implementation/
+     tests/documentation/evaluation_case links only:
+       subject clean+resolvable, sanitized repository identity, commit/tree
+       still resolve, current HEAD descends
+       from the subject, and every linked path has the same Git blob at the
+       evaluated commit, current HEAD, and clean worktree
+  -> any mismatch (dangling/stale/wrong_tree/changed/dirty) demotes stage away
+     from "evaluated" via the existing _stage() blocker-prefix mechanism,
+     so it can never reach pre_promotion's human_promotion_review
+```
+
+`EvaluationSubject.clean` also closes a real pre-existing loophole: a
+non-Git directory previously read as "not dirty" (`git status` simply fails
+there), letting an eval-pilot result produced outside a real repository
+still become promotion-relevant evidence. It is now `dangling_evaluation_subject`.
+A manifest-only descendant commit that touches nothing consequential stays
+applicable because tracked and worktree blobs remain identical. Commit recency
+and the manifest's own branch name remain irrelevant. SHA-1 and SHA-256 object
+formats are supported, remote identity credentials are stripped, and pilot
+scorecards derive commit identity and relevance from the bound subject.
+`retrieval_variation.py`'s own applicability check (full
+re-execution and byte-comparison against current tracked `HEAD` on every
+load) is untouched - a different, already-adequate mechanism for that
+subsystem. No new manifest field, link role, or promotion mechanism was
+added; the six existing link roles and the `promotion.allowed: false`
+boundary are unchanged. `AXI_SCHEMA_VERSION` moved `0.5.0` -> `0.6.0`
+(one new required result field).
 
 ---
 

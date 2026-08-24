@@ -15,6 +15,7 @@ import json
 import os
 import re
 import stat
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,6 +61,12 @@ _FORBIDDEN_FIELD_NAMES = frozenset(
     }
 )
 _CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
+_GIT_OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+# The four link roles whose *bytes* the evaluation result depended on: a
+# repository-relative path is a locator, never identity, so each of these is
+# re-resolved against the evaluated commit's Git subject at review time
+# (governing docs and the result itself are excluded — spec 021, closing G1).
+_CONSEQUENTIAL_ROLES = ("implementation", "tests", "documentation", "evaluation_case")
 _EVALUATOR_PATHS = frozenset(
     {
         "src/codesight/eval_pilot.py",
@@ -102,6 +109,26 @@ def _sha256(path: Path) -> str:
 
 def _sha256_bytes(value: bytes) -> str:
     return "sha256:" + hashlib.sha256(value).hexdigest()
+
+
+def _sha256_regular_file(path: Path) -> str | None:
+    flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError:
+        return None
+    try:
+        file_stat = os.fstat(fd)
+        if not stat.S_ISREG(file_stat.st_mode):
+            return None
+        digest = hashlib.sha256()
+        while chunk := os.read(fd, 64 * 1024):
+            digest.update(chunk)
+        return "sha256:" + digest.hexdigest()
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
 
 
 def _read_bounded_regular_file(path: Path, *, max_bytes: int) -> bytes:
@@ -326,6 +353,278 @@ def _placement(repo_root: Path, artifact_type: str, raw_path: str) -> list[dict[
     return []
 
 
+class _GitReviewSession:
+    def __init__(self, repo_root: Path) -> None:
+        self.repo_root = repo_root
+        self.env = {
+            key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+        }
+        try:
+            expected_root = repo_root.resolve(strict=True)
+        except OSError:
+            expected_root = None
+        probe = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=self.env,
+        )
+        try:
+            actual_root = Path(probe.stdout.strip()).resolve(strict=True)
+        except OSError:
+            actual_root = None
+        self.valid = (
+            probe.returncode == 0 and expected_root is not None and actual_root == expected_root
+        )
+
+    def run(self, *args: str, input: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+        command = ["git", "-C", str(self.repo_root), *args]
+        if not self.valid:
+            return subprocess.CompletedProcess(command, 128, b"", b"invalid repository root")
+        return subprocess.run(
+            command,
+            input=input,
+            capture_output=True,
+            check=False,
+            env=self.env,
+        )
+
+
+def _repository_identity(git: _GitReviewSession) -> str:
+    result = git.run("remote", "get-url", "origin")
+    if result.returncode != 0:
+        return "local-no-remote"
+    return (
+        eval_pilot._canonical_remote_identity(result.stdout.decode(errors="replace").strip())
+        or "local-no-remote"
+    )
+
+
+def _batch_git_oids(
+    git: _GitReviewSession, specs: dict[str, str]
+) -> dict[str, str | None]:
+    if not specs:
+        return {}
+    values = {spec: None for spec in specs}
+    batch_specs = {
+        spec: expected_type
+        for spec, expected_type in specs.items()
+        if not any(character in spec for character in "\0\r\n")
+    }
+    if not batch_specs:
+        return values
+    result = git.run(
+        "cat-file",
+        "--batch-check=%(objectname) %(objecttype)",
+        input="".join(f"{spec}\n" for spec in batch_specs).encode("utf-8"),
+    )
+    output = result.stdout.splitlines()
+    if result.returncode != 0 or len(output) != len(batch_specs):
+        return values
+    for (spec, expected_type), raw_value in zip(
+        batch_specs.items(), output, strict=True
+    ):
+        parts = raw_value.decode("ascii", errors="replace").split()
+        if (
+            len(parts) == 2
+            and _GIT_OID_RE.fullmatch(parts[0])
+            and parts[1] == expected_type
+        ):
+            values[spec] = parts[0]
+    return values
+
+
+def _batch_worktree_blob_oids(
+    git: _GitReviewSession, paths: list[str]
+) -> dict[str, str | None]:
+    unique_paths = list(dict.fromkeys(paths))
+    values = {path: None for path in unique_paths}
+    if not unique_paths:
+        return values
+    result = git.run("hash-object", "--", *unique_paths)
+    output = result.stdout.decode("ascii", errors="replace").splitlines()
+    if result.returncode != 0 or len(output) != len(unique_paths):
+        return values
+    for path, value in zip(unique_paths, output, strict=True):
+        if _GIT_OID_RE.fullmatch(value):
+            values[path] = value
+    return values
+
+
+def _git_dirty_paths(git: _GitReviewSession, paths: list[str]) -> set[str]:
+    unique_paths = list(dict.fromkeys(paths))
+    if not unique_paths:
+        return set()
+    literal_paths = [f":(literal){path}" for path in unique_paths]
+    result = git.run("status", "--porcelain=v1", "-z", "--", *literal_paths)
+    if result.returncode != 0:
+        return set(unique_paths)
+    dirty_paths: set[str] = set()
+    records = result.stdout.split(b"\0")
+    index = 0
+    while index < len(records) and records[index]:
+        record = records[index]
+        if len(record) < 4 or record[2:3] != b" ":
+            return set(unique_paths)
+        status = record[:2]
+        dirty_paths.add(os.fsdecode(record[3:]))
+        index += 1
+        if b"R" in status or b"C" in status:
+            if index >= len(records) or not records[index]:
+                return set(unique_paths)
+            dirty_paths.add(os.fsdecode(records[index]))
+            index += 1
+    return dirty_paths
+
+
+def _git_is_ancestor(git: _GitReviewSession, ancestor: str, descendant: str) -> bool:
+    result = git.run("merge-base", "--is-ancestor", ancestor, descendant)
+    return result.returncode == 0
+
+
+def _worktree_blob_oid(repo_root: Path, path: str) -> str | None:
+    git = _GitReviewSession(repo_root)
+    return _batch_worktree_blob_oids(git, [path]).get(path)
+
+
+def _subject_applicability_blockers(
+    repo_root: Path, manifest: dict[str, Any], result: Any
+) -> list[dict[str, str]]:
+    """Recompute a pilot evaluation result's applicability against its
+    immutable Git subject (spec 021, closing the G1 gap against specs
+    017-020).
+
+    A repository-relative link path is a locator, never identity. Stale,
+    dirty, wrong-tree, missing/renamed, or changed consequential artifacts
+    are every one indeterminate here — the caller demotes the manifest away
+    from ``evaluated`` for any blocker this returns, so none can reach
+    ``pre_promotion``. A later manifest-only descendant commit stays
+    applicable exactly when every consequential artifact blob is still
+    byte-identical to the one recorded at the evaluated subject; the
+    manifest's own commit and any branch name play no part in the check.
+    """
+    blockers: list[dict[str, str]] = []
+    subject = result.subject
+    if not subject.commit or not subject.tree or not subject.clean:
+        blockers.append(
+            _blocked(
+                "dangling_evaluation_subject",
+                subject.commit or "unresolved",
+                role="evaluation_result",
+            )
+        )
+        return blockers
+    git = _GitReviewSession(repo_root)
+    if not git.valid:
+        blockers.append(
+            _blocked("dangling_evaluation_subject", subject.commit, role="evaluation_result")
+        )
+        return blockers
+    repository_id = _repository_identity(git)
+    if subject.repository_id != repository_id:
+        blockers.append(
+            _blocked("wrong_repository_subject", subject.repository_id, role="evaluation_result")
+        )
+        return blockers
+
+    artifacts: list[tuple[str, str, Path]] = []
+    for role in _CONSEQUENTIAL_ROLES:
+        for raw_path in manifest["links"].get(role, []):
+            relative = _safe_relative(repo_root, raw_path)
+            if relative is not None:
+                artifacts.append((role, relative.as_posix(), relative))
+    paths = list(dict.fromkeys(path for _, path, _ in artifacts))
+    subject_tree_spec = f"{subject.commit}^{{tree}}"
+    initial_specs = {subject_tree_spec: "tree", "HEAD": "commit"}
+    initial_specs.update({f"{subject.commit}:{path}": "blob" for path in paths})
+    initial_oids = _batch_git_oids(git, initial_specs)
+    resolved_tree = initial_oids.get(subject_tree_spec)
+    if resolved_tree is None:
+        blockers.append(
+            _blocked("stale_evaluation_subject", subject.commit, role="evaluation_result")
+        )
+        return blockers
+    if resolved_tree != subject.tree:
+        blockers.append(_blocked("wrong_tree_oid", subject.tree, role="evaluation_result"))
+        return blockers
+    current_commit = initial_oids.get("HEAD")
+    if current_commit is None or not _git_is_ancestor(git, subject.commit, current_commit):
+        blockers.append(
+            _blocked(
+                "stale_evaluation_subject",
+                current_commit or "unresolved",
+                role="evaluation_result",
+            )
+        )
+        return blockers
+
+    current_specs = {f"{current_commit}:{path}": "blob" for path in paths}
+    current_head_oids = _batch_git_oids(git, current_specs)
+    current_worktree_oids = _batch_worktree_blob_oids(git, paths)
+    dirty_paths = _git_dirty_paths(git, paths)
+    current_sha256 = {
+        path: _sha256_regular_file(repo_root / relative)
+        for _, path, relative in artifacts
+    }
+    snapshots: list[tuple[str, str, str | None, str | None, str | None, bool]] = []
+    for role, path, _ in artifacts:
+        evaluated_blob = initial_oids.get(f"{subject.commit}:{path}")
+        if evaluated_blob is None:
+            blockers.append(_blocked("dangling_consequential_artifact", path, role=role))
+            continue
+        current_head_blob = current_head_oids.get(f"{current_commit}:{path}")
+        current_blob = current_worktree_oids.get(path)
+        sha256 = current_sha256.get(path)
+        snapshots.append(
+            (role, path, current_head_blob, current_blob, sha256, path not in dirty_paths)
+        )
+        if current_head_blob is None or current_head_blob != evaluated_blob:
+            blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+            continue
+        if current_blob is None or current_blob != evaluated_blob:
+            blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+            continue
+        if sha256 is None or sha256 != manifest["link_hashes"].get(path):
+            blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+            continue
+
+    final_repository_id = _repository_identity(git)
+    if final_repository_id != repository_id or final_repository_id != subject.repository_id:
+        blockers.append(
+            _blocked("wrong_repository_subject", final_repository_id, role="evaluation_result")
+        )
+    final_specs = {"HEAD": "commit"}
+    final_specs.update({f"{current_commit}:{path}": "blob" for path in paths})
+    final_oids = _batch_git_oids(git, final_specs)
+    final_commit = final_oids.get("HEAD")
+    if final_commit != current_commit:
+        blockers.append(
+            _blocked(
+                "stale_evaluation_subject",
+                final_commit or "unresolved",
+                role="evaluation_result",
+            )
+        )
+    final_worktree_oids = _batch_worktree_blob_oids(git, paths)
+    final_dirty_paths = _git_dirty_paths(git, paths)
+    final_sha256 = {
+        path: _sha256_regular_file(repo_root / path)
+        for path in paths
+    }
+    for role, path, head_blob, worktree_blob, sha256, path_clean in snapshots:
+        final_state = (
+            final_oids.get(f"{current_commit}:{path}"),
+            final_worktree_oids.get(path),
+            final_sha256.get(path),
+        )
+        if final_state != (head_blob, worktree_blob, sha256):
+            blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+        if not path_clean or path in final_dirty_paths:
+            blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
+    return blockers
+
+
 def _review_links(
     repo_root: Path,
     manifest: dict[str, Any],
@@ -441,6 +740,22 @@ def _review_links(
                         ):
                             raise ValueError("evaluation result is not a pilot result")
                         result = eval_pilot.PilotRunResult.model_validate(raw_result)
+                        if not result.subject.commit or not result.subject.tree:
+                            blockers.append(
+                                _blocked(
+                                    "dangling_evaluation_subject",
+                                    result.subject.commit or "unresolved",
+                                    role="evaluation_result",
+                                )
+                            )
+                        elif not result.subject.clean or result.lineage.repo_dirty:
+                            blockers.append(
+                                _blocked(
+                                    "dirty_evaluation_subject",
+                                    result.subject.commit,
+                                    role="evaluation_result",
+                                )
+                            )
                         eval_pilot._validate_result(result)
                         validated_results.append((full_path, "pilot", result))
                 except (
@@ -489,6 +804,7 @@ def _review_links(
                             role="evaluation_result",
                         )
                     )
+                blockers.extend(_subject_applicability_blockers(repo_root, manifest, result))
                 continue
 
             matching_benchmark = any(
@@ -601,7 +917,18 @@ def _stage(classification: str, links: dict[str, Any], blockers: list[dict[str, 
     all_roles_present = all(links.get(role) for role in LINK_ROLES)
     integrity_codes = {item["code"] for item in blockers}
     if all_roles_present and not any(
-        code.startswith(("missing_", "dangling_", "stale_", "unsafe_", "wrong_", "duplicate_"))
+        code.startswith(
+            (
+                "missing_",
+                "dangling_",
+                "stale_",
+                "unsafe_",
+                "wrong_",
+                "duplicate_",
+                "changed_",
+                "dirty_",
+            )
+        )
         for code in integrity_codes
     ):
         return "evaluated"
