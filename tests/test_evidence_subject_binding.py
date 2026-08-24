@@ -168,6 +168,7 @@ def test_repository_identity_strips_remote_credentials(tmp_path):
         "https://repo.localhost/org/repo.git",
         "git@gitserver:org/repo.git",
         "ssh://router.home.arpa/org/repo.git",
+        "ssh://git.corp.internal/org/repo.git",
     ],
 )
 def test_repository_identity_rejects_machine_local_remote(tmp_path, origin):

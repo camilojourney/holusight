@@ -906,7 +906,7 @@ def _machine_local_host(host: str) -> bool:
     normalized = host.lower().rstrip(".")
     if (
         normalized in {"localhost", "localhost.localdomain"}
-        or normalized.endswith((".local", ".localhost", ".home.arpa"))
+        or normalized.endswith((".local", ".localhost", ".home.arpa", ".internal"))
     ):
         return True
     try:
