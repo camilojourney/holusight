@@ -15,6 +15,7 @@ import json
 import os
 import re
 import stat
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -352,29 +353,120 @@ def _placement(repo_root: Path, artifact_type: str, raw_path: str) -> list[dict[
     return []
 
 
-def _git_show(repo_root: Path, *args: str) -> str | None:
-    result = eval_pilot._git_run(repo_root, *args, text=True)
-    value = result.stdout.strip()
-    return value if result.returncode == 0 else None
+class _GitReviewSession:
+    def __init__(self, repo_root: Path) -> None:
+        self.repo_root = repo_root
+        self.env = {
+            key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+        }
+        try:
+            expected_root = repo_root.resolve(strict=True)
+        except OSError:
+            expected_root = None
+        probe = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=self.env,
+        )
+        try:
+            actual_root = Path(probe.stdout.strip()).resolve(strict=True)
+        except OSError:
+            actual_root = None
+        self.valid = (
+            probe.returncode == 0 and expected_root is not None and actual_root == expected_root
+        )
+
+    def run(self, *args: str, input: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+        command = ["git", "-C", str(self.repo_root), *args]
+        if not self.valid:
+            return subprocess.CompletedProcess(command, 128, b"", b"invalid repository root")
+        return subprocess.run(
+            command,
+            input=input,
+            capture_output=True,
+            check=False,
+            env=self.env,
+        )
 
 
-def _worktree_blob_oid(repo_root: Path, path: str) -> str | None:
-    value = _git_show(repo_root, "hash-object", "--", path)
-    return value if value and _GIT_OID_RE.fullmatch(value) else None
-
-
-def _git_path_clean(repo_root: Path, path: str) -> bool:
-    result = eval_pilot._git_run(
-        repo_root, "status", "--porcelain", "--", path, text=True
+def _repository_identity(git: _GitReviewSession) -> str:
+    result = git.run("remote", "get-url", "origin")
+    if result.returncode != 0:
+        return "local-no-remote"
+    return (
+        eval_pilot._canonical_remote_identity(result.stdout.decode(errors="replace").strip())
+        or "local-no-remote"
     )
+
+
+def _batch_git_oids(
+    git: _GitReviewSession, specs: dict[str, str]
+) -> dict[str, str | None]:
+    if not specs:
+        return {}
+    values = {spec: None for spec in specs}
+    batch_specs = {
+        spec: expected_type
+        for spec, expected_type in specs.items()
+        if not any(character in spec for character in "\0\r\n")
+    }
+    if not batch_specs:
+        return values
+    result = git.run(
+        "cat-file",
+        "--batch-check=%(objectname) %(objecttype)",
+        input="".join(f"{spec}\n" for spec in batch_specs).encode("utf-8"),
+    )
+    output = result.stdout.splitlines()
+    if result.returncode != 0 or len(output) != len(batch_specs):
+        return values
+    for (spec, expected_type), raw_value in zip(
+        batch_specs.items(), output, strict=True
+    ):
+        parts = raw_value.decode("ascii", errors="replace").split()
+        if (
+            len(parts) == 2
+            and _GIT_OID_RE.fullmatch(parts[0])
+            and parts[1] == expected_type
+        ):
+            values[spec] = parts[0]
+    return values
+
+
+def _batch_worktree_blob_oids(
+    git: _GitReviewSession, paths: list[str]
+) -> dict[str, str | None]:
+    unique_paths = list(dict.fromkeys(paths))
+    values = {path: None for path in unique_paths}
+    if not unique_paths:
+        return values
+    result = git.run("hash-object", "--", *unique_paths)
+    output = result.stdout.decode("ascii", errors="replace").splitlines()
+    if result.returncode != 0 or len(output) != len(unique_paths):
+        return values
+    for path, value in zip(unique_paths, output, strict=True):
+        if _GIT_OID_RE.fullmatch(value):
+            values[path] = value
+    return values
+
+
+def _git_paths_clean(git: _GitReviewSession, paths: list[str]) -> bool:
+    if not paths:
+        return True
+    result = git.run("status", "--porcelain", "--", *dict.fromkeys(paths))
     return result.returncode == 0 and not result.stdout.strip()
 
 
-def _git_is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
-    result = eval_pilot._git_run(
-        repo_root, "merge-base", "--is-ancestor", ancestor, descendant, text=True
-    )
+def _git_is_ancestor(git: _GitReviewSession, ancestor: str, descendant: str) -> bool:
+    result = git.run("merge-base", "--is-ancestor", ancestor, descendant)
     return result.returncode == 0
+
+
+def _worktree_blob_oid(repo_root: Path, path: str) -> str | None:
+    git = _GitReviewSession(repo_root)
+    return _batch_worktree_blob_oids(git, [path]).get(path)
 
 
 def _subject_applicability_blockers(
@@ -404,13 +496,31 @@ def _subject_applicability_blockers(
             )
         )
         return blockers
-    repository_id = eval_pilot._repository_identity(repo_root)
+    git = _GitReviewSession(repo_root)
+    if not git.valid:
+        blockers.append(
+            _blocked("dangling_evaluation_subject", subject.commit, role="evaluation_result")
+        )
+        return blockers
+    repository_id = _repository_identity(git)
     if subject.repository_id != repository_id:
         blockers.append(
             _blocked("wrong_repository_subject", subject.repository_id, role="evaluation_result")
         )
         return blockers
-    resolved_tree = eval_pilot._git_oid(repo_root, f"{subject.commit}^{{tree}}")
+
+    artifacts: list[tuple[str, str, Path]] = []
+    for role in _CONSEQUENTIAL_ROLES:
+        for raw_path in manifest["links"].get(role, []):
+            relative = _safe_relative(repo_root, raw_path)
+            if relative is not None:
+                artifacts.append((role, relative.as_posix(), relative))
+    paths = list(dict.fromkeys(path for _, path, _ in artifacts))
+    subject_tree_spec = f"{subject.commit}^{{tree}}"
+    initial_specs = {subject_tree_spec: "tree", "HEAD": "commit"}
+    initial_specs.update({f"{subject.commit}:{path}": "blob" for path in paths})
+    initial_oids = _batch_git_oids(git, initial_specs)
+    resolved_tree = initial_oids.get(subject_tree_spec)
     if resolved_tree is None:
         blockers.append(
             _blocked("stale_evaluation_subject", subject.commit, role="evaluation_result")
@@ -419,8 +529,8 @@ def _subject_applicability_blockers(
     if resolved_tree != subject.tree:
         blockers.append(_blocked("wrong_tree_oid", subject.tree, role="evaluation_result"))
         return blockers
-    current_commit = eval_pilot._git_oid(repo_root, "HEAD")
-    if current_commit is None or not _git_is_ancestor(repo_root, subject.commit, current_commit):
+    current_commit = initial_oids.get("HEAD")
+    if current_commit is None or not _git_is_ancestor(git, subject.commit, current_commit):
         blockers.append(
             _blocked(
                 "stale_evaluation_subject",
@@ -429,44 +539,48 @@ def _subject_applicability_blockers(
             )
         )
         return blockers
-    snapshots: list[tuple[str, str, str | None, str | None, str | None, bool]] = []
-    for role in _CONSEQUENTIAL_ROLES:
-        for raw_path in manifest["links"].get(role, []):
-            relative = _safe_relative(repo_root, raw_path)
-            if relative is None:
-                continue  # already an unsafe_link blocker from the caller's own pass
-            path = relative.as_posix()
-            evaluated_blob = eval_pilot._git_oid(repo_root, f"{subject.commit}:{path}")
-            if evaluated_blob is None:
-                # Missing at the evaluated subject covers both deletion and the
-                # rebase/rename case: path is a locator, never identity.
-                blockers.append(_blocked("dangling_consequential_artifact", path, role=role))
-                continue
-            current_head_blob = eval_pilot._git_oid(repo_root, f"{current_commit}:{path}")
-            current_blob = _worktree_blob_oid(repo_root, path)
-            current_sha256 = _sha256_regular_file(repo_root / relative)
-            path_clean = _git_path_clean(repo_root, path)
-            snapshots.append(
-                (role, path, current_head_blob, current_blob, current_sha256, path_clean)
-            )
-            if current_head_blob is None or current_head_blob != evaluated_blob:
-                blockers.append(_blocked("changed_consequential_artifact", path, role=role))
-                continue
-            if current_blob is None or current_blob != evaluated_blob:
-                blockers.append(_blocked("changed_consequential_artifact", path, role=role))
-                continue
-            if current_sha256 is None or current_sha256 != manifest["link_hashes"].get(path):
-                blockers.append(_blocked("changed_consequential_artifact", path, role=role))
-                continue
-            if not path_clean:
-                blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
 
-    final_repository_id = eval_pilot._repository_identity(repo_root)
+    current_specs = {f"{current_commit}:{path}": "blob" for path in paths}
+    current_head_oids = _batch_git_oids(git, current_specs)
+    current_worktree_oids = _batch_worktree_blob_oids(git, paths)
+    paths_clean = _git_paths_clean(git, paths)
+    current_sha256 = {
+        path: _sha256_regular_file(repo_root / relative)
+        for _, path, relative in artifacts
+    }
+    snapshots: list[tuple[str, str, str | None, str | None, str | None, bool]] = []
+    for role, path, _ in artifacts:
+        evaluated_blob = initial_oids.get(f"{subject.commit}:{path}")
+        if evaluated_blob is None:
+            blockers.append(_blocked("dangling_consequential_artifact", path, role=role))
+            continue
+        current_head_blob = current_head_oids.get(f"{current_commit}:{path}")
+        current_blob = current_worktree_oids.get(path)
+        sha256 = current_sha256.get(path)
+        snapshots.append(
+            (role, path, current_head_blob, current_blob, sha256, paths_clean)
+        )
+        if current_head_blob is None or current_head_blob != evaluated_blob:
+            blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+            continue
+        if current_blob is None or current_blob != evaluated_blob:
+            blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+            continue
+        if sha256 is None or sha256 != manifest["link_hashes"].get(path):
+            blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+            continue
+        if not paths_clean:
+            blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
+
+    final_repository_id = _repository_identity(git)
     if final_repository_id != repository_id or final_repository_id != subject.repository_id:
         blockers.append(
             _blocked("wrong_repository_subject", final_repository_id, role="evaluation_result")
         )
-    final_commit = eval_pilot._git_oid(repo_root, "HEAD")
+    final_specs = {"HEAD": "commit"}
+    final_specs.update({f"{current_commit}:{path}": "blob" for path in paths})
+    final_oids = _batch_git_oids(git, final_specs)
+    final_commit = final_oids.get("HEAD")
     if final_commit != current_commit:
         blockers.append(
             _blocked(
@@ -475,17 +589,21 @@ def _subject_applicability_blockers(
                 role="evaluation_result",
             )
         )
+    final_worktree_oids = _batch_worktree_blob_oids(git, paths)
+    final_paths_clean = _git_paths_clean(git, paths)
+    final_sha256 = {
+        path: _sha256_regular_file(repo_root / path)
+        for path in paths
+    }
     for role, path, head_blob, worktree_blob, sha256, path_clean in snapshots:
-        relative = Path(path)
         final_state = (
-            eval_pilot._git_oid(repo_root, f"{current_commit}:{path}"),
-            _worktree_blob_oid(repo_root, path),
-            _sha256_regular_file(repo_root / relative),
-            _git_path_clean(repo_root, path),
+            final_oids.get(f"{current_commit}:{path}"),
+            final_worktree_oids.get(path),
+            final_sha256.get(path),
         )
-        if final_state[:3] != (head_blob, worktree_blob, sha256):
+        if final_state != (head_blob, worktree_blob, sha256):
             blockers.append(_blocked("changed_consequential_artifact", path, role=role))
-        if not path_clean or not final_state[3]:
+        if not path_clean or not final_paths_clean:
             blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
     return blockers
 

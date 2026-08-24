@@ -729,21 +729,23 @@ def test_scorecard_rejects_commit_that_differs_from_subject(tmp_path):
 
 def test_subject_applicability_blocks_head_change_during_review(tmp_path, monkeypatch):
     repo, ctx = _build_evaluated_repo(tmp_path)
-    original = improvement_control._worktree_blob_oid
+    original = improvement_control._batch_worktree_blob_oids
     changed = False
 
-    def commit_after_first_blob(repo_root, path):
+    def commit_after_first_blob(git, paths):
         nonlocal changed
-        blob = original(repo_root, path)
+        blobs = original(git, paths)
         if not changed:
             changed = True
             implementation = repo / "src/codesight/implementation.py"
             implementation.write_text("VALUE = 2\n", encoding="utf-8")
             _git(repo, "add", "src/codesight/implementation.py")
             _git(repo, "commit", "-q", "-m", "concurrent implementation change")
-        return blob
+        return blobs
 
-    monkeypatch.setattr(improvement_control, "_worktree_blob_oid", commit_after_first_blob)
+    monkeypatch.setattr(
+        improvement_control, "_batch_worktree_blob_oids", commit_after_first_blob
+    )
     review = improvement_control.review_change(
         repo, ctx["manifest_path"].relative_to(repo).as_posix(), phase="pre_promotion"
     )["review"]
@@ -751,6 +753,28 @@ def test_subject_applicability_blocks_head_change_during_review(tmp_path, monkey
     assert "stale_evaluation_subject" in codes
     assert review["stage"] != "evaluated"
     assert review["next_permitted_action"] != "human_promotion_review"
+
+
+def test_subject_applicability_batches_git_processes_across_artifacts(tmp_path, monkeypatch):
+    repo, ctx = _build_evaluated_repo(tmp_path)
+    result = eval_pilot.PilotRunResult.model_validate(
+        json.loads(ctx["result_path"].read_text(encoding="utf-8"))
+    )
+    manifest = json.loads(ctx["manifest_path"].read_text(encoding="utf-8"))
+    original = subprocess.run
+    git_commands = []
+
+    def count_git_commands(*args, **kwargs):
+        command = args[0]
+        if command and command[0] == "git":
+            git_commands.append(command)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", count_git_commands)
+    blockers = improvement_control._subject_applicability_blockers(repo, manifest, result)
+
+    assert blockers == []
+    assert len(git_commands) <= 12
 
 
 def test_subject_applicability_blockers_flags_wrong_repository_identity(tmp_path):
