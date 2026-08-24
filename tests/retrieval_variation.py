@@ -304,10 +304,10 @@ def _run_candidate(
     return run_payload
 
 
-def _paired_sign_two_sided_p_value(
+def _paired_sign_test(
     baseline_reciprocal_ranks: list[float],
     candidate_reciprocal_ranks: list[float],
-) -> float:
+) -> tuple[float, int, int]:
     if len(baseline_reciprocal_ranks) != len(candidate_reciprocal_ranks):
         raise ValueError("reciprocal-rank sequences must have equal length")
 
@@ -323,11 +323,12 @@ def _paired_sign_two_sided_p_value(
 
     paired = wins + losses
     if paired == 0:
-        return 1.0
+        return 1.0, wins, losses
 
     minority = min(wins, losses)
     lower_tail_count = sum(math.comb(paired, successes) for successes in range(minority + 1))
-    return min(1.0, 2.0 * lower_tail_count / (2**paired))
+    p_value = min(1.0, 2.0 * lower_tail_count / (2**paired))
+    return p_value, wins, losses
 
 
 def _compare_candidate(
@@ -367,6 +368,9 @@ def _compare_candidate(
             "practical_delta_min": PRIMARY_DELTA_MIN,
             "significance_alpha": SIGNIFICANCE_ALPHA,
             "statistically_significant": False,
+            "candidate_wins": None,
+            "candidate_losses": None,
+            "candidate_direction_favorable": False,
         },
         "metrics": {
             "baseline": {},
@@ -425,7 +429,7 @@ def _compare_candidate(
                 }
             )
 
-    p_value = _paired_sign_two_sided_p_value(
+    p_value, candidate_wins, candidate_losses = _paired_sign_test(
         baseline_reciprocal_ranks,
         candidate_reciprocal_ranks,
     )
@@ -434,8 +438,14 @@ def _compare_candidate(
     primary_delta = round(candidate_metrics[PRIMARY_METRIC] - baseline_metrics[PRIMARY_METRIC], 6)
     comparison["primary_delta"] = primary_delta
     comparison["optimization_signal"]["observed_delta"] = primary_delta
-
-    comparison["optimization_signal"]["statistically_significant"] = p_value < SIGNIFICANCE_ALPHA
+    comparison["optimization_signal"]["statistically_significant"] = (
+        p_value < SIGNIFICANCE_ALPHA
+    )
+    comparison["optimization_signal"]["candidate_wins"] = candidate_wins
+    comparison["optimization_signal"]["candidate_losses"] = candidate_losses
+    comparison["optimization_signal"]["candidate_direction_favorable"] = (
+        candidate_wins > candidate_losses
+    )
 
     if comparison["constraints"]["violations"]:
         comparison["status"] = "reject"
@@ -444,7 +454,11 @@ def _compare_candidate(
         comparison["promotion_relevant"] = False
         return comparison
 
-    if comparison["optimization_signal"]["statistically_significant"] and primary_delta >= PRIMARY_DELTA_MIN:
+    if (
+        comparison["optimization_signal"]["statistically_significant"]
+        and comparison["optimization_signal"]["candidate_direction_favorable"]
+        and primary_delta >= PRIMARY_DELTA_MIN
+    ):
         comparison["status"] = "promotable"
         comparison["decision"] = "human_review_required"
         comparison["reason"] = "meets statistical and practical gates"
@@ -483,8 +497,8 @@ def run_variation_suite(
     candidates: tuple[CandidateDefinition, ...] | None = None,
     force_rebuild: bool = False,
 ) -> dict[str, Any]:
-    if top_k < 1:
-        raise ValueError("top_k must be >= 1")
+    if top_k != DEFAULT_TOP_K:
+        raise ValueError(f"top_k must be {DEFAULT_TOP_K} for {PRIMARY_METRIC}")
 
     benchmark_file = Path(benchmark_path or DEFAULT_BENCHMARK)
     if not benchmark_file.exists():
@@ -587,7 +601,13 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_BENCHMARK,
         help="Frozen benchmark path.",
     )
-    parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K, help="Per-query result cap.")
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        choices=(DEFAULT_TOP_K,),
+        default=DEFAULT_TOP_K,
+        help=f"Per-query result cap, fixed at {DEFAULT_TOP_K} for {PRIMARY_METRIC}.",
+    )
     parser.add_argument(
         "--candidate",
         action="append",
@@ -605,14 +625,17 @@ def main(argv: list[str] | None = None) -> int:
 
     selected_candidates: tuple[CandidateDefinition, ...] = DEFAULT_CANDIDATES
     if args.candidate:
-        selected = [
+        requested_candidate_ids = set(args.candidate)
+        unknown_candidate_ids = sorted(
+            requested_candidate_ids - _candidate_id_set(DEFAULT_CANDIDATES)
+        )
+        if unknown_candidate_ids:
+            parser.error(f"unknown candidate ids: {', '.join(unknown_candidate_ids)}")
+        selected_candidates = tuple(
             candidate
             for candidate in DEFAULT_CANDIDATES
-            if candidate.candidate_id in set(args.candidate)
-        ]
-        if not selected:
-            parser.error("no matching candidate ids")
-        selected_candidates = tuple(selected)
+            if candidate.candidate_id in requested_candidate_ids
+        )
 
     payload = run_variation_suite(
         repo_root=args.repo,

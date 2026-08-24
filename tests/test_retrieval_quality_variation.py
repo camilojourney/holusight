@@ -210,6 +210,72 @@ def test_variant_loop_records_rejected_and_inconclusive_candidates(
     assert query_enhanced_comparison["primary_p_value"] == 1.0
 
 
+def test_predominantly_worse_candidate_is_not_promotable(monkeypatch, tmp_path):
+    reciprocal_ranks = {
+        "baseline-hybrid": [0.0] + [1.0 / 9.0] * 10 + [0.0] * 4,
+        "cnfb-alpha-0.25": [1.0] + [1.0 / 10.0] * 10 + [0.0] * 4,
+    }
+    metrics = {
+        "baseline-hybrid": {
+            "mrr_at_10": sum(reciprocal_ranks["baseline-hybrid"]) / 15,
+            "hit_rate": 10 / 15,
+            "recall_at_10": 10 / 15,
+            "ndcg_at_10": 0.20,
+            "evidence_completeness": 0.50,
+        },
+        "cnfb-alpha-0.25": {
+            "mrr_at_10": sum(reciprocal_ranks["cnfb-alpha-0.25"]) / 15,
+            "hit_rate": 11 / 15,
+            "recall_at_10": 11 / 15,
+            "ndcg_at_10": 0.25,
+            "evidence_completeness": 0.50,
+        },
+    }
+    payloads = {}
+    for candidate_id, ranks in reciprocal_ranks.items():
+        payloads[candidate_id] = {
+            "metrics": metrics[candidate_id],
+            "run_stats": {
+                "total_queries": 15,
+                "graded_queries": 15,
+                "diagnostic_queries": 0,
+                "query_set_hash": "hash",
+            },
+            "hit_sequence": [rank > 0.0 for rank in ranks],
+            "per_query": [
+                {"query": f"q{index}", "hit": rank > 0.0, "rr": rank}
+                for index, rank in enumerate(ranks)
+            ],
+        }
+
+    benchmark = rv.BenchmarkSpec("benchmark", "hash", 15, 15, {}, {})
+    queries = [
+        rv.EvalQuery(query=f"q{index}", expected_file="expected")
+        for index in range(15)
+    ]
+    rows = [{"query": query.query, "expected_file": "expected"} for query in queries]
+    monkeypatch.setattr(
+        rv,
+        "_load_benchmark_queries",
+        lambda _path: (queries, rows, benchmark),
+    )
+    monkeypatch.setattr(rv, "_run_candidate", _fake_run_candidate_factory(payloads))
+
+    report = rv.run_variation_suite(
+        repo_root=tmp_path,
+        candidates=rv.DEFAULT_CANDIDATES[:2],
+    )
+
+    comparison = report["comparisons"][0]
+    assert comparison["primary_p_value"] == 0.011719
+    assert comparison["primary_delta"] > rv.PRIMARY_DELTA_MIN
+    assert comparison["optimization_signal"]["candidate_wins"] == 1
+    assert comparison["optimization_signal"]["candidate_losses"] == 10
+    assert comparison["optimization_signal"]["candidate_direction_favorable"] is False
+    assert comparison["status"] == "inconclusive"
+    assert comparison["promotion_relevant"] is False
+
+
 def test_compare_candidate_blocks_regression():
     baseline = {
         "candidate_id": "baseline-hybrid",
@@ -279,6 +345,26 @@ def test_compare_candidate_requires_matching_graded_counts():
 def test_run_variation_requires_baseline_candidate():
     with pytest.raises(ValueError, match="baseline-hybrid"):
         rv.run_variation_suite(Path("."), candidates=(rv.DEFAULT_CANDIDATES[1],))
+
+
+def test_run_variation_rejects_non_mrr_at_10_cutoff():
+    with pytest.raises(ValueError, match="top_k must be 10 for mrr_at_10"):
+        rv.run_variation_suite(Path("."), top_k=20)
+
+
+def test_cli_rejects_every_unknown_candidate_id(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        rv.main(
+            [
+                "--candidate",
+                rv.BASELINE_CANDIDATE_ID,
+                "--candidate",
+                "cnfb-alpha-typo",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+    assert "unknown candidate ids: cnfb-alpha-typo" in capsys.readouterr().err
 
 
 def test_parse_benchmark_requires_rows(tmp_path):
