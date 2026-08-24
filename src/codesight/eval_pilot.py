@@ -897,6 +897,7 @@ def _git_dirty(repo_root: Path) -> bool:
 
 _GIT_OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 _SCP_REMOTE_RE = re.compile(r"^(?:[^@/:\s]+@)?([^/:\s]+):(.+)$")
+_WINDOWS_DRIVE_REMOTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 _SAFE_REMOTE_SCHEMES = frozenset({"git", "http", "https", "ssh", "git+ssh"})
 
 
@@ -927,7 +928,13 @@ def _remote_component_contains_secret(value: str) -> bool:
 
 
 def _canonical_remote_identity(origin: str) -> str | None:
-    if not origin or len(origin) > 2048 or any(char.isspace() for char in origin):
+    if (
+        not origin
+        or len(origin) > 2048
+        or any(char.isspace() for char in origin)
+        or "\\" in origin
+        or _WINDOWS_DRIVE_REMOTE_RE.match(origin)
+    ):
         return None
     if "://" not in origin:
         match = _SCP_REMOTE_RE.fullmatch(origin)
