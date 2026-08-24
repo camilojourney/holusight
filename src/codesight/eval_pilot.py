@@ -863,13 +863,13 @@ _SAFE_REMOTE_SCHEMES = frozenset({"git", "http", "https", "ssh", "git+ssh"})
 
 def _machine_local_host(host: str) -> bool:
     normalized = host.lower().rstrip(".")
-    if normalized in {"localhost", "localhost.localdomain"}:
+    if normalized in {"localhost", "localhost.localdomain"} or normalized.endswith(".local"):
         return True
     try:
         address = ipaddress.ip_address(normalized)
     except ValueError:
         return False
-    return address.is_loopback or address.is_link_local or address.is_unspecified
+    return not address.is_global
 
 
 def _canonical_remote_identity(origin: str) -> str | None:

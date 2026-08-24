@@ -105,7 +105,20 @@ def test_repository_identity_strips_remote_credentials(tmp_path):
     assert "secret-token" not in identity
 
 
-def test_repository_identity_rejects_machine_local_remote(tmp_path):
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://192.168.1.10/org/repo.git",
+        "https://macbook.local/org/repo.git",
+    ],
+)
+def test_repository_identity_rejects_machine_local_remote(tmp_path, origin):
+    repo = _committed_repo(tmp_path)
+    _git(repo, "remote", "add", "origin", origin)
+    assert eval_pilot._repository_identity(repo) == "local-no-remote"
+
+
+def test_repository_identity_rejects_filesystem_and_malformed_remotes(tmp_path):
     repo = _committed_repo(tmp_path)
     _git(repo, "remote", "add", "origin", str(tmp_path / "other.git"))
     assert eval_pilot._repository_identity(repo) == "local-no-remote"
