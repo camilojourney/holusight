@@ -108,14 +108,23 @@ def test_branch_is_populated_but_plays_no_part_in_the_subject_model(tmp_path):
     assert "branch" in eval_pilot.EvaluationSubject.model_fields
 
 
-def test_secret_like_branch_is_not_persisted_in_subject(tmp_path):
+@pytest.mark.parametrize(
+    "secret",
+    [
+        "sk-12345678",
+        "ghp_1234567890abcdefghijklmnopqrstuvwxyz",
+        "github_pat_1234567890abcdef",
+        "glpat-1234567890abcdef",
+    ],
+)
+def test_secret_like_branch_is_not_persisted_in_subject(tmp_path, secret):
     repo = _committed_repo(tmp_path)
-    _git(repo, "checkout", "-q", "-b", "feature/sk-12345678")
+    _git(repo, "checkout", "-q", "-b", f"feature/{secret}")
 
     payload = eval_pilot._current_subject(repo).model_dump(mode="json")
 
     assert payload["branch"] is None
-    assert "sk-12345678" not in json.dumps(payload)
+    assert secret not in json.dumps(payload)
 
 
 def test_subject_schema_rejects_secret_like_branch_annotation():
@@ -157,6 +166,8 @@ def test_repository_identity_strips_remote_credentials(tmp_path):
         "https://192.168.1.10/org/repo.git",
         "https://macbook.local/org/repo.git",
         "https://repo.localhost/org/repo.git",
+        "git@gitserver:org/repo.git",
+        "ssh://router.home.arpa/org/repo.git",
     ],
 )
 def test_repository_identity_rejects_machine_local_remote(tmp_path, origin):
@@ -184,6 +195,9 @@ def test_repository_identity_rejects_scp_remote_suffixes(tmp_path, origin):
         "https://example.test/repos/sk-12345678/repo.git",
         "https://example.test/repos/sk%2D12345678/repo.git",
         "git@example.test:repos/sk-12345678/repo.git",
+        "https://example.test/repos/ghp_1234567890abcdefghijklmnopqrstuvwxyz/repo.git",
+        "https://example.test/repos/github_pat_1234567890abcdef/repo.git",
+        "git@example.test:repos/glpat-1234567890abcdef/repo.git",
     ],
 )
 def test_repository_identity_rejects_secret_like_remote_paths(tmp_path, origin):
@@ -200,6 +214,8 @@ def test_repository_identity_rejects_secret_like_remote_paths(tmp_path, origin):
     [
         "https://sk-12345678.example.test/org/repo.git",
         "git@sk-12345678.example.test:org/repo.git",
+        "https://ghp_1234567890abcdefghijklmnopqrstuvwxyz.example.test/org/repo.git",
+        "git@glpat-1234567890abcdef.example.test:org/repo.git",
     ],
 )
 def test_repository_identity_rejects_secret_like_remote_hosts(tmp_path, origin):
