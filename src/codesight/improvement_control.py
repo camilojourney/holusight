@@ -111,6 +111,26 @@ def _sha256_bytes(value: bytes) -> str:
     return "sha256:" + hashlib.sha256(value).hexdigest()
 
 
+def _sha256_regular_file(path: Path) -> str | None:
+    flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError:
+        return None
+    try:
+        file_stat = os.fstat(fd)
+        if not stat.S_ISREG(file_stat.st_mode):
+            return None
+        digest = hashlib.sha256()
+        while chunk := os.read(fd, 64 * 1024):
+            digest.update(chunk)
+        return "sha256:" + digest.hexdigest()
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+
+
 def _read_bounded_regular_file(path: Path, *, max_bytes: int) -> bytes:
     flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
     fd = os.open(path, flags)
@@ -393,7 +413,8 @@ def _subject_applicability_blockers(
             )
         )
         return blockers
-    if subject.repository_id != eval_pilot._repository_identity(repo_root):
+    repository_id = eval_pilot._repository_identity(repo_root)
+    if subject.repository_id != repository_id:
         blockers.append(
             _blocked("wrong_repository_subject", subject.repository_id, role="evaluation_result")
         )
@@ -417,6 +438,7 @@ def _subject_applicability_blockers(
             )
         )
         return blockers
+    snapshots: list[tuple[str, str, str | None, str | None, str | None, bool]] = []
     for role in _CONSEQUENTIAL_ROLES:
         for raw_path in manifest["links"].get(role, []):
             relative = _safe_relative(repo_root, raw_path)
@@ -429,16 +451,51 @@ def _subject_applicability_blockers(
                 # rebase/rename case: path is a locator, never identity.
                 blockers.append(_blocked("dangling_consequential_artifact", path, role=role))
                 continue
-            current_head_blob = eval_pilot._git_oid(repo_root, f"HEAD:{path}")
+            current_head_blob = eval_pilot._git_oid(repo_root, f"{current_commit}:{path}")
+            current_blob = _worktree_blob_oid(repo_root, path)
+            current_sha256 = _sha256_regular_file(repo_root / relative)
+            path_clean = _git_path_clean(repo_root, path)
+            snapshots.append(
+                (role, path, current_head_blob, current_blob, current_sha256, path_clean)
+            )
             if current_head_blob is None or current_head_blob != evaluated_blob:
                 blockers.append(_blocked("changed_consequential_artifact", path, role=role))
                 continue
-            current_blob = _worktree_blob_oid(repo_root, path)
             if current_blob is None or current_blob != evaluated_blob:
                 blockers.append(_blocked("changed_consequential_artifact", path, role=role))
                 continue
-            if not _git_path_clean(repo_root, path):
+            if current_sha256 is None or current_sha256 != manifest["link_hashes"].get(path):
+                blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+                continue
+            if not path_clean:
                 blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
+
+    final_repository_id = eval_pilot._repository_identity(repo_root)
+    if final_repository_id != repository_id or final_repository_id != subject.repository_id:
+        blockers.append(
+            _blocked("wrong_repository_subject", final_repository_id, role="evaluation_result")
+        )
+    final_commit = eval_pilot._git_oid(repo_root, "HEAD")
+    if final_commit != current_commit:
+        blockers.append(
+            _blocked(
+                "stale_evaluation_subject",
+                final_commit or "unresolved",
+                role="evaluation_result",
+            )
+        )
+    for role, path, head_blob, worktree_blob, sha256, path_clean in snapshots:
+        relative = Path(path)
+        final_state = (
+            eval_pilot._git_oid(repo_root, f"{current_commit}:{path}"),
+            _worktree_blob_oid(repo_root, path),
+            _sha256_regular_file(repo_root / relative),
+            _git_path_clean(repo_root, path),
+        )
+        if final_state[:3] != (head_blob, worktree_blob, sha256):
+            blockers.append(_blocked("changed_consequential_artifact", path, role=role))
+        if not path_clean or not final_state[3]:
+            blockers.append(_blocked("dirty_consequential_artifact", path, role=role))
     return blockers
 
 
