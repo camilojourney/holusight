@@ -1,0 +1,131 @@
+{
+  "schema_version": "holusight-advisory-program-v1",
+  "program_id": "holusight-advisory-cross-machine-v1",
+  "mode": "local-only",
+  "result_status": "advisory-only",
+  "review_gate": "pending_independent_read_only_review",
+  "machine": {
+    "name": "mini",
+    "owned_trial_id_range": [501, 1000],
+    "id_format": "%04d"
+  },
+  "prelaunch_blockers": [
+    {
+      "input_id": "AQ-R24-evaluator",
+      "required": true,
+      "visible_tracked_binding": null,
+      "immutable_hash": null,
+      "state": "blocked_missing_executable_input"
+    },
+    {
+      "input_id": "final-G2-evaluator",
+      "required": true,
+      "visible_tracked_binding": null,
+      "immutable_hash": null,
+      "state": "blocked_missing_executable_input"
+    },
+    {
+      "input_id": "human-authored-gold-for-phase-A",
+      "required": true,
+      "visible_tracked_binding": null,
+      "immutable_hash": null,
+      "state": "blocked_missing_visible_tracked_input"
+    }
+  ],
+  "phases": {
+    "A": {
+      "trial_count": 100,
+      "trial_id_range": [1, 100],
+      "metaevaluation_buckets": [
+        {"name": "parser-normalization", "count": 20},
+        {"name": "citation-validity-adversaries", "count": 20},
+        {"name": "contradiction-UNKNOWN-calibration", "count": 20},
+        {"name": "completeness-concision-calibration", "count": 20},
+        {"name": "repeatability-negative-controls-human-authored-gold", "count": 20}
+      ],
+      "freeze_checks": [
+        "deterministic-repeatability",
+        "false-positive-false-negative-behavior",
+        "known-good-known-bad-sensitivity",
+        "prompt-and-ordering-artifact-checks"
+      ]
+    },
+    "B": {
+      "trial_count": 900,
+      "trial_id_range": [101, 1000],
+      "evaluator": "frozen-after-phase-A-only",
+      "partitions": [
+        {"name": "hybrid-retrieval-ranking", "trial_id_range": [101, 325], "count": 225},
+        {"name": "chunking-context-graph-expansion", "trial_id_range": [326, 550], "count": 225},
+        {"name": "answer-citation-UNKNOWN-policy", "trial_id_range": [551, 775], "count": 225},
+        {"name": "contradiction-completeness-concision", "trial_id_range": [776, 1000], "count": 225}
+      ],
+      "comparison_contract": [
+        "matched-control", "paired-comparison", "supported-deterministic-seed",
+        "lineage-clustered-uncertainty", "protected-failure-rejects-candidate"
+      ],
+      "reserved_future_action": "replay-top-candidates-against-final-G2"
+    }
+  },
+  "trial_record": {
+    "counting_status": "recorded",
+    "required_fields": [
+      "trial_id", "purpose_id", "phase", "hypothesis", "target_failure_mode",
+      "intervention", "expected_metric_effect", "falsifier", "control_baseline_id",
+      "protected_gates", "decision_informed", "subject_sha256", "evaluator_sha256",
+      "manifest_sha256", "prompt_config_id", "seed", "wall_time_seconds", "metrics",
+      "status", "mutation_summary", "output_identity", "outcome"
+    ],
+    "exactly_one_intervention": true,
+    "outcomes": ["keep", "discard", "crash"],
+    "non_counting_conditions": [
+      "incomplete", "invalid", "duplicate", "out_of_owned_range", "purposeless",
+      "protected_gate_failure"
+    ]
+  },
+  "local_storage": {
+    "max_lanes": 4,
+    "minimum_free_disk_bytes": 2147483648,
+    "run_log": {"mode": "overwrite", "maximum_bytes": 2097152, "tee_forbidden": true},
+    "lane_results": "autoresearch/local/mini/lanes/<lane>/results.tsv",
+    "idea_ledger": "autoresearch/local/mini/lanes/<lane>/ideas.tsv",
+    "local_files": "untracked_append_only"
+  },
+  "cross_machine": {
+    "transport": "git-checkpoints-and-references-only",
+    "shared_mutable_filesystem": "forbidden",
+    "completed_id_policy": "never-rerun",
+    "required_hash_agreement": ["evaluator", "manifest", "ledger", "lineage-parent"],
+    "checkpoint_fields": [
+      "purpose_coverage", "best_lineages", "five_trial_stagnation", "repeated_idea_families"
+    ],
+    "laptop_checkpoints": {
+      "transport": "ordinary-git-only",
+      "namespace_prefix": "refs/remotes/origin/fm/holusight-avo-laptop-",
+      "poll_interval_minutes": 15,
+      "phase_A_refs": [
+        "refs/remotes/origin/fm/holusight-avo-laptop-calibration-0001-0013",
+        "refs/remotes/origin/fm/holusight-avo-laptop-calibration-0014-0026",
+        "refs/remotes/origin/fm/holusight-avo-laptop-calibration-0027-0038",
+        "refs/remotes/origin/fm/holusight-avo-laptop-calibration-0039-0050"
+      ],
+      "phase_B_refs": [
+        "refs/remotes/origin/fm/holusight-avo-laptop-product-0051-0107",
+        "refs/remotes/origin/fm/holusight-avo-laptop-product-0108-0164",
+        "refs/remotes/origin/fm/holusight-avo-laptop-product-0165-0220",
+        "refs/remotes/origin/fm/holusight-avo-laptop-product-0221-0276",
+        "refs/remotes/origin/fm/holusight-avo-laptop-product-0277-0332",
+        "refs/remotes/origin/fm/holusight-avo-laptop-product-0333-0388",
+        "refs/remotes/origin/fm/holusight-avo-laptop-product-0389-0444",
+        "refs/remotes/origin/fm/holusight-avo-laptop-product-0445-0500"
+      ],
+      "missing_ref_before_first_ten_trial_checkpoint": {
+        "meaning": "not-yet-published",
+        "completed_ids": 0,
+        "duplicate_id_authority": "none"
+      },
+      "reclaim_policy": "only after a present verified checkpoint becomes stale or explicit laptop-stop evidence arrives"
+    }
+  },
+  "prohibited_actions": ["promotion", "merge", "deployment", "external-action", "network-service"]
+}

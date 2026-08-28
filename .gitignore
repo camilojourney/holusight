@@ -52,6 +52,9 @@ node_modules
 # Session task files (eval outputs, pipeline state — not source)
 tasks/
 
+# Advisory experiment lane outputs and append-only idea ledgers are local only.
+autoresearch/local/
+
 # graphify - commit graph.json; ignore generated outputs and local state
 graphify-out/*.html
 graphify-out/*.svg
