@@ -9,11 +9,14 @@
     "schema_version",
     "campaign_id",
     "lane_id",
+    "branch",
+    "manifest_sha256",
     "sequence",
     "recorded_at",
     "experiment_id",
     "outcome",
-    "trial"
+    "trial",
+    "ledger_chain"
   ],
   "properties": {
     "schema_version": { "const": "holusight-avo-ledger/v1" },
@@ -21,6 +24,14 @@
     "lane_id": {
       "type": "string",
       "pattern": "^[a-z0-9-]+$"
+    },
+    "branch": {
+      "type": "string",
+      "pattern": "^fm/holusight-avo-[a-z0-9-]+$"
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
     },
     "sequence": {
       "type": "integer",
@@ -181,7 +192,7 @@
     "crash": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["phase", "error_class"],
+      "required": ["phase", "error_class", "retry_state"],
       "properties": {
         "phase": {
           "type": "string",
@@ -196,14 +207,38 @@
         "error_class": {
           "type": "string",
           "maxLength": 128
+        },
+        "retry_state": {
+          "type": "string",
+          "enum": ["retained", "retry_pending", "retry_exhausted"]
         }
       },
       "description": "Required when outcome is crashed."
     },
+    "retry_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prior_sequence", "restart_generation", "frozen_input_digest"],
+      "properties": {
+        "prior_sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "restart_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "frozen_input_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "description": "Required when resuming a crash-retained experiment_id."
+    },
     "rejection": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["reason_code"],
+      "required": ["reason_code", "atomic"],
       "properties": {
         "reason_code": {
           "type": "string",
@@ -217,6 +252,11 @@
             "supervisor_veto",
             "schema_invalid"
           ]
+        },
+        "atomic": {
+          "type": "boolean",
+          "const": true,
+          "description": "Semantic rejection left counts and lineage unchanged."
         }
       },
       "description": "Required when outcome is rejected."
@@ -231,7 +271,7 @@
           "pattern": "^sha256:[0-9a-f]{64}$"
         }
       },
-      "description": "Optional hash chain; sequence 1 uses sha256:000...000."
+      "description": "Mandatory hash chain; sequence 1 uses sha256:000...000."
     }
   },
   "allOf": [

@@ -13,10 +13,12 @@
     "created_at",
     "manifest_sha256",
     "last_experiment_id",
+    "ledger_entry_count",
     "lineage_head",
     "evaluator_identity_digest",
     "counts",
-    "ledger_tail_sha256"
+    "ledger_tail_sha256",
+    "publication"
   ],
   "properties": {
     "schema_version": { "const": "holusight-avo-checkpoint/v1" },
@@ -45,8 +47,14 @@
       "type": "string",
       "pattern": "^[0-9]{4}$"
     },
+    "ledger_entry_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of ledger entries covered by this checkpoint prefix."
+    },
     "lineage_head": {
       "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
       "description": "Git commit SHA of current-best lineage on this lane branch."
     },
     "evaluator_identity_digest": {
@@ -76,7 +84,44 @@
     "ledger_tail_sha256": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$",
-      "description": "SHA-256 of the last ledger line bytes (canonical JSON, no trailing newline in hash input)."
+      "description": "SHA-256 of canonical JSON for the last ledger entry (no trailing newline)."
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git_commit", "git_tree", "path", "byte_length"],
+      "properties": {
+        "git_commit": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "git_tree": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^docs/avo/lanes/[a-z0-9-]+/checkpoints/[A-Za-z0-9._-]+$"
+        },
+        "byte_length": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "description": "Immutable Git publication provenance for this checkpoint file."
+    },
+    "supervisor_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "campaign_pause": { "type": "boolean" },
+        "lane_close": { "type": "boolean" },
+        "resume_generation": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Optional supervisor pause/close/resume state; schema-valid when present."
     }
   }
 }
