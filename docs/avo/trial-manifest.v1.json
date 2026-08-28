@@ -2,12 +2,12 @@
   "schema_version": "holusight-avo-trial-manifest/v1",
   "campaign_id": "holusight-avo-v1",
   "manifest_version": 1,
-  "manifest_sha256": "sha256:37f5b5f350e3fdc7ae7225f70928bdc5bc87ac7dc6cf2814e5c2c498a583921f",
+  "manifest_sha256": "sha256:f9cee8ffad1c2166ea37de6e4ad7e680da5f6bb296bca78634e8ae90d7f55e15",
   "git_base": {
     "remote": "origin",
     "ref": "fm/holusight-avo-setup-v1",
-    "commit": "5679a8ba2e1288e14a3b01907699b467756c933c",
-    "tree": "9ee027d00a47b363710572520d39cafa688b3026",
+    "commit": "3bed56018ea278eb8ea7dc9d0d9d8e71dfee9b03",
+    "tree": "32b071542385033b5ffbbfaf2fcd20a534298841",
     "commit_hint": "published_at_merge_of_setup_pr"
   },
   "supervisor": {
