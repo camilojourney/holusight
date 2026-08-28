@@ -19,9 +19,10 @@ Persistent operator memory for this lane. Not part of the append-only ledger.
 
 ## Manifest gate
 
-- **trials_authorized:** `true`
+- **trials_authorized:** `false`
 - **manifest_sha256:** `sha256:28a9f0b69d0c61cf3f223bf13e4412efa11afc8cd90f85fb7cacd2e731f4b876`
 - **last_manifest_verify:** `2026-08-28T06:12:00Z` (fetched `origin/fm/holusight-avo-setup-v1`, canonical hash verified)
+- **charter_review:** pending independent review and firstmate confirmation
 
 ## Counters (valid trials only)
 
@@ -42,5 +43,5 @@ Persistent operator memory for this lane. Not part of the append-only ledger.
 
 ## Notes
 
-Bootstrap scaffold only. Manifest verified; first valid trial may begin at
-experiment ID `0027` when calibration work starts.
+Bootstrap scaffold only. Manifest published and hash-verified locally, but valid
+trials remain blocked until independent charter review and firstmate confirmation.
