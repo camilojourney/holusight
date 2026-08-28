@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "holusight-avo-trial-manifest/v1",
+  "title": "Holusight AVO Immutable Trial Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "manifest_version",
+    "manifest_sha256",
+    "git_base",
+    "supervisor",
+    "partitions",
+    "trial_contract",
+    "deterministic_seeds",
+    "metric_identities",
+    "resource_guardrails",
+    "checkpoint_policy",
+    "ledger_policy",
+    "protected_gates",
+    "lane_registry"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "holusight-avo-trial-manifest/v1"
+    },
+    "campaign_id": {
+      "const": "holusight-avo-v1"
+    },
+    "manifest_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "git_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["remote", "ref", "commit_hint"],
+      "properties": {
+        "remote": { "const": "origin" },
+        "ref": { "const": "fm/holusight-avo-setup-v1" },
+        "commit_hint": {
+          "type": "string",
+          "description": "Informational; lanes verify manifest bytes, not this hint alone."
+        }
+      }
+    },
+    "supervisor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "role", "experiment_id_range"],
+      "properties": {
+        "host": { "const": "mini" },
+        "role": { "const": "global_supervisor" },
+        "experiment_id_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end", "inclusive"],
+          "properties": {
+            "start": { "const": "0501" },
+            "end": { "const": "1000" },
+            "inclusive": { "const": true }
+          }
+        }
+      }
+    },
+    "partitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["laptop", "mini"],
+      "properties": {
+        "laptop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["host", "experiment_id_range", "phases"],
+          "properties": {
+            "host": { "const": "laptop" },
+            "experiment_id_range": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["start", "end", "inclusive"],
+              "properties": {
+                "start": { "const": "0001" },
+                "end": { "const": "0500" },
+                "inclusive": { "const": true }
+              }
+            },
+            "phases": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["phase_a_calibration", "phase_b_product"],
+              "properties": {
+                "phase_a_calibration": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["purpose", "experiment_id_range"],
+                  "properties": {
+                    "purpose": {
+                      "const": "evaluator_method_calibration"
+                    },
+                    "experiment_id_range": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["start", "end", "inclusive"],
+                      "properties": {
+                        "start": { "const": "0001" },
+                        "end": { "const": "0050" },
+                        "inclusive": { "const": true }
+                      }
+                    }
+                  }
+                },
+                "phase_b_product": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["purpose", "experiment_id_range"],
+                  "properties": {
+                    "purpose": {
+                      "const": "product_intervention"
+                    },
+                    "experiment_id_range": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["start", "end", "inclusive"],
+                      "properties": {
+                        "start": { "const": "0051" },
+                        "end": { "const": "0500" },
+                        "inclusive": { "const": true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "mini": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["host", "experiment_id_range", "role"],
+          "properties": {
+            "host": { "const": "mini" },
+            "role": { "const": "global_supervisor" },
+            "experiment_id_range": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["start", "end", "inclusive"],
+              "properties": {
+                "start": { "const": "0501" },
+                "end": { "const": "1000" },
+                "inclusive": { "const": true }
+              }
+            }
+          }
+        }
+      }
+    },
+    "trial_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_fields",
+        "intervention_rule",
+        "validity_rules"
+      ],
+      "properties": {
+        "required_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 11,
+          "uniqueItems": true,
+          "contains": { "const": "purpose_id" }
+        },
+        "intervention_rule": {
+          "const": "exactly_one_atomic_intervention_per_valid_trial"
+        },
+        "validity_rules": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "deterministic_seeds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["global_seed", "derivation", "replay_required"],
+      "properties": {
+        "global_seed": { "type": "integer" },
+        "derivation": { "const": "sha256(experiment_id + global_seed)[:8] as uint32" },
+        "replay_required": { "const": true }
+      }
+    },
+    "metric_identities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "hard_constraints", "identity_binding"],
+      "properties": {
+        "primary": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "hard_constraints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "identity_binding": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "resource_guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_sustained_cpu_percent",
+        "max_memory_gib",
+        "nice_cpu_heavy",
+        "no_foreground_ui",
+        "pause_on_pressure"
+      ],
+      "properties": {
+        "max_sustained_cpu_percent": { "type": "integer", "maximum": 80 },
+        "max_memory_gib": { "type": "integer" },
+        "nice_cpu_heavy": { "const": true },
+        "no_foreground_ui": { "const": true },
+        "pause_on_pressure": { "const": true }
+      }
+    },
+    "checkpoint_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "interval_valid_trials",
+        "branch_name_pattern",
+        "max_checkpoint_bytes"
+      ],
+      "properties": {
+        "schema": { "const": "holusight-avo-checkpoint/v1" },
+        "interval_valid_trials": { "type": "integer", "minimum": 1 },
+        "branch_name_pattern": { "type": "string" },
+        "max_checkpoint_bytes": { "type": "integer" }
+      }
+    },
+    "ledger_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "append_only", "record_outcomes"],
+      "properties": {
+        "schema": { "const": "holusight-avo-ledger/v1" },
+        "append_only": { "const": true },
+        "record_outcomes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "protected_gates": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "lane_registry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lane_id", "branch", "host", "experiment_id_range"],
+        "properties": {
+          "lane_id": { "type": "string" },
+          "branch": { "type": "string" },
+          "host": { "enum": ["laptop", "mini"] },
+          "experiment_id_range": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start", "end"],
+            "properties": {
+              "start": { "type": "string", "pattern": "^[0-9]{4}$" },
+              "end": { "type": "string", "pattern": "^[0-9]{4}$" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
