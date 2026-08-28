@@ -501,6 +501,14 @@ class ValidatedLedger:
     lineage_head: str | None
 
 
+@dataclass(frozen=True)
+class GitAcceptanceContext:
+    """Required Git context for checkpoint acceptance and lineage verification."""
+
+    repo_root: Path
+    git_ref: str
+
+
 # ---------------------------------------------------------------------------
 # Ledger validation
 # ---------------------------------------------------------------------------
@@ -887,15 +895,72 @@ def validate_supervisor_state(state: SupervisorState | None) -> None:
         raise AvoLedgerError("supervisor_state cannot set campaign_pause and lane_close together")
 
 
+def _require_git_context(git: GitAcceptanceContext | None) -> GitAcceptanceContext:
+    if git is None:
+        raise AvoLedgerError(
+            "Git acceptance context required for checkpoint acceptance and lineage verification"
+        )
+    if not git.repo_root.is_dir():
+        raise AvoLedgerError("Git acceptance context repo_root is not a directory")
+    accept_commit = _git_rev_parse(git.repo_root, git.git_ref)
+    if accept_commit is None:
+        raise AvoLedgerError(f"acceptance git ref not resolved: {git.git_ref}")
+    return git
+
+
+def _verify_git_lineage(checkpoint: Checkpoint, git: GitAcceptanceContext) -> None:
+    pub = checkpoint.publication
+    if not _git_object_exists(git.repo_root, checkpoint.lineage_head):
+        raise AvoLedgerError("lineage_head is not a verified Git object")
+    if not _git_object_exists(git.repo_root, pub.git_commit):
+        raise AvoLedgerError("publication.git_commit is not a verified Git object")
+    expected_tree = _git_tree_for_commit(git.repo_root, pub.git_commit)
+    if expected_tree is None or expected_tree != pub.git_tree:
+        raise AvoLedgerError("publication.git_tree does not match publication.git_commit")
+    if not _git_ls_files(git.repo_root, pub.path, pub.git_commit):
+        raise AvoLedgerError(
+            "publication.git_commit tree does not contain checkpoint path"
+        )
+
+
+def validate_checkpoint_freshness(
+    checkpoint: Checkpoint,
+    *,
+    git: GitAcceptanceContext,
+    prior_checkpoint: Checkpoint | None = None,
+) -> None:
+    """Reject stale or unpublished checkpoint publication at the acceptance ref."""
+    git = _require_git_context(git)
+    accept_commit = _git_rev_parse(git.repo_root, git.git_ref)
+    assert accept_commit is not None
+    pub_commit = checkpoint.publication.git_commit
+    if not _git_object_exists(git.repo_root, pub_commit):
+        raise AvoLedgerError("publication.git_commit is not a verified Git object")
+    if pub_commit != accept_commit:
+        if not _git_is_ancestor(git.repo_root, pub_commit, accept_commit):
+            raise AvoLedgerError("checkpoint unpublished at acceptance git ref")
+        raise AvoLedgerError(
+            "checkpoint publication is stale relative to acceptance git ref"
+        )
+    if prior_checkpoint is not None:
+        if checkpoint.checkpoint_sequence <= prior_checkpoint.checkpoint_sequence:
+            raise AvoLedgerError("checkpoint_sequence must increase monotonically")
+        if checkpoint.created_at < prior_checkpoint.created_at:
+            raise AvoLedgerError(
+                "checkpoint created_at is stale relative to prior checkpoint"
+            )
+
+
 def validate_checkpoint_payload(
     checkpoint: Checkpoint,
     *,
     manifest: AvoManifestContext,
+    git: GitAcceptanceContext | None = None,
     ledger: ValidatedLedger | None = None,
     prior_checkpoint: Checkpoint | None = None,
-    repo_root: Path | None = None,
     on_disk_bytes: int | None = None,
 ) -> None:
+    git = _require_git_context(git)
     if checkpoint.manifest_sha256 != manifest.manifest_sha256:
         raise AvoLedgerError("checkpoint manifest_sha256 does not match verified manifest")
 
@@ -928,24 +993,10 @@ def validate_checkpoint_payload(
     if pub.byte_length != expected_bytes:
         raise AvoLedgerError("publication.byte_length must match checkpoint size")
 
-    if prior_checkpoint is not None:
-        if checkpoint.checkpoint_sequence <= prior_checkpoint.checkpoint_sequence:
-            raise AvoLedgerError("checkpoint_sequence must increase monotonically")
-        if checkpoint.created_at < prior_checkpoint.created_at:
-            raise AvoLedgerError("checkpoint created_at must not regress")
-
-    if repo_root is not None:
-        if not _git_object_exists(repo_root, checkpoint.lineage_head):
-            raise AvoLedgerError("lineage_head is not a verified Git object")
-        if not _git_object_exists(repo_root, pub.git_commit):
-            raise AvoLedgerError("publication.git_commit is not a verified Git object")
-        expected_tree = _git_tree_for_commit(repo_root, pub.git_commit)
-        if expected_tree is None or expected_tree != pub.git_tree:
-            raise AvoLedgerError("publication.git_tree does not match publication.git_commit")
-        if not _git_ls_files(repo_root, pub.path, pub.git_commit):
-            raise AvoLedgerError(
-                "publication.git_commit tree does not contain checkpoint path"
-            )
+    validate_checkpoint_freshness(
+        checkpoint, git=git, prior_checkpoint=prior_checkpoint
+    )
+    _verify_git_lineage(checkpoint, git)
 
     if ledger is not None:
         if ledger.lane_id != checkpoint.lane_id:
@@ -1012,24 +1063,19 @@ def validate_checkpoint_git_only(
 
     checkpoint = parse_checkpoint(raw)
     pub_commit = checkpoint.publication.git_commit
-    if not _git_object_exists(repo_root, pub_commit):
-        raise AvoLedgerError("publication.git_commit is not a verified Git object")
-    if commit is not None and pub_commit != commit:
-        if not _git_is_ancestor(repo_root, pub_commit, commit):
-            raise AvoLedgerError(
-                "publication.git_commit must match git ref or be its ancestor"
-            )
 
     if checkpoint.publication.path != rel_posix:
         raise AvoLedgerError("checkpoint publication.path must match repository-relative path")
     if checkpoint.publication.byte_length != len(raw_bytes):
         raise AvoLedgerError("publication.byte_length must match on-disk checkpoint bytes")
 
-    tree = _git_tree_for_commit(repo_root, pub_commit)
-    if tree is None:
-        raise AvoLedgerError("cannot resolve git tree for publication commit")
-    if checkpoint.publication.git_tree != tree:
-        raise AvoLedgerError("publication.git_tree must match publication.git_commit")
+    if commit != pub_commit:
+        validate_checkpoint_freshness(
+            checkpoint,
+            git=GitAcceptanceContext(repo_root=repo_root, git_ref=git_ref),
+        )
+
+    accept_git = GitAcceptanceContext(repo_root=repo_root, git_ref=pub_commit)
 
     ledger: ValidatedLedger | None = None
     if ledger_path is not None:
@@ -1041,9 +1087,9 @@ def validate_checkpoint_git_only(
     validate_checkpoint_payload(
         checkpoint,
         manifest=manifest,
+        git=accept_git,
         ledger=ledger,
         prior_checkpoint=prior_checkpoint,
-        repo_root=repo_root,
         on_disk_bytes=len(raw_bytes),
     )
     return checkpoint

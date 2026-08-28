@@ -176,6 +176,32 @@ def _git(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
+def _commit_checkpoint_at_ref(
+    repo: Path, body: dict, *, checkpoint_rel: str
+) -> str:
+    """Commit checkpoint JSON; return the publication commit oid."""
+    parent = _git(repo, "rev-parse", "HEAD")
+    parent_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+    body["publication"]["git_commit"] = parent
+    body["publication"]["git_tree"] = parent_tree
+    body["lineage_head"] = parent
+    serialized = _finalize_checkpoint_bytes(body)
+    _write_git_file(repo, checkpoint_rel, serialized.decode())
+    _git(repo, "add", checkpoint_rel)
+    _git(repo, "commit", "-q", "-m", "checkpoint draft")
+    publish_commit = _git(repo, "rev-parse", "HEAD")
+    publish_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+    body["publication"]["git_commit"] = publish_commit
+    body["publication"]["git_tree"] = publish_tree
+    body["lineage_head"] = publish_commit
+    serialized = _finalize_checkpoint_bytes(body)
+    _write_git_file(repo, checkpoint_rel, serialized.decode())
+    _git(repo, "add", checkpoint_rel)
+    _git(repo, "commit", "-q", "-m", "checkpoint provenance")
+    committed = json.loads((repo / checkpoint_rel).read_text(encoding="utf-8"))
+    return committed["publication"]["git_commit"]
+
+
 def test_manifest_self_hash_verifies():
     loaded = avo_ledger.load_default_manifest_context(REPO_ROOT)
     assert loaded.manifest_sha256.startswith("sha256:")
@@ -314,16 +340,26 @@ def test_recomputed_checkpoint_counters_match_ledger():
     )
 
 
-def test_adversarial_hash_not_content_rejected():
+def test_adversarial_hash_not_content_rejected(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write_git_file(repo, "README.md", "init\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "init")
+
     entry = _entry(experiment_id="0004", outcome="kept")
     entry["trial"]["lineage_parent"] = LINEAGE_B
     ledger = _validate_lines(_canonical_line(entry))
+    checkpoint_rel = f"docs/avo/lanes/{LANE.lane_id}/checkpoints/cp-hash.json"
+    head = _git(repo, "rev-parse", "HEAD")
+    head_tree = _git(repo, "rev-parse", "HEAD^{tree}")
     body = _checkpoint_body(
         ledger=ledger,
-        git_commit=LINEAGE_A,
-        git_tree=TREE_OID,
-        path="docs/avo/lanes/laptop-calibration-0001-0013/checkpoints/cp-0001.json",
-        byte_length=100,
+        git_commit=head,
+        git_tree=head_tree,
+        path=checkpoint_rel,
+        byte_length=1,
     )
     body["counts"] = {
         "completed": 999,
@@ -334,12 +370,16 @@ def test_adversarial_hash_not_content_rejected():
         "indeterminate": 999,
     }
     body["ledger_tail_sha256"] = "sha256:" + "c" * 64
-    body["publication"]["byte_length"] = len(avo_ledger.canonical_json_bytes(body))
-    checkpoint = avo_ledger.parse_checkpoint(body)
+    publish = _commit_checkpoint_at_ref(repo, body, checkpoint_rel=checkpoint_rel)
+    checkpoint = avo_ledger.parse_checkpoint(
+        json.loads((repo / checkpoint_rel).read_text(encoding="utf-8"))
+    )
+    git = avo_ledger.GitAcceptanceContext(repo_root=repo, git_ref=publish)
     with pytest.raises(avo_ledger.AvoLedgerError, match="counts do not match"):
         avo_ledger.validate_checkpoint_payload(
             checkpoint,
             manifest=MANIFEST,
+            git=git,
             ledger=ledger,
             on_disk_bytes=checkpoint.publication.byte_length,
         )
@@ -395,25 +435,14 @@ def test_checkpoint_git_only_requires_tracked_provenance(tmp_path):
         path=checkpoint_rel,
         byte_length=1,
     )
-    body["lineage_head"] = head
-    serialized = _finalize_checkpoint_bytes(body)
-    _write_git_file(repo, checkpoint_rel, serialized.decode())
-    _git(repo, "add", checkpoint_rel)
-    _git(repo, "commit", "-q", "-m", "checkpoint draft")
-    publish_commit = _git(repo, "rev-parse", "HEAD")
-    publish_tree = _git(repo, "rev-parse", "HEAD^{tree}")
-    body["publication"]["git_commit"] = publish_commit
-    body["publication"]["git_tree"] = publish_tree
-    body["lineage_head"] = publish_commit
-    serialized = _finalize_checkpoint_bytes(body)
-    _write_git_file(repo, checkpoint_rel, serialized.decode())
-    _git(repo, "add", checkpoint_rel)
-    _git(repo, "commit", "-q", "-m", "checkpoint provenance")
+    publish_commit = _commit_checkpoint_at_ref(
+        repo, body, checkpoint_rel=checkpoint_rel
+    )
 
     accepted = avo_ledger.validate_checkpoint_git_only(
         repo / checkpoint_rel,
         repo_root=repo,
-        git_ref="HEAD",
+        git_ref=publish_commit,
         manifest=manifest,
         ledger_path=repo / ledger_rel,
     )
@@ -434,27 +463,153 @@ def test_adversarial_schema_rejected_extra_property():
         avo_ledger.LedgerEntry.model_validate(entry)
 
 
-def test_lineage_disagreement_rejected():
+def test_lineage_disagreement_rejected(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write_git_file(repo, "README.md", "init\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "init")
+
     kept = _entry(experiment_id="0005", outcome="kept")
     kept["trial"]["lineage_parent"] = LINEAGE_B
     ledger = _validate_lines(_canonical_line(kept))
+    checkpoint_rel = f"docs/avo/lanes/{LANE.lane_id}/checkpoints/cp-lineage.json"
+    head = _git(repo, "rev-parse", "HEAD")
+    head_tree = _git(repo, "rev-parse", "HEAD^{tree}")
     body = _checkpoint_body(
         ledger=ledger,
-        git_commit=LINEAGE_A,
-        git_tree=TREE_OID,
-        path="docs/avo/lanes/laptop-calibration-0001-0013/checkpoints/cp-0001.json",
+        git_commit=head,
+        git_tree=head_tree,
+        path=checkpoint_rel,
         byte_length=1,
         lineage_head=LINEAGE_A,
     )
-    finalized = json.loads(_finalize_checkpoint_bytes(body).decode())
-    finalized["publication"]["byte_length"] = len(
-        avo_ledger.canonical_json_bytes(finalized)
+    publish = _commit_checkpoint_at_ref(repo, body, checkpoint_rel=checkpoint_rel)
+    checkpoint = avo_ledger.parse_checkpoint(
+        json.loads((repo / checkpoint_rel).read_text(encoding="utf-8"))
     )
-    checkpoint = avo_ledger.parse_checkpoint(finalized)
+    git = avo_ledger.GitAcceptanceContext(repo_root=repo, git_ref=publish)
     with pytest.raises(avo_ledger.AvoLedgerError, match="lineage_head disagrees"):
         avo_ledger.validate_checkpoint_payload(
             checkpoint,
             manifest=MANIFEST,
+            git=git,
+            ledger=ledger,
+            on_disk_bytes=checkpoint.publication.byte_length,
+        )
+
+
+def test_checkpoint_acceptance_fails_closed_without_git_context():
+    entry = _entry()
+    ledger = _validate_lines(_canonical_line(entry))
+    body = _checkpoint_body(
+        ledger=ledger,
+        git_commit=LINEAGE_A,
+        git_tree=TREE_OID,
+        path=f"docs/avo/lanes/{LANE.lane_id}/checkpoints/cp-failclosed.json",
+        byte_length=1,
+    )
+    body["publication"]["byte_length"] = len(avo_ledger.canonical_json_bytes(body))
+    checkpoint = avo_ledger.parse_checkpoint(body)
+    with pytest.raises(avo_ledger.AvoLedgerError, match="Git acceptance context required"):
+        avo_ledger.validate_checkpoint_payload(
+            checkpoint, manifest=MANIFEST, git=None
+        )
+
+
+def test_adversarial_stale_unpublished_rejected(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write_git_file(repo, "README.md", "init\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "init")
+
+    entry = _entry(experiment_id="0001")
+    ledger = _validate_lines(_canonical_line(entry))
+    checkpoint_rel = f"docs/avo/lanes/{LANE.lane_id}/checkpoints/cp-stale.json"
+    head = _git(repo, "rev-parse", "HEAD")
+    head_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+    body = _checkpoint_body(
+        ledger=ledger,
+        git_commit=head,
+        git_tree=head_tree,
+        path=checkpoint_rel,
+        byte_length=1,
+    )
+    body["created_at"] = "2020-01-01T00:00:00Z"
+    publish_commit = _commit_checkpoint_at_ref(
+        repo, body, checkpoint_rel=checkpoint_rel
+    )
+    _write_git_file(repo, "README.md", "advance\n")
+    _git(repo, "add", "README.md")
+    _git(repo, "commit", "-q", "-m", "advance tip")
+    lane_tip = _git(repo, "rev-parse", "HEAD")
+
+    stale = avo_ledger.parse_checkpoint(
+        json.loads((repo / checkpoint_rel).read_text(encoding="utf-8"))
+    )
+    git_tip = avo_ledger.GitAcceptanceContext(repo_root=repo, git_ref=lane_tip)
+    with pytest.raises(
+        avo_ledger.AvoLedgerError, match="stale relative to acceptance git ref"
+    ):
+        avo_ledger.validate_checkpoint_freshness(stale, git=git_tip)
+
+    with pytest.raises(
+        avo_ledger.AvoLedgerError, match="stale relative to acceptance git ref"
+    ):
+        avo_ledger.validate_checkpoint_git_only(
+            repo / checkpoint_rel,
+            repo_root=repo,
+            git_ref=lane_tip,
+            manifest=MANIFEST,
+        )
+
+    git_publish = avo_ledger.GitAcceptanceContext(
+        repo_root=repo, git_ref=publish_commit
+    )
+    avo_ledger.validate_checkpoint_freshness(stale, git=git_publish)
+
+
+def test_adversarial_evaluator_digest_mismatch_rejected(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write_git_file(repo, "README.md", "init\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "init")
+
+    entry = _entry(experiment_id="0002")
+    ledger_line = _canonical_line(entry)
+    ledger_rel = f"docs/avo/lanes/{LANE.lane_id}/ledger.jsonl"
+    _write_git_file(repo, ledger_rel, ledger_line + "\n")
+    ledger = avo_ledger.validate_ledger_text(
+        ledger_line + "\n", manifest=MANIFEST, lane_id=LANE.lane_id
+    )
+    checkpoint_rel = f"docs/avo/lanes/{LANE.lane_id}/checkpoints/cp-eval.json"
+    head = _git(repo, "rev-parse", "HEAD")
+    head_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+    body = _checkpoint_body(
+        ledger=ledger,
+        git_commit=head,
+        git_tree=head_tree,
+        path=checkpoint_rel,
+        byte_length=1,
+    )
+    body["evaluator_identity_digest"] = "sha256:" + "e" * 64
+    publish = _commit_checkpoint_at_ref(repo, body, checkpoint_rel=checkpoint_rel)
+    checkpoint = avo_ledger.parse_checkpoint(
+        json.loads((repo / checkpoint_rel).read_text(encoding="utf-8"))
+    )
+    git = avo_ledger.GitAcceptanceContext(repo_root=repo, git_ref=publish)
+    with pytest.raises(
+        avo_ledger.AvoLedgerError, match="evaluator_identity_digest mismatch"
+    ):
+        avo_ledger.validate_checkpoint_payload(
+            checkpoint,
+            manifest=MANIFEST,
+            git=git,
             ledger=ledger,
             on_disk_bytes=checkpoint.publication.byte_length,
         )
