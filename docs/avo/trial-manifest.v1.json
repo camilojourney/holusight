@@ -1,0 +1,188 @@
+{
+  "schema_version": "holusight-avo-trial-manifest/v1",
+  "campaign_id": "holusight-avo-v1",
+  "manifest_version": 1,
+  "manifest_sha256": "sha256:28a9f0b69d0c61cf3f223bf13e4412efa11afc8cd90f85fb7cacd2e731f4b876",
+  "git_base": {
+    "remote": "origin",
+    "ref": "fm/holusight-avo-setup-v1",
+    "commit_hint": "published_at_merge_of_setup_pr"
+  },
+  "supervisor": {
+    "host": "mini",
+    "role": "global_supervisor",
+    "experiment_id_range": {
+      "start": "0501",
+      "end": "1000",
+      "inclusive": true
+    }
+  },
+  "partitions": {
+    "laptop": {
+      "host": "laptop",
+      "experiment_id_range": {
+        "start": "0001",
+        "end": "0500",
+        "inclusive": true
+      },
+      "phases": {
+        "phase_a_calibration": {
+          "purpose": "evaluator_method_calibration",
+          "experiment_id_range": {
+            "start": "0001",
+            "end": "0050",
+            "inclusive": true
+          }
+        },
+        "phase_b_product": {
+          "purpose": "product_intervention",
+          "experiment_id_range": {
+            "start": "0051",
+            "end": "0500",
+            "inclusive": true
+          }
+        }
+      }
+    },
+    "mini": {
+      "host": "mini",
+      "role": "global_supervisor",
+      "experiment_id_range": {
+        "start": "0501",
+        "end": "1000",
+        "inclusive": true
+      }
+    }
+  },
+  "trial_contract": {
+    "required_fields": [
+      "purpose_id",
+      "hypothesis",
+      "target_failure_mode",
+      "intervention",
+      "expected_effect",
+      "falsifier",
+      "control",
+      "protected_gates",
+      "lineage_parent",
+      "decision_informed",
+      "seed",
+      "evaluator_identity"
+    ],
+    "intervention_rule": "exactly_one_atomic_intervention_per_valid_trial",
+    "validity_rules": [
+      "manifest_sha256_must_match_verified_setup_branch",
+      "experiment_id_must_be_unique_per_lane",
+      "experiment_id_must_fall_in_lane_partition",
+      "exactly_one_intervention",
+      "deterministic_replay_required",
+      "no_blind_sweeps"
+    ]
+  },
+  "deterministic_seeds": {
+    "global_seed": 926223,
+    "derivation": "sha256(experiment_id + global_seed)[:8] as uint32",
+    "replay_required": true
+  },
+  "metric_identities": {
+    "primary": [
+      "required_provider_coverage_mean",
+      "eval_pilot_pass_rate"
+    ],
+    "hard_constraints": [
+      "hard_constraint_pass",
+      "replay_identical",
+      "git_subject_clean",
+      "identity_binding_match"
+    ],
+    "identity_binding": [
+      "git_subject",
+      "corpus",
+      "evaluator",
+      "configuration",
+      "suite_manifest"
+    ]
+  },
+  "resource_guardrails": {
+    "max_sustained_cpu_percent": 80,
+    "max_memory_gib": 48,
+    "nice_cpu_heavy": true,
+    "no_foreground_ui": true,
+    "pause_on_pressure": true
+  },
+  "checkpoint_policy": {
+    "schema": "holusight-avo-checkpoint/v1",
+    "interval_valid_trials": 10,
+    "branch_name_pattern": "^fm/holusight-avo-[a-z0-9-]+$",
+    "max_checkpoint_bytes": 4096
+  },
+  "ledger_policy": {
+    "schema": "holusight-avo-ledger/v1",
+    "append_only": true,
+    "record_outcomes": [
+      "completed",
+      "kept",
+      "discarded",
+      "rejected",
+      "indeterminate",
+      "crashed"
+    ]
+  },
+  "protected_gates": [
+    "gate.g2.blocked",
+    "gate.promotion.denied",
+    "gate.hidden_holdout.custody",
+    "gate.egress.off",
+    "gate.single_intervention",
+    "gate.manifest.immutable",
+    "gate.partition.enforced",
+    "gate.checkpoint.branch_unique"
+  ],
+  "lane_registry": [
+    {
+      "lane_id": "laptop-calibration-0001-0013",
+      "branch": "fm/holusight-avo-laptop-calibration-0001-0013",
+      "host": "laptop",
+      "experiment_id_range": {
+        "start": "0001",
+        "end": "0013"
+      }
+    },
+    {
+      "lane_id": "laptop-calibration-0014-0026",
+      "branch": "fm/holusight-avo-laptop-calibration-0014-0026",
+      "host": "laptop",
+      "experiment_id_range": {
+        "start": "0014",
+        "end": "0026"
+      }
+    },
+    {
+      "lane_id": "laptop-calibration-0027-0038",
+      "branch": "fm/holusight-avo-laptop-calibration-0027-0038",
+      "host": "laptop",
+      "experiment_id_range": {
+        "start": "0027",
+        "end": "0038"
+      }
+    },
+    {
+      "lane_id": "laptop-calibration-0039-0050",
+      "branch": "fm/holusight-avo-laptop-calibration-0039-0050",
+      "host": "laptop",
+      "experiment_id_range": {
+        "start": "0039",
+        "end": "0050"
+      }
+    },
+    {
+      "lane_id": "mini-supervisor",
+      "branch": "fm/holusight-avo-mini-supervisor",
+      "host": "mini",
+      "experiment_id_range": {
+        "start": "0501",
+        "end": "1000"
+      }
+    }
+  ]
+}
