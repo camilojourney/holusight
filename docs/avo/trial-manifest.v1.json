@@ -2,10 +2,12 @@
   "schema_version": "holusight-avo-trial-manifest/v1",
   "campaign_id": "holusight-avo-v1",
   "manifest_version": 1,
-  "manifest_sha256": "sha256:28a9f0b69d0c61cf3f223bf13e4412efa11afc8cd90f85fb7cacd2e731f4b876",
+  "manifest_sha256": "sha256:37f5b5f350e3fdc7ae7225f70928bdc5bc87ac7dc6cf2814e5c2c498a583921f",
   "git_base": {
     "remote": "origin",
     "ref": "fm/holusight-avo-setup-v1",
+    "commit": "5679a8ba2e1288e14a3b01907699b467756c933c",
+    "tree": "9ee027d00a47b363710572520d39cafa688b3026",
     "commit_hint": "published_at_merge_of_setup_pr"
   },
   "supervisor": {
@@ -184,5 +186,41 @@
         "end": "1000"
       }
     }
-  ]
+  ],
+  "aq_r24": {
+    "schema_version": "holusight-avo-aq-r24-binding/v1",
+    "fixture_path": "tests/fixtures/holusight_aq_r24_v1.jsonl",
+    "fixture_sha256": "sha256:b9d78a16bc6bbb826fd6501d9be65bbccd2a5ab956b73d89f73079f25189f0ce",
+    "case_count": 24,
+    "protected_case_ids": [
+      "AQ-01",
+      "AQ-03",
+      "AQ-04",
+      "AQ-05",
+      "AQ-06",
+      "AQ-07",
+      "AQ-08",
+      "AQ-10",
+      "AQ-12",
+      "AQ-13",
+      "AQ-14",
+      "AQ-15",
+      "AQ-16",
+      "AQ-17",
+      "AQ-18",
+      "AQ-20",
+      "AQ-21",
+      "AQ-22",
+      "AQ-23",
+      "AQ-24"
+    ],
+    "remediation_report_commit": "f5b5ddfde08ba16e87397f0b6fc07f8ea4174078"
+  },
+  "expected_evaluator_identity": {
+    "status": "blocked_until_g2_trusted_sandbox",
+    "method_config_sha256": "sha256:8507da9e978b3a313f3ab6d8b0c28b752a223b8b27dac13e4a9781f5f62b335a",
+    "suite_id": "holusight-local-retrieval-v1",
+    "digest": null,
+    "identity_digest": null
+  }
 }
