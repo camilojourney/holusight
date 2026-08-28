@@ -64,6 +64,8 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |
 | `src/codesight/eval_suite.py` | Versioned local-evaluation suite, method/config, and hidden-holdout hash-manifest schemas. Dataset foundation only; no runner, no holdout access path. See spec 022. |
 | `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for the existing `holus improve-*` loop. It verifies tracked manifests, links, hashes, stages, promotion blockers, and (for pilot results) recomputed Git-subject applicability, without egress or canonical writes. See specs 019 and 021. |
+| `src/codesight/avo_leakage.py` | AVO Git-export leakage-boundary scanner for persisted/checkpoint records. See `docs/avo/leakage-boundary.md` and spec 023. |
+| `src/codesight/avo_purpose.py` | AVO purpose mapping, canonical trial-field, matched-control, and protected-gate validation. See `docs/avo/purpose-mapping.v1.json` and spec 023. |
 | `src/codesight/retrieval_variation.py` | Fixed, local evidence-display baseline/candidate evaluator. Content-addresses benchmark and lineage, separates hard constraints from reward, and only permits independent human review. See spec 020. |
 | `src/codesight/types.py` | Shared type definitions. |
 | `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |

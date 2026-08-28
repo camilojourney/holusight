@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "holusight-avo-purpose-mapping/v1",
+  "title": "Holusight AVO Canonical Purpose Mapping",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "mapping_version",
+    "mapping_sha256",
+    "remediation_report_commit",
+    "total_valid_trials",
+    "partitions",
+    "control_policy",
+    "canonical_trial_fields"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "holusight-avo-purpose-mapping/v1"
+    },
+    "campaign_id": {
+      "const": "holusight-avo-v1"
+    },
+    "mapping_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "mapping_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "remediation_report_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "total_valid_trials": {
+      "type": "integer",
+      "const": 1000
+    },
+    "partitions": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["purpose_id", "host", "experiment_id_range"],
+        "properties": {
+          "purpose_id": {
+            "type": "string",
+            "enum": [
+              "evaluator_method_calibration",
+              "product_intervention"
+            ]
+          },
+          "host": {
+            "type": "string",
+            "enum": ["laptop", "mini"]
+          },
+          "experiment_id_range": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start", "end", "inclusive"],
+            "properties": {
+              "start": {
+                "type": "string",
+                "pattern": "^[0-9]{4}$"
+              },
+              "end": {
+                "type": "string",
+                "pattern": "^[0-9]{4}$"
+              },
+              "inclusive": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "control_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evaluator_method_calibration",
+        "product_intervention"
+      ],
+      "properties": {
+        "evaluator_method_calibration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allowed_control_kinds"],
+          "properties": {
+            "allowed_control_kinds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["baseline", "parent_lineage", "manifest_frozen"]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        },
+        "product_intervention": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allowed_control_kinds"],
+          "properties": {
+            "allowed_control_kinds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["baseline", "parent_lineage", "manifest_frozen"]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    "canonical_trial_fields": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 11,
+      "uniqueItems": true,
+      "contains": { "const": "purpose_id" }
+    }
+  }
+}

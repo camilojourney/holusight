@@ -1,0 +1,75 @@
+{
+  "schema_version": "holusight-avo-purpose-mapping/v1",
+  "campaign_id": "holusight-avo-v1",
+  "mapping_version": 1,
+  "mapping_sha256": "sha256:b3a3a130bc05e2d48e102c963ee1c91ad553c9da7951e52e9c41bb6938c9fe02",
+  "remediation_report_commit": "f5b5ddfde08ba16e87397f0b6fc07f8ea4174078",
+  "total_valid_trials": 1000,
+  "partitions": [
+    {
+      "purpose_id": "evaluator_method_calibration",
+      "host": "laptop",
+      "experiment_id_range": {
+        "start": "0001",
+        "end": "0050",
+        "inclusive": true
+      }
+    },
+    {
+      "purpose_id": "product_intervention",
+      "host": "laptop",
+      "experiment_id_range": {
+        "start": "0051",
+        "end": "0500",
+        "inclusive": true
+      }
+    },
+    {
+      "purpose_id": "evaluator_method_calibration",
+      "host": "mini",
+      "experiment_id_range": {
+        "start": "0501",
+        "end": "0550",
+        "inclusive": true
+      }
+    },
+    {
+      "purpose_id": "product_intervention",
+      "host": "mini",
+      "experiment_id_range": {
+        "start": "0551",
+        "end": "1000",
+        "inclusive": true
+      }
+    }
+  ],
+  "control_policy": {
+    "evaluator_method_calibration": {
+      "allowed_control_kinds": [
+        "baseline",
+        "manifest_frozen"
+      ]
+    },
+    "product_intervention": {
+      "allowed_control_kinds": [
+        "baseline",
+        "parent_lineage",
+        "manifest_frozen"
+      ]
+    }
+  },
+  "canonical_trial_fields": [
+    "purpose_id",
+    "hypothesis",
+    "target_failure_mode",
+    "intervention",
+    "expected_effect",
+    "falsifier",
+    "control",
+    "protected_gates",
+    "lineage_parent",
+    "decision_informed",
+    "seed",
+    "evaluator_identity"
+  ]
+}

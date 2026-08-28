@@ -30,6 +30,7 @@ stay local, untracked, or never created.
 | Compact checkpoints | lane branch `docs/avo/lanes/<lane_id>/checkpoints/` | Schema-valid; max 4 KiB per file |
 | Lineage head commits | lane branch only | Current-best intervention code only |
 | Campaign schemas/policies | setup branch | This foundation slice |
+| Canonical purpose mapping | `docs/avo/purpose-mapping.v1.json` | Remediation slice; content-addressed |
 
 ## Checkpoint publication rule
 
@@ -58,6 +59,9 @@ Before accepting a remote checkpoint or ledger tail:
 3. No forbidden key names (`prompt`, `snippet`, `api_key`, `token`, `telemetry`, `path_absolute`).
 4. Total serialized size ≤ schema `max_bytes` where defined.
 5. `manifest_sha256` matches the verified setup-branch manifest.
+6. Purpose mapping digest matches `docs/avo/purpose-mapping.v1.json`.
+7. Trial preflight passes `codesight.avo_purpose.validate_trial_preflight` and export
+   scan passes `codesight.avo_leakage.validate_export_record`.
 
 Failure at any step ⇒ reject; record as `rejected` ledger entry locally; do not merge
 checkpoint into supervisor state.
