@@ -1,0 +1,240 @@
+{
+  "schema_version": "holusight-runtime-enforcement-vectors/v1",
+  "fixture_id": "holusight-runtime-enforcement-adversarial-v1",
+  "status": "static_vectors_only",
+  "execution_gate": "blocked_until_g2_trusted_sandbox",
+  "valid_trials": "paused",
+  "network": "denied",
+  "telemetry": "denied",
+  "credentials": "not_accessed",
+  "purpose": "Non-executable, synthetic adversarial vectors for a future independently pinned evaluator. They specify fail-closed acceptance or rejection evidence without starting an evaluator or consuming host resources.",
+  "common_contract": {
+    "independence": "Each vector uses a fresh sandbox identity and may not reuse processes, files, logs, checkpoints, or quotas from another vector.",
+    "required_capabilities": [
+      "g2_trusted_sandbox",
+      "cgroup_or_equivalent_cpu_memory_process_enforcement",
+      "descendant_process_accounting",
+      "bounded_log_sink",
+      "reserved_disk_floor",
+      "atomic_checkpointing"
+    ],
+    "on_missing_capability": "fail_closed_no_trial",
+    "forbidden_actions": [
+      "host_stress",
+      "network_access",
+      "credential_access",
+      "hidden_input_access",
+      "evaluator_lifecycle_command",
+      "automatic_restart",
+      "automatic_resume",
+      "unrelated_state_deletion"
+    ],
+    "universal_oracles": [
+      "A missing, ambiguous, or unenforceable limit is a failed vector, never a warning or best-effort pass.",
+      "The terminal record names one primary stop reason and retains bounded evidence for every required assertion.",
+      "No descendant, open handle, temporary artifact, or quota reservation may outlive the sandbox terminal state.",
+      "No retry, restart, or resume occurs without a new explicit authorization and a fresh sandbox identity."
+    ]
+  },
+  "vectors": [
+    {
+      "vector_id": "cpu-quota-busy-loop",
+      "category": "cpu_exhaustion",
+      "isolation_key": "runtime-vector-cpu-001",
+      "synthetic_stimulus": {
+        "kind": "cpu_bound_loop_descriptor",
+        "requested_cpu_time_ms": 500,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"cpu_time_ms": 250, "wall_time_ms": 1000},
+      "required_oracles": {
+        "primary_terminal_reason": "cpu_limit_exceeded",
+        "must_reject_if_limit_not_kernel_enforced": true,
+        "must_stop_new_work": true,
+        "must_reclaim_cpu_quota": true,
+        "must_not_retry": true
+      }
+    },
+    {
+      "vector_id": "memory-ceiling-allocation",
+      "category": "memory_exhaustion",
+      "isolation_key": "runtime-vector-memory-001",
+      "synthetic_stimulus": {
+        "kind": "allocation_pressure_descriptor",
+        "requested_bytes": 33554432,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"memory_max_bytes": 16777216, "wall_time_ms": 1000},
+      "required_oracles": {
+        "primary_terminal_reason": "memory_limit_exceeded",
+        "must_reject_if_only_rss_observation_exists": true,
+        "must_not_swap_or_borrow_host_memory": true,
+        "must_reclaim_memory_and_handles": true,
+        "must_not_retry": true
+      }
+    },
+    {
+      "vector_id": "process-count-fanout",
+      "category": "process_exhaustion",
+      "isolation_key": "runtime-vector-process-001",
+      "synthetic_stimulus": {
+        "kind": "process_fanout_descriptor",
+        "requested_processes": 5,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"max_processes": 4, "wall_time_ms": 1000},
+      "required_oracles": {
+        "primary_terminal_reason": "process_limit_exceeded",
+        "must_reject_if_descendants_cannot_be_counted": true,
+        "must_not_admit_partial_untracked_children": true,
+        "must_reap_all_sandbox_processes": true,
+        "must_not_retry": true
+      }
+    },
+    {
+      "vector_id": "open-file-handle-ceiling",
+      "category": "file_exhaustion",
+      "isolation_key": "runtime-vector-file-001",
+      "synthetic_stimulus": {
+        "kind": "open_handle_pressure_descriptor",
+        "requested_open_handles": 9,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"max_open_files": 8, "wall_time_ms": 1000},
+      "required_oracles": {
+        "primary_terminal_reason": "file_limit_exceeded",
+        "must_reject_if_open_handles_cannot_be_attributed": true,
+        "must_close_all_sandbox_handles": true,
+        "must_preserve_unrelated_files": true,
+        "must_not_retry": true
+      }
+    },
+    {
+      "vector_id": "absolute-wall-clock-timeout",
+      "category": "time_exhaustion",
+      "isolation_key": "runtime-vector-time-001",
+      "synthetic_stimulus": {
+        "kind": "nonprogressing_unit_descriptor",
+        "requested_wall_time_ms": 1000,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"wall_time_ms": 250},
+      "required_oracles": {
+        "primary_terminal_reason": "wall_time_limit_exceeded",
+        "must_use_monotonic_clock": true,
+        "must_not_extend_deadline_after_progress": true,
+        "must_checkpoint_only_completed_idempotent_units": true,
+        "must_not_retry": true
+      }
+    },
+    {
+      "vector_id": "descendant-escape-containment",
+      "category": "child_process_containment",
+      "isolation_key": "runtime-vector-descendant-001",
+      "synthetic_stimulus": {
+        "kind": "parent_child_grandchild_descriptor",
+        "requested_descendant_depth": 2,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"max_processes": 3, "wall_time_ms": 1000},
+      "required_oracles": {
+        "primary_terminal_reason": "containment_verified_after_stop",
+        "must_bind_parent_and_descendants_to_one_sandbox": true,
+        "must_kill_or_reap_entire_descendant_set_before_success": true,
+        "must_fail_if_any_descendant_identity_is_unknown": true,
+        "must_not_leave_orphaned_processes": true
+      }
+    },
+    {
+      "vector_id": "cleanup-before-explicit-restart",
+      "category": "cleanup_and_restart",
+      "isolation_key": "runtime-vector-cleanup-001",
+      "synthetic_stimulus": {
+        "kind": "forced_terminal_state_descriptor",
+        "terminal_reason": "memory_limit_exceeded",
+        "executable_payload_present": false
+      },
+      "declared_limits": {"cleanup_deadline_ms": 1000},
+      "required_oracles": {
+        "primary_terminal_reason": "cleanup_complete",
+        "must_remove_only_sandbox_owned_temp_artifacts": true,
+        "must_release_process_handle_log_and_disk_reservations": true,
+        "must_refuse_restart_without_new_authorization": true,
+        "must_require_fresh_sandbox_identity_for_restart": true
+      }
+    },
+    {
+      "vector_id": "bounded-log-overflow",
+      "category": "bounded_logs",
+      "isolation_key": "runtime-vector-log-001",
+      "synthetic_stimulus": {
+        "kind": "log_volume_descriptor",
+        "requested_log_bytes": 5120,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"max_log_bytes": 4096, "max_record_bytes": 512},
+      "required_oracles": {
+        "primary_terminal_reason": "log_limit_exceeded_or_truncated_with_marker",
+        "must_cap_persisted_log_bytes": true,
+        "must_emit_single_truncation_marker": true,
+        "must_not_drop_terminal_reason_or_cleanup_receipt": true,
+        "must_not_write_outside_sandbox_log_sink": true
+      }
+    },
+    {
+      "vector_id": "disk-reserve-floor",
+      "category": "disk_floor",
+      "isolation_key": "runtime-vector-disk-001",
+      "synthetic_stimulus": {
+        "kind": "sandbox_owned_write_pressure_descriptor",
+        "requested_bytes": 8388608,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"sandbox_write_quota_bytes": 4194304, "host_disk_floor_bytes": 67108864},
+      "required_oracles": {
+        "primary_terminal_reason": "disk_quota_or_floor_reached",
+        "must_check_floor_before_each_allocation": true,
+        "must_fail_if_free_space_measurement_is_unavailable": true,
+        "must_not_consume_reserved_floor": true,
+        "must_remove_only_sandbox_owned_partial_writes": true
+      }
+    },
+    {
+      "vector_id": "pause-at-idempotent-boundary",
+      "category": "safe_pause_recovery",
+      "isolation_key": "runtime-vector-pause-001",
+      "synthetic_stimulus": {
+        "kind": "pause_request_between_units_descriptor",
+        "completed_units": 1,
+        "next_unit": 2,
+        "executable_payload_present": false
+      },
+      "declared_limits": {"checkpoint_max_bytes": 4096, "wall_time_ms": 1000},
+      "required_oracles": {
+        "primary_terminal_reason": "paused_at_idempotent_boundary",
+        "must_checkpoint_completed_unit_digest_only": true,
+        "must_not_start_next_unit": true,
+        "must_not_auto_resume": true,
+        "must_require_explicit_recovery_authorization": true
+      }
+    },
+    {
+      "vector_id": "recovery-rejects-tampered-checkpoint",
+      "category": "safe_pause_recovery",
+      "isolation_key": "runtime-vector-recovery-001",
+      "synthetic_stimulus": {
+        "kind": "checkpoint_digest_mismatch_descriptor",
+        "checkpoint_state": "paused",
+        "executable_payload_present": false
+      },
+      "declared_limits": {"checkpoint_max_bytes": 4096},
+      "required_oracles": {
+        "primary_terminal_reason": "checkpoint_integrity_failure",
+        "must_fail_closed_before_any_new_work": true,
+        "must_preserve_tampered_checkpoint_for_bounded_forensics": true,
+        "must_not_auto_restart_or_resume": true,
+        "must_require_fresh_authorization_after_rejection": true
+      }
+    }
+  ]
+}
