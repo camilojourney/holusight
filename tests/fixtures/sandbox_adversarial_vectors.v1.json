@@ -1,0 +1,268 @@
+{
+  "schema_version": "holusight-sandbox-adversarial-vectors/v1",
+  "fixture_id": "holusight-sandbox-boundaries-v1",
+  "status": "frozen_declarative_vectors",
+  "trial_status": "paused",
+  "runner": "not_implemented",
+  "execution_boundary": {
+    "local_only": true,
+    "network_operations": "prohibited",
+    "credential_access": "prohibited",
+    "hidden_inputs": "prohibited",
+    "service_creation": "prohibited",
+    "required_harness_property": "Inspect or intercept the described operation before import, hook execution, process creation, name resolution, socket creation, telemetry emission, or receipt persistence. A harness must fail closed when it cannot prove this property."
+  },
+  "immutability": {
+    "content_addressing": "The sibling .sha256 file binds these exact UTF-8 bytes.",
+    "revision_rule": "Do not edit this v1 fixture in place. A changed vector set requires a new versioned filename, digest, and human review.",
+    "admission": "Synthetic fixtures only; no filesystem target, credential, endpoint, or hook in a vector is live."
+  },
+  "common_oracle": {
+    "decision": "deny",
+    "failure_mode": "policy_denied",
+    "must_fail_closed_on": [
+      "unresolved path identity",
+      "symlink or worktree ambiguity",
+      "untrusted executable content",
+      "inherited environment ambiguity",
+      "possible egress or telemetry",
+      "unredacted receipt or log field"
+    ],
+    "forbidden_side_effects": [
+      "file write outside the sandbox-owned derived directory",
+      "import-time or hook execution",
+      "subprocess creation",
+      "DNS resolution",
+      "socket creation",
+      "HTTP client creation",
+      "telemetry emission",
+      "credential disclosure"
+    ]
+  },
+  "vectors": [
+    {
+      "id": "path-parent-traversal",
+      "surface": "path",
+      "synthetic_input": {
+        "requested_output": ".holusight/improvement-results/../../src/codesight/eval_pilot.py"
+      },
+      "required_assertions": [
+        "Normalize before authorization and reject traversal into canonical content.",
+        "Do not create a parent directory or temporary file before denial."
+      ]
+    },
+    {
+      "id": "path-absolute-outside-worktree",
+      "surface": "path",
+      "synthetic_input": {
+        "requested_output": "/synthetic-outside-worktree/result.json"
+      },
+      "required_assertions": [
+        "Reject an absolute destination that is not beneath the resolved sandbox worktree and its declared derived root.",
+        "Do not probe, create, or write the supplied absolute path."
+      ]
+    },
+    {
+      "id": "path-symlinked-parent",
+      "surface": "path_symlink",
+      "synthetic_input": {
+        "requested_output": ".holusight/improvement-results/link/result.json",
+        "fixture_layout": "link is a symlink whose target is outside the sandbox-owned derived directory"
+      },
+      "required_assertions": [
+        "Use lstat/no-follow checks on every existing path component before resolving the destination.",
+        "Reject the path without following the symlink."
+      ]
+    },
+    {
+      "id": "path-symlinked-leaf",
+      "surface": "path_symlink",
+      "synthetic_input": {
+        "requested_output": ".holusight/improvement-results/result.json",
+        "fixture_layout": "result.json already exists as a symlink to synthetic canonical content"
+      },
+      "required_assertions": [
+        "Reject a symlinked leaf before replacement or truncation.",
+        "Preserve the target bytes and leave no temporary file behind."
+      ]
+    },
+    {
+      "id": "path-git-common-dir-escape",
+      "surface": "worktree",
+      "synthetic_input": {
+        "requested_output": ".git/worktrees/other-lane/escape.json",
+        "fixture_layout": "sandbox is a linked worktree with a git common directory outside its resolved top-level"
+      },
+      "required_assertions": [
+        "Authorize against pwd -P and git rev-parse --show-toplevel, not git-common-dir.",
+        "Reject .git metadata and every sibling-worktree path as non-derived content."
+      ]
+    },
+    {
+      "id": "path-sibling-worktree-alias",
+      "surface": "worktree",
+      "synthetic_input": {
+        "requested_output": "../sibling-worktree/.holusight/improvement-results/result.json"
+      },
+      "required_assertions": [
+        "Do not treat another worktree's derived directory as owned by this sandbox.",
+        "Reject before cwd changes, repository discovery, or output writes."
+      ]
+    },
+    {
+      "id": "import-sitecustomize",
+      "surface": "unsafe_import",
+      "synthetic_input": {
+        "candidate_module": "sitecustomize.py",
+        "declared_effect": "writes a synthetic marker during module import"
+      },
+      "required_assertions": [
+        "Treat candidate modules as data; do not import, compile, runpy, or discover them through site initialization.",
+        "Reject because import-time behavior cannot be proven inert."
+      ]
+    },
+    {
+      "id": "import-build-backend-hook",
+      "surface": "unsafe_hook",
+      "synthetic_input": {
+        "candidate_metadata": "pyproject.toml build-backend = synthetic_backend",
+        "declared_effect": "backend hook requests a subprocess"
+      },
+      "required_assertions": [
+        "Do not invoke package build, editable install, metadata, entry-point, or plugin discovery hooks.",
+        "Reject opaque build or plugin metadata rather than attempting a compatibility import."
+      ]
+    },
+    {
+      "id": "import-vcs-hook",
+      "surface": "unsafe_hook",
+      "synthetic_input": {
+        "candidate_path": ".git/hooks/pre-commit",
+        "declared_effect": "hook would emit a synthetic marker"
+      },
+      "required_assertions": [
+        "Never run repository hooks as part of fixture discovery, validation, or receipt collection.",
+        "Do not execute git commands that can invoke hooks unless hooks are explicitly disabled and no lifecycle action is requested."
+      ]
+    },
+    {
+      "id": "process-shell-payload",
+      "surface": "subprocess",
+      "synthetic_input": {
+        "argv": ["sh", "-c", "echo SYNTHETIC_PROCESS_MARKER"],
+        "purpose": "candidate-supplied helper"
+      },
+      "required_assertions": [
+        "Reject any candidate-supplied command or shell payload before subprocess creation.",
+        "Do not allow shell=True, implicit command parsing, or fallback execution."
+      ]
+    },
+    {
+      "id": "process-environment-inheritance",
+      "surface": "environment",
+      "synthetic_input": {
+        "inherited_environment": {
+          "SYNTHETIC_CREDENTIAL_CANARY": "synthetic-not-a-secret",
+          "HTTP_PROXY": "http://198.51.100.7:8080",
+          "PYTHONPATH": "/synthetic/untrusted-path",
+          "PYTHONSTARTUP": "/synthetic/startup.py",
+          "LD_PRELOAD": "/synthetic/library.dylib",
+          "GIT_DIR": "/synthetic/other-worktree/.git"
+        }
+      },
+      "required_assertions": [
+        "Use a minimal explicit allowlist environment; never pass the host environment through by default.",
+        "Remove credential, proxy, interpreter-startup, dynamic-loader, Python-path, and Git-worktree overrides before any child process or tool invocation.",
+        "Fail closed if an operation requires an inherited value that is not explicitly approved."
+      ]
+    },
+    {
+      "id": "egress-dns-resolution",
+      "surface": "network",
+      "synthetic_input": {
+        "operation": "resolve sandbox-denied.invalid"
+      },
+      "required_assertions": [
+        "Deny before resolver invocation; no hostname lookup is permitted.",
+        "Record only a policy category, never the requested hostname, in any receipt."
+      ]
+    },
+    {
+      "id": "egress-http-client",
+      "surface": "network",
+      "synthetic_input": {
+        "operation": "HTTP GET http://198.51.100.7/synthetic"
+      },
+      "required_assertions": [
+        "Deny before HTTP client, proxy selection, TLS setup, socket creation, or retry logic.",
+        "No network attempt is made even when the address is documentation-only."
+      ]
+    },
+    {
+      "id": "egress-unix-socket-telemetry",
+      "surface": "telemetry",
+      "synthetic_input": {
+        "operation": "emit event to /synthetic/telemetry.sock",
+        "event_fields": ["candidate_id", "synthetic marker"]
+      },
+      "required_assertions": [
+        "Telemetry, analytics, tracing exporters, and local socket emission are disabled by default.",
+        "Deny before client initialization; do not queue, spool, or persist an event for later delivery."
+      ]
+    },
+    {
+      "id": "receipt-secret-redaction",
+      "surface": "receipt_redaction",
+      "synthetic_input": {
+        "receipt_candidate": {
+          "authorization": "Bearer SYNTHETIC_CREDENTIAL_CANARY",
+          "environment": "SYNTHETIC_CREDENTIAL_CANARY=synthetic-not-a-secret",
+          "url": "http://user:synthetic-not-a-secret@198.51.100.7/"
+        }
+      },
+      "required_assertions": [
+        "Reject or redact every credential-bearing field before serialization, hashing, logging, exception wrapping, or display.",
+        "Receipts may retain stable category, decision, vector id, and a content-free policy reason only.",
+        "A receipt containing the canary or a reversible encoding of it is a hard failure."
+      ]
+    },
+    {
+      "id": "log-nested-exception-redaction",
+      "surface": "log_redaction",
+      "synthetic_input": {
+        "exception_shape": {
+          "message": "SYNTHETIC_CREDENTIAL_CANARY",
+          "request_headers": {"X-Api-Key": "synthetic-not-a-secret"},
+          "command": ["tool", "--token", "synthetic-not-a-secret"],
+          "path": "/synthetic/private-worktree/file"
+        }
+      },
+      "required_assertions": [
+        "Apply redaction recursively before exception rendering, structured logging, JSON encoding, and receipt persistence.",
+        "Do not emit raw headers, tokens, command arguments, private absolute paths, stack locals, or serialized environment values.",
+        "If recursive redaction cannot establish a safe representation, replace the record with a fixed policy-denied message."
+      ]
+    },
+    {
+      "id": "receipt-allowlist-boundary",
+      "surface": "receipt_redaction",
+      "synthetic_input": {
+        "candidate_receipt_fields": [
+          "vector_id",
+          "decision",
+          "reason_code",
+          "repo_path",
+          "raw_error",
+          "environment",
+          "network_target",
+          "argv"
+        ]
+      },
+      "required_assertions": [
+        "Serialize an allowlist only: vector_id, decision, reason_code, schema_version, and non-sensitive aggregate counters.",
+        "Drop all path, raw error, environment, network target, and argv fields rather than attempting field-name-only redaction.",
+        "Fail closed when an unknown receipt field is supplied."
+      ]
+    }
+  ]
+}
