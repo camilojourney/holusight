@@ -271,8 +271,9 @@ def test_e2e_baseline_integrity_requires_digest_and_trusted_manifest(tmp_path):
     valid = compare()
     assert valid.returncode == 0
     valid_progress = json.loads(valid.stdout)["progress"]
-    assert valid_progress["comparison"]["promotion_relevant"] is True, valid_progress
-    assert valid_progress["outcome"] == "stagnated"
+    assert valid_progress["comparison"]["classification"] == "invalid"
+    assert valid_progress["comparison"]["promotion_relevant"] is False, valid_progress
+    assert valid_progress["outcome"] == "invalid_comparison"
 
     # A valid anchor does not make candidate identity, evaluator, corpus, or
     # commit incompatibilities eligible for a promotion-relevant next step.
@@ -311,7 +312,7 @@ def test_e2e_closed_result_schema_blocks_committed_invalid_anchor(tmp_path):
     prior = _trusted_baseline(repo)
     prior_path = repo / prior
 
-    # The genuine clean anchor remains a compatible, human-review-only comparison.
+    # A clean G1 anchor without external G2 acceptance remains invalid evidence.
     valid = _run(
         repo,
         "improve-run",
@@ -326,7 +327,8 @@ def test_e2e_closed_result_schema_blocks_committed_invalid_anchor(tmp_path):
     )
     assert valid.returncode == 0
     valid_progress = json.loads(valid.stdout)["progress"]
-    assert valid_progress["comparison"]["promotion_relevant"] is True
+    assert valid_progress["comparison"]["classification"] == "invalid"
+    assert valid_progress["comparison"]["promotion_relevant"] is False
     assert valid_progress["comparison"]["automatic_promotion"] is False
 
     def commit_replacement(payload: dict, message: str) -> None:
