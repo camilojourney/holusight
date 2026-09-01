@@ -15,6 +15,7 @@ import json
 import os
 import re
 import resource
+import secrets
 import shutil
 import signal
 import stat
@@ -28,11 +29,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-ACCEPTANCE_SCHEMA = "holus-external-evaluator-acceptance/v1"
-CAPABILITY_SCHEMA = "holus-evaluator-attestation-capability/v1"
-FINALIZATION_SCHEMA = "holus-trusted-evaluation-finalization/v1"
+ACCEPTANCE_SCHEMA = "holus-external-evaluator-acceptance/v2"
+AUTHORITY_SCHEMA = "holus-supervisor-evaluator-authority/v2"
+REPLAY_STATE_SCHEMA = "holus-supervisor-replay-state/v1"
+PREPARED_SCHEMA = "holus-prepared-trusted-evaluation/v1"
+FINALIZATION_SCHEMA = "holus-trusted-evaluation-finalization/v2"
 PIN_SCHEMA = "holus-evaluator-subject-pin/v1"
 RECEIPT_SCHEMA = "holus-trusted-evaluation-receipt/v1"
+PROTOCOL_REVISION = "holus-g2-external-acceptance/v2"
 LAUNCHER_PATH = "src/codesight/trusted_eval_launcher.py"
 EVALUATOR_PATHS = (
     "src/codesight/control_storage.py",
@@ -40,11 +44,25 @@ EVALUATOR_PATHS = (
     LAUNCHER_PATH,
 )
 CANONICAL_CASES_PATH = "tests/fixtures/holusight_eval_pilot_cases.jsonl"
+PROTOCOL_PIN_PATH = "specs/023-g2-external-acceptance.protocol.json"
 _OID = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 _SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 _KEY_ID = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")
 _MAX_AUTHORITY_BYTES = 1_048_576
 _MAX_ACCEPTANCE_LIFETIME = 3_600
+_SAFE_GIT_CONFIG = (
+    ("core.fsmonitor", "false"),
+    ("core.hooksPath", os.devnull),
+    ("core.sshCommand", "false"),
+    ("credential.helper", ""),
+    ("diff.external", ""),
+    ("interactive.diffFilter", ""),
+    ("pager.config", "false"),
+    ("pager.diff", "false"),
+    ("pager.log", "false"),
+    ("pager.show", "false"),
+)
+_AUTHORITY_CONSTRUCTOR_SEAL = object()
 _CANDIDATE_ADAPTER = r"""
 import json
 import os
@@ -178,17 +196,23 @@ def _sha256(raw: bytes) -> str:
 
 
 def _canonical_git_env() -> dict[str, str]:
-    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    """Build a Git environment with every executable config surface disabled."""
+    env = {"PATH": os.defpath, "LANG": "C", "LC_ALL": "C"}
     env.update(
         {
             "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_SYSTEM": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_COUNT": str(len(_SAFE_GIT_CONFIG)),
             "GIT_GRAFT_FILE": os.devnull,
             "GIT_NO_REPLACE_OBJECTS": "1",
             "GIT_OPTIONAL_LOCKS": "0",
             "GIT_TERMINAL_PROMPT": "0",
         }
     )
+    for index, (key, value) in enumerate(_SAFE_GIT_CONFIG):
+        env[f"GIT_CONFIG_KEY_{index}"] = key
+        env[f"GIT_CONFIG_VALUE_{index}"] = value
     return env
 
 
@@ -225,103 +249,266 @@ def _git_blob_bytes(repo: Path, blob: str, *, label: str) -> bytes:
     return loaded.stdout
 
 
-def _regular_bytes(path: Path, *, label: str, require_unwritable: bool = False) -> bytes:
+def _regular_bytes(path: Path, *, label: str) -> bytes:
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(path, flags)
     try:
-        metadata = os.fstat(fd)
-        if not stat.S_ISREG(metadata.st_mode):
-            raise ValueError(f"{label} must be a regular file")
-        if require_unwritable and metadata.st_mode & 0o222:
-            raise ValueError(f"{label} is candidate-writable")
-        chunks: list[bytes] = []
-        size = 0
-        while True:
-            chunk = os.read(fd, 65_536)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > _MAX_AUTHORITY_BYTES:
-                raise ValueError(f"{label} exceeded the byte limit")
-            chunks.append(chunk)
-        return b"".join(chunks)
+        return _bounded_regular_fd_bytes(fd, label=label)
     finally:
         os.close(fd)
 
 
-def _capability_bytes(fd: int) -> bytes:
-    try:
-        metadata = os.fstat(fd)
-        if not (stat.S_ISFIFO(metadata.st_mode) or stat.S_ISSOCK(metadata.st_mode)):
-            raise ValueError("attestation capability must be a launcher-held one-shot descriptor")
-        chunks: list[bytes] = []
-        size = 0
-        while True:
-            chunk = os.read(fd, 4096)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > 16_384:
-                raise ValueError("attestation capability exceeded the byte limit")
-            chunks.append(chunk)
-    finally:
-        os.close(fd)
-    if not chunks:
-        raise ValueError("attestation capability is absent")
+def _bounded_regular_fd_bytes(fd: int, *, label: str) -> bytes:
+    metadata = os.fstat(fd)
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ValueError(f"{label} must be a regular file")
+    os.lseek(fd, 0, os.SEEK_SET)
+    chunks: list[bytes] = []
+    size = 0
+    while True:
+        chunk = os.read(fd, 65_536)
+        if not chunk:
+            break
+        size += len(chunk)
+        if size > _MAX_AUTHORITY_BYTES:
+            raise ValueError(f"{label} exceeded the byte limit")
+        chunks.append(chunk)
     return b"".join(chunks)
 
 
-def _resolved_external_record(repo: Path, record_path: Path) -> Path:
-    candidate = Path(os.path.abspath(record_path))
-    resolved = candidate.resolve(strict=True)
-    common = Path(
-        _git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
-        .stdout.decode("utf-8")
-        .strip()
-    ).resolve(strict=True)
-    if resolved == repo or resolved.is_relative_to(repo):
-        raise ValueError("acceptance record is candidate-writable")
-    if resolved == common or resolved.is_relative_to(common):
-        raise ValueError("acceptance record cannot be stored in candidate Git data")
-    if candidate != resolved:
-        raise ValueError("acceptance record cannot use a symbolic or ambiguous path")
-    return resolved
+def _candidate_owner_uid(repo: Path) -> int:
+    return os.stat(repo, follow_symlinks=False).st_uid
 
 
-def _validate_capability(payload: dict[str, Any]) -> tuple[str, bytes, int, int, str]:
+def _read_supervisor_descriptor(
+    fd: int,
+    *,
+    label: str,
+    candidate_uid: int,
+    expected_owner: int | None = None,
+) -> tuple[bytes, int]:
+    """Read and close one supervisor-owned, held, immutable regular descriptor."""
+    try:
+        metadata = os.fstat(fd)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError(f"{label} must be a supervisor-owned regular descriptor")
+        if metadata.st_uid == candidate_uid:
+            raise ValueError(f"{label} is requester-mintable")
+        if expected_owner is not None and metadata.st_uid != expected_owner:
+            raise ValueError(f"{label} has a different supervisor owner")
+        if metadata.st_mode & 0o222:
+            raise ValueError(f"{label} must be immutable while held by the launcher")
+        return _bounded_regular_fd_bytes(fd, label=label), metadata.st_uid
+    finally:
+        os.close(fd)
+
+
+def _validate_authority(payload: dict[str, Any]) -> tuple[str, str, bytes, int, int, str]:
     _require_keys(
         payload,
         {
             "schema_version",
-            "capability_version",
+            "authority_version",
+            "protocol_revision",
+            "authority_id",
             "key_id",
             "key_hex",
             "acceptance_record_sha256",
             "replay_epoch",
             "replay_sequence",
         },
-        label="attestation capability",
+        label="supervisor authority",
     )
     if (
-        payload["schema_version"] != CAPABILITY_SCHEMA
-        or type(payload["capability_version"]) is not int
-        or payload["capability_version"] != 1
+        payload["schema_version"] != AUTHORITY_SCHEMA
+        or type(payload["authority_version"]) is not int
+        or payload["authority_version"] != 2
+        or payload["protocol_revision"] != PROTOCOL_REVISION
     ):
-        raise ValueError("attestation capability version is unsupported")
+        raise ValueError("supervisor authority protocol is unsupported")
+    authority_id = payload["authority_id"]
     key_id = payload["key_id"]
     key_hex = payload["key_hex"]
     digest = payload["acceptance_record_sha256"]
     epoch = payload["replay_epoch"]
     sequence = payload["replay_sequence"]
+    if not isinstance(authority_id, str) or not _KEY_ID.fullmatch(authority_id):
+        raise ValueError("supervisor authority identity is invalid")
     if not isinstance(key_id, str) or not _KEY_ID.fullmatch(key_id):
-        raise ValueError("attestation capability key identity is invalid")
+        raise ValueError("supervisor key identity is invalid")
     if not isinstance(key_hex, str) or not re.fullmatch(r"[0-9a-f]{64,128}", key_hex):
-        raise ValueError("attestation capability key is invalid")
+        raise ValueError("supervisor authentication key is invalid")
     if not isinstance(digest, str) or not _SHA256.fullmatch(digest):
-        raise ValueError("attestation capability record digest is invalid")
+        raise ValueError("supervisor authority record digest is invalid")
     if type(epoch) is not int or epoch < 1 or type(sequence) is not int or sequence < 1:
-        raise ValueError("attestation capability replay version is invalid")
-    return key_id, bytes.fromhex(key_hex), epoch, sequence, digest
+        raise ValueError("supervisor authority replay identity is invalid")
+    return authority_id, key_id, bytes.fromhex(key_hex), epoch, sequence, digest
+
+
+class _AuthenticatedLaunch:
+    """Process-local one-use authority minted only after supervisor replay consumption."""
+
+    __slots__ = (
+        "_candidate_uid",
+        "_marker_fd",
+        "_marker_sha256",
+        "_nonce",
+        "_phase",
+        "_supervisor_uid",
+        "acceptance_digest",
+        "authority_id",
+        "configuration_digest",
+        "expires_at",
+        "replay_epoch",
+        "replay_sequence",
+    )
+
+    def __init__(
+        self,
+        seal: object,
+        *,
+        authority_id: str,
+        acceptance_digest: str,
+        replay_epoch: int,
+        replay_sequence: int,
+        expires_at: int,
+        marker_fd: int,
+        marker_sha256: str,
+        supervisor_uid: int,
+        candidate_uid: int,
+    ) -> None:
+        if seal is not _AUTHORITY_CONSTRUCTOR_SEAL:
+            raise TypeError("authenticated launch capabilities are launcher-minted only")
+        self._candidate_uid = candidate_uid
+        self._marker_fd = marker_fd
+        self._marker_sha256 = marker_sha256
+        self._nonce = secrets.token_bytes(32)
+        self._phase = "authenticated"
+        self._supervisor_uid = supervisor_uid
+        self.authority_id = authority_id
+        self.acceptance_digest = acceptance_digest
+        self.replay_epoch = replay_epoch
+        self.replay_sequence = replay_sequence
+        self.expires_at = expires_at
+        self.configuration_digest: str | None = None
+
+    def _validate_marker(self, repo: Path) -> None:
+        if self._marker_fd < 0 or _candidate_owner_uid(repo) != self._candidate_uid:
+            raise ValueError("authenticated launch capability is not bound to this requester")
+        metadata = os.fstat(self._marker_fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != self._supervisor_uid
+            or metadata.st_uid == self._candidate_uid
+            or metadata.st_mode & 0o222
+        ):
+            raise ValueError("authenticated launch capability is requester-mintable")
+        marker = _bounded_regular_fd_bytes(self._marker_fd, label="replay capability marker")
+        if not hmac.compare_digest(_sha256(marker), self._marker_sha256):
+            raise ValueError("authenticated launch capability marker changed")
+
+    def authorize_receipt_construction(self, repo: Path) -> None:
+        if self._phase != "authenticated":
+            raise ValueError("authenticated launch capability was already consumed")
+        self._validate_marker(repo)
+        if int(time.time()) >= self.expires_at:
+            raise ValueError("acceptance expired during evaluation")
+        self._phase = "constructed"
+
+    def consume_for_persistence(self, repo: Path) -> None:
+        if self._phase != "constructed":
+            raise ValueError("authenticated launch capability cannot persist a receipt")
+        self._validate_marker(repo)
+        if int(time.time()) >= self.expires_at:
+            raise ValueError("acceptance expired during evaluation")
+        self._phase = "consumed"
+        self._nonce = b""
+        os.close(self._marker_fd)
+        self._marker_fd = -1
+
+    def __del__(self) -> None:
+        marker_fd = getattr(self, "_marker_fd", -1)
+        if marker_fd >= 0:
+            try:
+                os.close(marker_fd)
+            except OSError:
+                pass
+
+
+def _consume_replay(
+    fd: int,
+    *,
+    supervisor_uid: int,
+    candidate_uid: int,
+    authority_id: str,
+    record_digest: str,
+    replay_epoch: int,
+    replay_sequence: int,
+    expires_at: int,
+) -> _AuthenticatedLaunch:
+    """Atomically burn one replay identity in a held supervisor state directory."""
+    marker_fd: int | None = None
+    metadata = os.fstat(fd)
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != supervisor_uid
+        or metadata.st_uid == candidate_uid
+        or metadata.st_mode & 0o077
+    ):
+        raise ValueError("replay state must be a private supervisor-owned directory descriptor")
+    identity = _canonical_bytes(
+        {
+            "authority_id": authority_id,
+            "record_sha256": record_digest,
+            "replay_epoch": replay_epoch,
+            "replay_sequence": replay_sequence,
+        }
+    )
+    marker_name = "replay-" + hashlib.sha256(identity).hexdigest() + ".used"
+    capability: _AuthenticatedLaunch | None = None
+    try:
+        if int(time.time()) >= expires_at:
+            raise ValueError("acceptance record is stale")
+        flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            marker_fd = os.open(marker_name, flags, 0o400, dir_fd=fd)
+        except FileExistsError as exc:
+            raise ValueError("acceptance replay identity was already consumed") from exc
+        marker = _canonical_bytes(
+            {
+                "schema_version": REPLAY_STATE_SCHEMA,
+                "authority_id": authority_id,
+                "record_sha256": record_digest,
+                "replay_epoch": replay_epoch,
+                "replay_sequence": replay_sequence,
+                "consumed_at": int(time.time()),
+            }
+        )
+        written = os.write(marker_fd, marker)
+        if written != len(marker):
+            raise ValueError("supervisor replay marker could not be persisted")
+        os.fsync(marker_fd)
+        os.fsync(fd)
+        capability = _AuthenticatedLaunch(
+            _AUTHORITY_CONSTRUCTOR_SEAL,
+            authority_id=authority_id,
+            acceptance_digest=record_digest,
+            replay_epoch=replay_epoch,
+            replay_sequence=replay_sequence,
+            expires_at=expires_at,
+            marker_fd=marker_fd,
+            marker_sha256=_sha256(marker),
+            supervisor_uid=supervisor_uid,
+            candidate_uid=candidate_uid,
+        )
+        marker_fd = None
+    finally:
+        if marker_fd is not None:
+            os.close(marker_fd)
+        os.close(fd)
+    if capability is None:
+        raise ValueError("supervisor replay capability was not created")
+    return capability
 
 
 def _validate_acceptance_shape(payload: dict[str, Any]) -> None:
@@ -330,6 +517,7 @@ def _validate_acceptance_shape(payload: dict[str, Any]) -> None:
         {
             "schema_version",
             "record_version",
+            "authority",
             "candidate",
             "evaluator",
             "launcher",
@@ -345,10 +533,11 @@ def _validate_acceptance_shape(payload: dict[str, Any]) -> None:
     if (
         payload["schema_version"] != ACCEPTANCE_SCHEMA
         or type(payload["record_version"]) is not int
-        or payload["record_version"] != 1
+        or payload["record_version"] != 2
     ):
         raise ValueError("acceptance record version is unsupported")
     closed = {
+        "authority": {"authority_id", "protocol_revision"},
         "candidate": {"commit", "tree"},
         "evaluator": {"pin_blob", "pin_sha256", "identity_sha256"},
         "launcher": {"path", "blob", "sha256"},
@@ -367,7 +556,7 @@ def _validate_acceptance_shape(payload: dict[str, Any]) -> None:
             "compare_result_sha256",
         },
         "replay": {"replay_version", "epoch", "sequence", "issued_at", "expires_at"},
-        "attestation": {"algorithm", "key_id", "payload_sha256", "mac"},
+        "attestation": {"algorithm", "authority_id", "key_id", "payload_sha256", "mac"},
     }
     for name, expected in closed.items():
         value = payload[name]
@@ -381,14 +570,19 @@ def _unsigned_acceptance(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _validate_attestation(
-    acceptance: dict[str, Any], capability: dict[str, Any], raw: bytes
-) -> tuple[str, int, int]:
-    key_id, key, epoch, sequence, expected_digest = _validate_capability(capability)
+    acceptance: dict[str, Any], authority: dict[str, Any], raw: bytes
+) -> tuple[str, str, int, int, int]:
+    authority_id, key_id, key, epoch, sequence, expected_digest = _validate_authority(authority)
     if raw != _canonical_bytes(acceptance):
         raise ValueError("acceptance record bytes are ambiguous or noncanonical")
     record_digest = _sha256(raw)
     if record_digest != expected_digest:
         raise ValueError("acceptance record was substituted or rolled back")
+    if acceptance["authority"] != {
+        "authority_id": authority_id,
+        "protocol_revision": PROTOCOL_REVISION,
+    }:
+        raise ValueError("acceptance record names a different supervisor authority")
     replay = acceptance["replay"]
     if (
         type(replay["replay_version"]) is not int
@@ -404,7 +598,8 @@ def _validate_attestation(
     payload_digest = _sha256(unsigned)
     expected_mac = hmac.new(key, unsigned, hashlib.sha256).hexdigest()
     if (
-        attestation["algorithm"] != "hmac-sha256"
+        attestation["algorithm"] != "hmac-sha256-supervisor-fd-v2"
+        or attestation["authority_id"] != authority_id
         or attestation["key_id"] != key_id
         or attestation["payload_sha256"] != payload_digest
         or not isinstance(attestation["mac"], str)
@@ -418,14 +613,14 @@ def _validate_attestation(
         type(issued) is not int
         or type(expires) is not int
         or issued > now
-        or expires < now
+        or expires <= now
         or expires <= issued
         or expires - issued > _MAX_ACCEPTANCE_LIFETIME
     ):
         raise ValueError("acceptance record is stale")
     if acceptance["decision"] != "accepted":
         raise ValueError("acceptance decision does not authorize evaluation")
-    return record_digest, epoch, sequence
+    return record_digest, authority_id, epoch, sequence, expires
 
 
 def _require_oid(value: Any, *, label: str) -> str:
@@ -454,6 +649,8 @@ def _validate_pin(repo: Path, acceptance: dict[str, Any]) -> tuple[dict[str, Any
             "protocol_revision",
             "subject",
             "evaluator_blobs",
+            "protocol_path",
+            "protocol_blob",
             "corpus_path",
             "corpus_blob",
         },
@@ -461,6 +658,8 @@ def _validate_pin(repo: Path, acceptance: dict[str, Any]) -> tuple[dict[str, Any
     )
     if pin["schema_version"] != PIN_SCHEMA:
         raise ValueError("evaluator pin schema is invalid")
+    if pin["protocol_revision"] != PROTOCOL_REVISION:
+        raise ValueError("evaluator pin does not match the reviewed G2 protocol revision")
     subject = pin["subject"]
     blobs = pin["evaluator_blobs"]
     if not isinstance(subject, dict) or not isinstance(blobs, dict):
@@ -476,10 +675,64 @@ def _validate_pin(repo: Path, acceptance: dict[str, Any]) -> tuple[dict[str, Any
     tree = _require_oid(subject["tree"], label="evaluator subject tree")
     if _oid(repo, f"{commit}^{{tree}}") != tree:
         raise ValueError("evaluator subject tree does not resolve")
+    protocol_path = pin["protocol_path"]
+    protocol_blob = _require_oid(pin["protocol_blob"], label="G2 protocol pin blob")
+    if protocol_path != PROTOCOL_PIN_PATH or _oid(repo, f"{commit}:{protocol_path}") != protocol_blob:
+        raise ValueError("G2 protocol pin does not match the evaluator subject")
+    protocol = _strict_json(_git_blob_bytes(repo, protocol_blob, label="G2 protocol pin"), label="G2 protocol pin")
+    _require_keys(
+        protocol,
+        {
+            "schema_version",
+            "protocol_revision",
+            "acceptance_schema",
+            "authority_schema",
+            "replay_state_schema",
+            "prepared_evaluation_schema",
+            "finalization_schema",
+            "receipt_schema",
+            "authority_owner",
+            "authority_transport",
+            "acceptance_transport",
+            "replay_transport",
+            "replay_consumption",
+            "candidate_import_sandbox",
+            "network_egress",
+            "semantic_provider",
+            "promotion",
+            "canonical_cases_path",
+            "evaluator_paths",
+        },
+        label="G2 protocol pin",
+    )
+    if protocol != {
+        "schema_version": "holus-g2-protocol-pin/v1",
+        "protocol_revision": PROTOCOL_REVISION,
+        "acceptance_schema": ACCEPTANCE_SCHEMA,
+        "authority_schema": AUTHORITY_SCHEMA,
+        "replay_state_schema": REPLAY_STATE_SCHEMA,
+        "prepared_evaluation_schema": PREPARED_SCHEMA,
+        "finalization_schema": FINALIZATION_SCHEMA,
+        "receipt_schema": RECEIPT_SCHEMA,
+        "authority_owner": "distinct_from_candidate_worktree_owner",
+        "authority_transport": "held_immutable_regular_descriptor",
+        "acceptance_transport": "held_immutable_regular_descriptor",
+        "replay_transport": "held_private_directory_descriptor",
+        "replay_consumption": "atomic_create_only_marker",
+        "candidate_import_sandbox": "required_fail_closed",
+        "network_egress": "denied",
+        "semantic_provider": "denied",
+        "promotion": "denied",
+        "canonical_cases_path": CANONICAL_CASES_PATH,
+        "evaluator_paths": list(EVALUATOR_PATHS),
+    }:
+        raise ValueError("G2 protocol pin bytes are unsupported")
     identity_payload = {
         "protocol_revision": pin["protocol_revision"],
         "subject": subject,
         "evaluator_blobs": blobs,
+        "protocol_path": protocol_path,
+        "protocol_blob": protocol_blob,
     }
     if _sha256(_canonical_bytes(identity_payload)) != _require_sha(
         evaluator["identity_sha256"], label="evaluator identity digest"
@@ -533,6 +786,7 @@ def _validate_candidate_bindings(
 
     for path, expected in (
         *pin["evaluator_blobs"].items(),
+        (pin["protocol_path"], pin["protocol_blob"]),
         (pin["corpus_path"], pin["corpus_blob"]),
     ):
         committed = _oid(repo, f"{commit}:{path}")
@@ -1118,10 +1372,6 @@ def _run_pinned_entrypoint(
     repo: Path,
     pin: dict[str, Any],
     pin_bytes: bytes,
-    acceptance_digest: str,
-    replay_epoch: int,
-    replay_sequence: int,
-    configuration_digest: str,
     forwarded: list[str],
 ) -> subprocess.CompletedProcess[str]:
     evaluator_subject = pin["subject"]["commit"]
@@ -1220,22 +1470,13 @@ def _run_pinned_entrypoint(
             else os.defpath
         )
         env = {
+            **_canonical_git_env(),
             "PATH": trusted_path,
             "HOME": str(sandbox_home),
             "LANG": "C",
             "TMPDIR": str(scratch),
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONNOUSERSITE": "1",
-            "GIT_CONFIG_GLOBAL": os.devnull,
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_GRAFT_FILE": os.devnull,
-            "GIT_NO_REPLACE_OBJECTS": "1",
-            "GIT_OPTIONAL_LOCKS": "0",
-            "GIT_TERMINAL_PROMPT": "0",
-            "HOLUS_TRUSTED_LAUNCHER_SUBJECT": str(evaluator_subject),
-            "HOLUS_OUTER_RESOURCE_MONITOR": "1",
-            "HOLUS_EVALUATOR_ALREADY_SANDBOXED": "1",
-            "HOLUS_CANDIDATE_SNAPSHOT": str(candidate_snapshot),
         }
         command = [
             sys.executable,
@@ -1244,19 +1485,13 @@ def _run_pinned_entrypoint(
             "-c",
             _BOOTSTRAP,
             str(snapshot / "src" / "codesight"),
-            "trusted-evaluate-internal",
+            "trusted-evaluation-worker",
             "--accepted-pin",
             str(pin_path),
             "--approved-pin-blob",
             pin["_accepted_blob"],
-            "--acceptance-record-sha256",
-            acceptance_digest,
-            "--acceptance-replay-epoch",
-            str(replay_epoch),
-            "--acceptance-replay-sequence",
-            str(replay_sequence),
-            "--configuration-sha256",
-            configuration_digest,
+            "--evaluator-subject",
+            str(evaluator_subject),
             *forwarded,
         ]
         command = _sandboxed_evaluator_command(
@@ -1266,17 +1501,6 @@ def _run_pinned_entrypoint(
             candidate_repo=repo,
             scratch=scratch,
         )
-        request_read, request_write = os.pipe()
-        response_read, response_write = os.pipe()
-        env["HOLUS_CANDIDATE_BROKER_REQUEST_FD"] = str(request_write)
-        env["HOLUS_CANDIDATE_BROKER_RESPONSE_FD"] = str(response_read)
-        broker = threading.Thread(
-            target=_candidate_adapter_broker,
-            args=(request_read, response_write),
-            kwargs={"candidate_snapshot": candidate_snapshot, "scratch": scratch},
-            daemon=True,
-        )
-        broker.start()
         process = subprocess.Popen(
             command,
             cwd=snapshot,
@@ -1286,7 +1510,6 @@ def _run_pinned_entrypoint(
             text=True,
             start_new_session=True,
             preexec_fn=_set_limits,
-            pass_fds=(request_write, response_read),
         )
         monitor_stop = threading.Event()
         memory_exceeded = threading.Event()
@@ -1308,9 +1531,6 @@ def _run_pinned_entrypoint(
             process.wait()
             raise ValueError("approved evaluator entrypoint timed out") from exc
         finally:
-            os.close(request_write)
-            os.close(response_read)
-            broker.join(timeout=40)
             monitor_stop.set()
             if monitor is not None:
                 monitor.join(timeout=1)
@@ -1325,53 +1545,36 @@ def _run_pinned_entrypoint(
         return subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
 
 
-def _validate_finalization(
+def _validate_prepared_evaluation(
     raw: str,
     *,
-    acceptance_digest: str,
-    replay_epoch: int,
-    replay_sequence: int,
     candidate_commit: str,
     candidate_tree: str,
     pin: dict[str, Any],
-    configuration_digest: str,
     compare_result_path: str | None,
     compare_result_sha256: str | None,
-) -> tuple[dict[str, Any], bytes]:
-    finalized = _strict_json(raw.encode("utf-8"), label="trusted evaluator finalization")
+) -> dict[str, Any]:
+    prepared = _strict_json(raw.encode("utf-8"), label="trusted evaluator prepared result")
     _require_keys(
-        finalized,
-        {"schema_version", "acceptance", "receipt", "progress", "promotion"},
-        label="trusted evaluator finalization",
+        prepared,
+        {
+            "schema_version",
+            "result",
+            "evaluator_pin",
+            "evaluator_pin_source",
+            "baseline_result",
+            "baseline_anchor",
+            "progress",
+        },
+        label="trusted evaluator prepared result",
     )
-    if finalized["schema_version"] != FINALIZATION_SCHEMA:
-        raise ValueError("trusted evaluator finalization schema is invalid")
-    expected_acceptance = {
-        "record_sha256": acceptance_digest,
-        "replay_epoch": replay_epoch,
-        "replay_sequence": replay_sequence,
-        "configuration_sha256": configuration_digest,
-    }
-    if finalized["acceptance"] != expected_acceptance:
-        raise ValueError("trusted evaluator substituted acceptance bindings")
-    receipt = finalized["receipt"]
-    if not isinstance(receipt, dict) or receipt.get("schema_version") != RECEIPT_SCHEMA:
-        raise ValueError("trusted evaluator receipt is invalid")
+    if prepared["schema_version"] != PREPARED_SCHEMA:
+        raise ValueError("trusted evaluator prepared-result schema is invalid")
     expected_pin = {key: value for key, value in pin.items() if key != "_accepted_blob"}
-    if receipt.get("evaluator_pin") != expected_pin:
+    if prepared["evaluator_pin"] != expected_pin or prepared["evaluator_pin_source"] != "explicit":
         raise ValueError("trusted evaluator substituted the evaluator pin")
-    expected_receipt_acceptance = {
-        "record_sha256": acceptance_digest,
-        "replay_version": 1,
-        "replay_epoch": replay_epoch,
-        "replay_sequence": replay_sequence,
-        "configuration_sha256": configuration_digest,
-        "decision": "accepted",
-    }
-    if receipt.get("acceptance") != expected_receipt_acceptance:
-        raise ValueError("trusted evaluator receipt omitted external acceptance")
-    baseline_result = receipt.get("baseline_result")
-    baseline_anchor = receipt.get("baseline_anchor")
+    baseline_result = prepared["baseline_result"]
+    baseline_anchor = prepared["baseline_anchor"]
     if compare_result_sha256 is None:
         if baseline_result is not None or baseline_anchor is not None:
             raise ValueError("trusted evaluator substituted comparison evidence")
@@ -1382,70 +1585,214 @@ def _validate_finalization(
         or baseline_anchor.get("result_bytes_hash") != compare_result_sha256
     ):
         raise ValueError("trusted evaluator comparison bytes differ from acceptance")
-    result = receipt.get("result")
+    result = prepared["result"]
     subject = result.get("subject") if isinstance(result, dict) else None
     if not isinstance(subject, dict) or (
-        subject.get("commit") != candidate_commit or subject.get("tree") != candidate_tree
+        subject.get("commit") != candidate_commit
+        or subject.get("tree") != candidate_tree
+        or subject.get("clean") is not True
     ):
         raise ValueError("trusted evaluator result substituted the candidate subject")
-    canonical = dict(receipt)
-    receipt_id = canonical.pop("receipt_id", None)
-    if not isinstance(receipt_id, str) or receipt_id != _sha256(
-        json.dumps(canonical, sort_keys=True).encode("utf-8")
+    if result.get("egress_allowed") is not False or result.get("semantic_allowed") is not False:
+        raise ValueError("trusted evaluator result weakened the accepted sandbox configuration")
+    progress = prepared["progress"]
+    if not isinstance(progress, dict):
+        raise ValueError("trusted evaluator progress is invalid")
+    _require_keys(
+        progress,
+        {
+            "outcome",
+            "reason",
+            "research_needed",
+            "stagnated",
+            "recommended_research",
+            "next_step",
+            "comparison",
+        },
+        label="trusted evaluator progress",
+    )
+    comparison = progress["comparison"]
+    if not isinstance(comparison, dict):
+        raise ValueError("trusted evaluator comparison progress is invalid")
+    _require_keys(
+        comparison,
+        {"classification", "review_eligible", "promotion_relevant", "automatic_promotion"},
+        label="trusted evaluator comparison progress",
+    )
+    if (
+        comparison["promotion_relevant"] is not False
+        or comparison["automatic_promotion"] is not False
     ):
-        raise ValueError("trusted evaluator receipt digest is invalid")
-    if receipt.get("promotion_allowed") is not False or finalized["promotion"] != {
-        "allowed": False,
-        "status": "human_review_required",
-    }:
         raise ValueError("trusted evaluator attempted to authorize promotion")
+    return prepared
+
+
+def _construct_finalization(
+    capability: _AuthenticatedLaunch,
+    prepared: dict[str, Any],
+    *,
+    repo: Path,
+    configuration_digest: str,
+) -> tuple[dict[str, Any], bytes]:
+    """Construct authoritative bytes only inside the authenticated launcher process."""
+    if capability.configuration_digest != configuration_digest:
+        raise ValueError("authenticated launch configuration changed")
+    capability.authorize_receipt_construction(repo)
+    acceptance = {
+        "record_sha256": capability.acceptance_digest,
+        "replay_version": 1,
+        "replay_epoch": capability.replay_epoch,
+        "replay_sequence": capability.replay_sequence,
+        "configuration_sha256": configuration_digest,
+        "decision": "accepted",
+    }
+    receipt = {
+        "schema_version": RECEIPT_SCHEMA,
+        "evaluator_pin": prepared["evaluator_pin"],
+        "evaluator_pin_source": "explicit",
+        "baseline_result": prepared["baseline_result"],
+        "baseline_anchor": prepared["baseline_anchor"],
+        "configuration": {"egress_allowed": False, "semantic_allowed": False},
+        "acceptance": acceptance,
+        "result": prepared["result"],
+        "promotion_allowed": False,
+    }
+    receipt["receipt_id"] = _sha256(json.dumps(receipt, sort_keys=True).encode("utf-8"))
     receipt_bytes = (json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    finalized = {
+        "schema_version": FINALIZATION_SCHEMA,
+        "acceptance": {
+            "authority_id": capability.authority_id,
+            "record_sha256": capability.acceptance_digest,
+            "replay_epoch": capability.replay_epoch,
+            "replay_sequence": capability.replay_sequence,
+            "configuration_sha256": configuration_digest,
+        },
+        "receipt": receipt,
+        "progress": prepared["progress"],
+        "promotion": {"allowed": False, "status": "human_review_required"},
+    }
     return finalized, receipt_bytes
 
 
-def _ensure_no_symlinks(path: Path, stop: Path) -> None:
-    current = path
-    while current != stop:
-        try:
-            if stat.S_ISLNK(os.lstat(current).st_mode):
-                raise ValueError("receipt storage contains a symbolic link")
-        except FileNotFoundError:
-            pass
-        current = current.parent
+def _directory_flags() -> int:
+    return os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
 
 
-def _persist_receipt(repo: Path, receipt: dict[str, Any], receipt_bytes: bytes) -> Path:
+def _open_receipt_parent(repo: Path) -> int:
+    repo_before = os.lstat(repo)
+    current_fd = os.open(repo, _directory_flags())
+    try:
+        repo_after = os.fstat(current_fd)
+        if (repo_before.st_dev, repo_before.st_ino) != (repo_after.st_dev, repo_after.st_ino):
+            raise ValueError("repository root changed while receipt storage was opened")
+        for part in (".holusight", "improvement-results", "receipts"):
+            try:
+                child_fd = os.open(part, _directory_flags(), dir_fd=current_fd)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(part, 0o700, dir_fd=current_fd)
+                except FileExistsError:
+                    pass
+                child_fd = os.open(part, _directory_flags(), dir_fd=current_fd)
+            os.close(current_fd)
+            current_fd = child_fd
+        return current_fd
+    except Exception:
+        os.close(current_fd)
+        raise
+
+
+def _receipt_parent_matches(repo: Path, expected_fd: int) -> bool:
+    """Reopen the no-follow chain and compare it with the held destination directory."""
+    current_fd: int | None = None
+    try:
+        current_fd = os.open(repo, _directory_flags())
+        for part in (".holusight", "improvement-results", "receipts"):
+            child_fd = os.open(part, _directory_flags(), dir_fd=current_fd)
+            os.close(current_fd)
+            current_fd = child_fd
+        expected = os.fstat(expected_fd)
+        actual = os.fstat(current_fd)
+        return (expected.st_dev, expected.st_ino) == (actual.st_dev, actual.st_ino)
+    except OSError:
+        return False
+    finally:
+        if current_fd is not None:
+            os.close(current_fd)
+
+
+def _persist_receipt(
+    repo: Path,
+    receipt: dict[str, Any],
+    receipt_bytes: bytes,
+    *,
+    capability: _AuthenticatedLaunch,
+    expires_at: int,
+) -> Path:
+    """Persist through one held no-follow directory chain without path re-resolution."""
     receipt_id = receipt["receipt_id"]
+    if not isinstance(receipt_id, str) or not _SHA256.fullmatch(receipt_id):
+        raise ValueError("trusted receipt identity is invalid")
     name = receipt_id.removeprefix("sha256:") + ".json"
-    root = repo / ".holusight" / "improvement-results" / "receipts"
-    destination = root / name
-    _ensure_no_symlinks(destination, repo)
-    root.mkdir(parents=True, exist_ok=True)
-    _ensure_no_symlinks(destination, repo)
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    parent_fd = _open_receipt_parent(repo)
+    temp_name = f".tmp-{secrets.token_hex(16)}"
+    temp_fd: int | None = None
+    linked = False
     try:
-        fd = os.open(destination, flags, 0o600)
-    except FileExistsError:
-        existing = _regular_bytes(destination, label="existing trusted receipt")
-        if not hmac.compare_digest(existing, receipt_bytes):
-            raise ValueError("trusted receipt destination contains different bytes")
-        return destination
-    try:
+        if not _receipt_parent_matches(repo, parent_fd):
+            raise ValueError("receipt parent changed while held")
+        if int(time.time()) >= expires_at:
+            raise ValueError("acceptance expired during evaluation")
+        capability.consume_for_persistence(repo)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        temp_fd = os.open(temp_name, flags, 0o400, dir_fd=parent_fd)
         view = memoryview(receipt_bytes)
         while view:
-            written = os.write(fd, view)
-            view = view[written:]
-        os.fsync(fd)
+            view = view[os.write(temp_fd, view) :]
+        os.fsync(temp_fd)
+        os.close(temp_fd)
+        temp_fd = None
+        if not _receipt_parent_matches(repo, parent_fd):
+            raise ValueError("receipt parent changed while held")
+        try:
+            os.link(
+                temp_name,
+                name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+                follow_symlinks=False,
+            )
+            linked = True
+        except FileExistsError as exc:
+            raise ValueError("trusted receipt already exists") from exc
+        if not _receipt_parent_matches(repo, parent_fd):
+            os.unlink(name, dir_fd=parent_fd)
+            linked = False
+            raise ValueError("receipt parent changed during persistence")
+        os.fsync(parent_fd)
     finally:
-        os.close(fd)
-    return destination
+        if temp_fd is not None:
+            os.close(temp_fd)
+        try:
+            os.unlink(temp_name, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        if linked and not _receipt_parent_matches(repo, parent_fd):
+            try:
+                os.unlink(name, dir_fd=parent_fd)
+            except FileNotFoundError:
+                pass
+        os.close(parent_fd)
+    return repo / ".holusight" / "improvement-results" / "receipts" / name
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="holus-trusted-eval-launcher")
     parser.add_argument("--repo-root", type=Path, required=True)
-    parser.add_argument("--acceptance-record", type=Path, required=True)
-    parser.add_argument("--attestation-capability-fd", type=int, required=True)
+    parser.add_argument("--acceptance-record-fd", type=int, required=True)
+    parser.add_argument("--supervisor-authority-fd", type=int, required=True)
+    parser.add_argument("--supervisor-state-fd", type=int, required=True)
     parser.add_argument("--cases", type=Path, required=True)
     parser.add_argument("--compare-result", type=Path, default=None)
     parser.add_argument("--candidate-id", default="current-worktree")
@@ -1453,23 +1800,29 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--tool", default="external-acceptance-launcher")
     parser.add_argument("--model", default=None)
     args = parser.parse_args(argv)
+    state_fd = args.supervisor_state_fd
     try:
         repo = args.repo_root.resolve(strict=True)
         top = _git(repo, "rev-parse", "--show-toplevel")
         if top.returncode != 0 or Path(top.stdout.decode().strip()).resolve() != repo:
             raise ValueError("repo root must be the resolved Git worktree root")
-        record_path = _resolved_external_record(repo, args.acceptance_record)
-        raw_record = _regular_bytes(
-            record_path, label="external acceptance record", require_unwritable=True
+        candidate_uid = _candidate_owner_uid(repo)
+        raw_authority, supervisor_uid = _read_supervisor_descriptor(
+            args.supervisor_authority_fd,
+            label="supervisor authority",
+            candidate_uid=candidate_uid,
         )
-        capability = _strict_json(
-            _capability_bytes(args.attestation_capability_fd),
-            label="attestation capability",
+        raw_record, _ = _read_supervisor_descriptor(
+            args.acceptance_record_fd,
+            label="external acceptance record",
+            candidate_uid=candidate_uid,
+            expected_owner=supervisor_uid,
         )
+        authority = _strict_json(raw_authority, label="supervisor authority")
         acceptance = _strict_json(raw_record, label="acceptance record")
         _validate_acceptance_shape(acceptance)
-        record_digest, replay_epoch, replay_sequence = _validate_attestation(
-            acceptance, capability, raw_record
+        record_digest, authority_id, replay_epoch, replay_sequence, expires_at = (
+            _validate_attestation(acceptance, authority, raw_record)
         )
         pin, pin_bytes = _validate_pin(repo, acceptance)
         pin["_accepted_blob"] = acceptance["evaluator"]["pin_blob"]
@@ -1493,6 +1846,18 @@ def main(argv: list[str] | None = None) -> int:
             model=args.model,
             compare_result=args.compare_result,
         )
+        capability = _consume_replay(
+            state_fd,
+            supervisor_uid=supervisor_uid,
+            candidate_uid=candidate_uid,
+            authority_id=authority_id,
+            record_digest=record_digest,
+            replay_epoch=replay_epoch,
+            replay_sequence=replay_sequence,
+            expires_at=expires_at,
+        )
+        state_fd = -1
+        capability.configuration_digest = configuration_digest
         forwarded = [
             "--repo-root",
             str(repo),
@@ -1509,28 +1874,15 @@ def main(argv: list[str] | None = None) -> int:
             forwarded.extend(("--compare-result", str(args.compare_result)))
         if args.model is not None:
             forwarded.extend(("--model", args.model))
-        completed = _run_pinned_entrypoint(
-            repo,
-            pin,
-            pin_bytes,
-            record_digest,
-            replay_epoch,
-            replay_sequence,
-            configuration_digest,
-            forwarded,
-        )
+        completed = _run_pinned_entrypoint(repo, pin, pin_bytes, forwarded)
         if completed.returncode not in {0, 1}:
             sys.stderr.write(completed.stderr)
             return completed.returncode
-        finalized, receipt_bytes = _validate_finalization(
+        prepared = _validate_prepared_evaluation(
             completed.stdout,
-            acceptance_digest=record_digest,
-            replay_epoch=replay_epoch,
-            replay_sequence=replay_sequence,
             candidate_commit=candidate_commit,
             candidate_tree=candidate_tree,
             pin=pin,
-            configuration_digest=configuration_digest,
             compare_result_path=acceptance["configuration"]["compare_result_path"],
             compare_result_sha256=acceptance["configuration"]["compare_result_sha256"],
         )
@@ -1556,11 +1908,31 @@ def main(argv: list[str] | None = None) -> int:
             or post_configuration != configuration_digest
         ):
             raise ValueError("acceptance bindings changed during evaluation")
-        receipt_path = _persist_receipt(repo, finalized["receipt"], receipt_bytes)
+        if int(time.time()) >= expires_at:
+            raise ValueError("acceptance expired during evaluation")
+        finalized, receipt_bytes = _construct_finalization(
+            capability,
+            prepared,
+            repo=repo,
+            configuration_digest=configuration_digest,
+        )
+        receipt_path = _persist_receipt(
+            repo,
+            finalized["receipt"],
+            receipt_bytes,
+            capability=capability,
+            expires_at=expires_at,
+        )
         finalized["receipt_path"] = receipt_path.relative_to(repo).as_posix()
     except (KeyError, OSError, TypeError, ValueError) as exc:
         print(f"trusted evaluation rejected: {exc}", file=sys.stderr)
         return 2
+    finally:
+        if state_fd >= 0:
+            try:
+                os.close(state_fd)
+            except OSError:
+                pass
     sys.stdout.write(json.dumps(finalized, indent=2, sort_keys=True) + "\n")
     sys.stderr.write(completed.stderr)
     return completed.returncode

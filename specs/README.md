@@ -29,6 +29,7 @@ Feature specifications for codesight.
 | 020 | [Controlled Retrieval Variation Program](020-controlled-retrieval-variation-program.md) | Implemented | Direct-PR |
 | 021 | [Holusight Evidence Subject Binding](021-holusight-evidence-subject-binding.md) | Implemented | Direct-PR |
 | 022 | [Holusight Versioned Suite Fixtures](022-holusight-versioned-suite-fixtures.md) | Dataset foundation implemented | Direct-PR |
+| 023 | [Holusight G2 External Acceptance Authority](023-holusight-g2-external-acceptance.md) | Correction implemented, pending independent security review | Direct-PR correction |
 
 ## Implementation History
 

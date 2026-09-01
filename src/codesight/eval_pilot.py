@@ -90,13 +90,14 @@ SCHEMA_INTAKE_PROPOSAL = "holus-improve-intake/v1"
 SCHEMA_EVALUATOR_PIN = "holus-evaluator-subject-pin/v1"
 SCHEMA_TRUSTED_RECEIPT = "holus-trusted-evaluation-receipt/v1"
 SCHEMA_PREPARED_EVALUATION = "holus-prepared-trusted-evaluation/v1"
-SCHEMA_TRUSTED_FINALIZATION = "holus-trusted-evaluation-finalization/v1"
+SCHEMA_TRUSTED_FINALIZATION = "holus-trusted-evaluation-finalization/v2"
 EVALUATOR_PATHS = (
     "src/codesight/control_storage.py",
     "src/codesight/eval_pilot.py",
     "src/codesight/trusted_eval_launcher.py",
 )
 CANONICAL_EVALUATOR_CASES_PATH = "tests/fixtures/holusight_eval_pilot_cases.jsonl"
+G2_PROTOCOL_PIN_PATH = "specs/023-g2-external-acceptance.protocol.json"
 
 _KNOWN_KINDS = frozenset({"regression", "comparative"})
 _REQUIRED_PROVENANCE_FIELDS = frozenset({"origin", "description", "admitted_by", "admitted_at"})
@@ -204,14 +205,16 @@ class EvaluatorSubjectPin(_ClosedResultModel):
     """Human-reviewed evaluator identity rooted in a G1 Git subject.
 
     The result's self-declared evaluator digest is deliberately absent from
-    this contract. Each evaluator and corpus blob is independently resolved
-    from ``subject.commit`` and rechecked against the candidate subject.
+    this contract. Each evaluator, protocol, and corpus blob is independently
+    resolved from ``subject.commit`` and rechecked against the candidate subject.
     """
 
     schema_version: str = SCHEMA_EVALUATOR_PIN
     protocol_revision: str
     subject: EvaluationSubject
     evaluator_blobs: dict[str, _GitOid]
+    protocol_path: str = G2_PROTOCOL_PIN_PATH
+    protocol_blob: _GitOid
     corpus_path: str = CANONICAL_EVALUATOR_CASES_PATH
     corpus_blob: _GitOid
 
@@ -229,6 +232,8 @@ class EvaluatorSubjectPin(_ClosedResultModel):
             raise ValueError("evaluator pin requires a clean immutable Git subject")
         if set(self.evaluator_blobs) != set(EVALUATOR_PATHS):
             raise ValueError("evaluator pin must cover the exact closed evaluator path set")
+        if self.protocol_path != G2_PROTOCOL_PIN_PATH:
+            raise ValueError("evaluator pin must use the canonical G2 protocol pin")
         if self.corpus_path != CANONICAL_EVALUATOR_CASES_PATH:
             raise ValueError("evaluator pin must use the canonical frozen case corpus")
         return self
@@ -402,6 +407,9 @@ def build_trusted_receipt(
     baseline_anchor: BaselineAnchor | None,
     acceptance: ExternalAcceptanceBinding | None = None,
 ) -> TrustedEvaluationReceipt:
+    """Build advisory receipts only; accepted receipts are launcher-owned."""
+    if acceptance is not None:
+        raise ValueError("externally accepted receipts can only be built by the trusted launcher")
     payload = {
         "schema_version": SCHEMA_TRUSTED_RECEIPT,
         "evaluator_pin": evaluator_pin.model_dump(mode="json"),
@@ -427,6 +435,9 @@ def build_trusted_receipt(
 def persist_trusted_receipt(
     repo_root: Path, receipt: TrustedEvaluationReceipt
 ) -> tuple[Path, TrustedEvaluationReceipt]:
+    """Persist advisory receipts only; launcher receipts use held-directory storage."""
+    if receipt.acceptance is not None:
+        raise ValueError("externally accepted receipts can only be persisted by the trusted launcher")
     receipt_bytes = (
         json.dumps(receipt.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
     ).encode("utf-8")
@@ -1135,15 +1146,7 @@ def _uid_process_count() -> int:
 def _process_limit_setter(
     *, cpu_seconds: int, memory_bytes: int, file_bytes: int, process_count: int
 ) -> Callable[[], None]:
-    if os.environ.get("HOLUS_OUTER_RESOURCE_MONITOR") == "1":
-        _, inherited_hard = resource.getrlimit(resource.RLIMIT_NPROC)
-        process_limit = (
-            process_count
-            if inherited_hard == resource.RLIM_INFINITY
-            else min(process_count, inherited_hard)
-        )
-    else:
-        process_limit = _uid_process_count() + process_count
+    process_limit = _uid_process_count() + process_count
 
     def apply() -> None:
         limits = (
@@ -1259,7 +1262,7 @@ def _run_bounded_process(
         monitor_stop = threading.Event()
         memory_exceeded = threading.Event()
         monitor = None
-        if sys.platform == "darwin" and os.environ.get("HOLUS_OUTER_RESOURCE_MONITOR") != "1":
+        if sys.platform == "darwin":
             monitor = threading.Thread(
                 target=_monitor_process_memory,
                 kwargs={
@@ -1428,22 +1431,28 @@ def _run_candidate_adapter_local(
     allow_egress: bool,
     scratch_root: Path | None = None,
 ) -> dict[str, object]:
-    env = dict(os.environ)
-    env["PYTHONPATH"] = str(repo_root / "src")
-    env["PYTHONDONTWRITEBYTECODE"] = "1"
-    env["PYTHONNOUSERSITE"] = "1"
-    for key in tuple(env):
-        if key.startswith("HOLUS_") or (
-            not allow_egress and key.endswith(("_API_KEY", "_TOKEN", "_SECRET", "_PASSWORD"))
-        ):
-            env.pop(key, None)
+    if allow_egress:
+        raise ValueError("candidate adapters cannot run with egress")
+    if scratch_root is None:
+        with tempfile.TemporaryDirectory(prefix="holus-candidate-adapter-") as temporary:
+            return _run_candidate_adapter_local(
+                repo_root,
+                operation,
+                payload,
+                allow_egress=False,
+                scratch_root=Path(temporary),
+            )
     candidate_package = repo_root / "src" / "codesight"
     if not (candidate_package / "axi_providers.py").is_file():
-        # Synthetic public-command E2E repositories carry evaluator evidence
-        # but not an installable CodeSight package. They remain advisory and
-        # execute the installed adapter implementation. Trusted runs require
-        # the complete pinned candidate snapshot during preflight.
-        candidate_package = Path(__file__).resolve().parent
+        raise ValueError("candidate snapshot does not contain the required adapter package")
+    env = {
+        "PATH": os.defpath,
+        "HOME": str(scratch_root),
+        "LANG": "C",
+        "TMPDIR": str(scratch_root),
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONNOUSERSITE": "1",
+    }
     command = [
         sys.executable,
         "-I",
@@ -1452,34 +1461,29 @@ def _run_candidate_adapter_local(
         _CANDIDATE_ADAPTER,
         str(candidate_package),
     ]
-    output_dir = scratch_root or Path(tempfile.gettempdir())
-    sandboxed = None
-    if scratch_root is not None:
-        sandboxed = _sandboxed_candidate_command(
-            command,
-            candidate_snapshot=repo_root,
-            scratch_root=scratch_root,
-        )
-        command = sandboxed.argv
+    sandboxed = _sandboxed_candidate_command(
+        command,
+        candidate_snapshot=repo_root,
+        scratch_root=scratch_root,
+    )
     try:
         completed = _run_bounded_process(
-            command,
+            sandboxed.argv,
             cwd=repo_root,
             env=env,
             input_text=json.dumps({"operation": operation, **payload}),
             timeout=30,
-            output_dir=output_dir,
+            output_dir=scratch_root,
             cpu_seconds=20,
             memory_bytes=1_073_741_824,
             process_count=2,
             max_output_bytes=65_536,
             max_file_bytes=2_097_152,
-            pass_fds=sandboxed.pass_fds if sandboxed is not None else (),
+            pass_fds=sandboxed.pass_fds,
         )
     finally:
-        if sandboxed is not None:
-            for fd in sandboxed.pass_fds:
-                os.close(fd)
+        for fd in sandboxed.pass_fds:
+            os.close(fd)
     if completed.returncode != 0 or completed.timed_out or completed.output_truncated:
         raise ValueError(f"candidate {operation} adapter failed")
     try:
@@ -1523,22 +1527,7 @@ def _run_candidate_adapter(
     *,
     allow_egress: bool,
 ) -> dict[str, object]:
-    request_fd = os.environ.get("HOLUS_CANDIDATE_BROKER_REQUEST_FD")
-    response_fd = os.environ.get("HOLUS_CANDIDATE_BROKER_RESPONSE_FD")
-    if request_fd is not None or response_fd is not None:
-        if not request_fd or not response_fd or allow_egress:
-            raise ValueError("trusted candidate adapter broker configuration is invalid")
-        request = json.dumps(
-            {"operation": operation, "payload": payload, "allow_egress": False},
-            sort_keys=True,
-        ).encode("utf-8") + b"\n"
-        if len(request) > 1_048_576:
-            raise ValueError("trusted candidate adapter broker request exceeded limits")
-        view = memoryview(request)
-        while view:
-            written = os.write(int(request_fd), view)
-            view = view[written:]
-        return _read_broker_response(int(response_fd))
+    """Always enter a fresh OS sandbox; environment descriptors grant no bypass."""
     return _run_candidate_adapter_local(
         repo_root,
         operation,
@@ -1798,6 +1787,8 @@ def _load_clean_tracked_pin_bytes(repo_root: Path, relative: str) -> bytes:
 def _pin_contract_identity(pin: EvaluatorSubjectPin) -> tuple[object, ...]:
     return (
         tuple(sorted(pin.evaluator_blobs.items())),
+        pin.protocol_path,
+        pin.protocol_blob,
         pin.corpus_path,
         pin.corpus_blob,
     )
@@ -1852,12 +1843,12 @@ def _enforce_protocol_revision_identity(repo_root: Path, candidate: EvaluatorSub
 
 
 def build_evaluator_pin(
-    repo_root: Path, *, protocol_revision: str = "holus-eval-pilot/v1"
+    repo_root: Path, *, protocol_revision: str = "holus-g2-external-acceptance/v2"
 ) -> EvaluatorSubjectPin:
     """Build a candidate pin from the current clean Git subject.
 
-    This is read-only. A tracked artifact remains advisory. Only a local,
-    candidate-unwritable external acceptance record can grant launch authority.
+    This is read-only. A tracked artifact remains advisory. Only the separate
+    supervisor-owned descriptor protocol can grant launch authority.
     """
     _validate_identifier("protocol_revision", protocol_revision)
     subject = _current_subject(repo_root)
@@ -1868,13 +1859,17 @@ def build_evaluator_pin(
         for path in EVALUATOR_PATHS
         if (oid := _git_oid(repo_root, f"{subject.commit}:{path}")) is not None
     }
+    protocol_blob = _git_oid(repo_root, f"{subject.commit}:{G2_PROTOCOL_PIN_PATH}")
     corpus_blob = _git_oid(repo_root, f"{subject.commit}:{CANONICAL_EVALUATOR_CASES_PATH}")
-    if set(evaluator_blobs) != set(EVALUATOR_PATHS) or corpus_blob is None:
-        raise ValueError("evaluator pin requires the exact evaluator sources and frozen corpus")
+    if set(evaluator_blobs) != set(EVALUATOR_PATHS) or protocol_blob is None or corpus_blob is None:
+        raise ValueError(
+            "evaluator pin requires the exact evaluator sources, protocol pin, and frozen corpus"
+        )
     pin = EvaluatorSubjectPin(
         protocol_revision=protocol_revision,
         subject=subject.model_copy(update={"branch": None}),
         evaluator_blobs=evaluator_blobs,
+        protocol_blob=protocol_blob,
         corpus_blob=corpus_blob,
     )
     _enforce_protocol_revision_identity(repo_root, pin)
@@ -1917,7 +1912,11 @@ def load_evaluator_pin(
         raise ValueError("evaluator pin subject tree does not resolve")
     if _repository_identity(repo_root) != pin.subject.repository_id:
         raise ValueError("evaluator pin belongs to a different repository")
-    for path, expected in (*pin.evaluator_blobs.items(), (pin.corpus_path, pin.corpus_blob)):
+    for path, expected in (
+        *pin.evaluator_blobs.items(),
+        (pin.protocol_path, pin.protocol_blob),
+        (pin.corpus_path, pin.corpus_blob),
+    ):
         if _git_oid(repo_root, f"{pin.subject.commit}:{path}") != expected:
             raise ValueError(f"evaluator pin blob does not match subject: {path}")
     _enforce_protocol_revision_identity(repo_root, pin)
@@ -1953,7 +1952,11 @@ def load_accepted_evaluator_pin(
         raise ValueError("accepted evaluator pin belongs to a different repository")
     if _git_oid(repo_root, f"{pin.subject.commit}^{{tree}}") != pin.subject.tree:
         raise ValueError("accepted evaluator pin subject tree does not resolve")
-    for path, expected in (*pin.evaluator_blobs.items(), (pin.corpus_path, pin.corpus_blob)):
+    for path, expected in (
+        *pin.evaluator_blobs.items(),
+        (pin.protocol_path, pin.protocol_blob),
+        (pin.corpus_path, pin.corpus_blob),
+    ):
         if _git_oid(repo_root, f"{pin.subject.commit}:{path}") != expected:
             raise ValueError(f"accepted evaluator pin blob does not match subject: {path}")
     return pin
@@ -1973,13 +1976,15 @@ def evaluator_pin_for_result(repo_root: Path, result: PilotRunResult) -> Evaluat
         for path in EVALUATOR_PATHS
         if (oid := _git_oid(repo_root, f"{subject.commit}:{path}")) is not None
     }
+    protocol_blob = _git_oid(repo_root, f"{subject.commit}:{G2_PROTOCOL_PIN_PATH}")
     corpus_blob = _git_oid(repo_root, f"{subject.commit}:{CANONICAL_EVALUATOR_CASES_PATH}")
-    if set(evaluator_blobs) != set(EVALUATOR_PATHS) or corpus_blob is None:
+    if set(evaluator_blobs) != set(EVALUATOR_PATHS) or protocol_blob is None or corpus_blob is None:
         raise ValueError("prior result subject does not contain the exact evaluator contract")
     return EvaluatorSubjectPin(
         protocol_revision=SCHEMA_RESULT,
         subject=subject,
         evaluator_blobs=evaluator_blobs,
+        protocol_blob=protocol_blob,
         corpus_blob=corpus_blob,
     )
 
@@ -2012,7 +2017,11 @@ def evaluator_preflight_blockers(
     if cases_relative != pin.corpus_path:
         blockers.append("changed_evaluator_corpus_path")
 
-    for path, expected in (*pin.evaluator_blobs.items(), (pin.corpus_path, pin.corpus_blob)):
+    for path, expected in (
+        *pin.evaluator_blobs.items(),
+        (pin.protocol_path, pin.protocol_blob),
+        (pin.corpus_path, pin.corpus_blob),
+    ):
         pinned_blob = (
             _git_oid(repo_root, f"{pin.subject.commit}:{path}") if pin.subject.commit else None
         )
@@ -2128,11 +2137,7 @@ def _sandboxed_evaluator_command(
     for executable in (
         shutil.which("sandbox-exec"),
         shutil.which("bwrap"),
-        (
-            shutil.which("ps")
-            if os.environ.get("HOLUS_OUTER_RESOURCE_MONITOR") != "1"
-            else None
-        ),
+        shutil.which("ps"),
         shutil.which("git"),
         "/usr/bin/git",
         "/usr/bin/xcrun",
@@ -2229,30 +2234,6 @@ def run_pinned_pilot(
     if not actual.commit:
         raise ValueError("trusted evaluator requires a committed candidate subject")
 
-    if os.environ.get("HOLUS_EVALUATOR_ALREADY_SANDBOXED") == "1":
-        snapshot_raw = os.environ.get("HOLUS_CANDIDATE_SNAPSHOT")
-        if not snapshot_raw:
-            raise ValueError("outer evaluator sandbox did not provide a candidate snapshot")
-        candidate_snapshot = Path(snapshot_raw).resolve(strict=True)
-        snapshot_subject = _current_subject(candidate_snapshot)
-        if (
-            snapshot_subject.commit != actual.commit
-            or snapshot_subject.tree != actual.tree
-            or not snapshot_subject.clean
-        ):
-            raise ValueError("outer evaluator sandbox candidate snapshot is stale")
-        result = run_pilot(
-            candidate_snapshot,
-            cases_path=candidate_snapshot / pin.corpus_path,
-            lineage=lineage,
-            allow_egress=False,
-            allow_semantic=False,
-        )
-        postflight = evaluator_pin_blockers(repo_root, pin, result)
-        if postflight:
-            raise ValueError("trusted evaluator postflight blocked: " + ", ".join(postflight))
-        return result
-
     with tempfile.TemporaryDirectory(prefix="holus-trusted-eval-") as temporary:
         root = Path(temporary)
         readonly_root = root / "snapshots"
@@ -2279,13 +2260,24 @@ def run_pinned_pilot(
                 capture_output=True,
                 text=True,
                 check=False,
+                env=_canonical_git_env(),
             )
             checkout = (
                 subprocess.run(
-                    ["git", "-C", str(snapshot), "checkout", "--quiet", "--detach", commit],
+                    [
+                        "git",
+                        "--no-replace-objects",
+                        "-C",
+                        str(snapshot),
+                        "checkout",
+                        "--quiet",
+                        "--detach",
+                        commit,
+                    ],
                     capture_output=True,
                     text=True,
                     check=False,
+                    env=_canonical_git_env(),
                 )
                 if clone.returncode == 0
                 else None
@@ -2297,14 +2289,24 @@ def run_pinned_pilot(
 
         for snapshot in (candidate_snapshot, evaluator_snapshot):
             subprocess.run(
-                ["git", "-C", str(snapshot), "remote", "remove", "origin"],
+                [
+                    "git",
+                    "--no-replace-objects",
+                    "-C",
+                    str(snapshot),
+                    "remote",
+                    "remove",
+                    "origin",
+                ],
                 capture_output=True,
                 check=False,
+                env=_canonical_git_env(),
             )
         if actual.repository_id != "local-no-remote":
             subprocess.run(
                 [
                     "git",
+                    "--no-replace-objects",
                     "-C",
                     str(candidate_snapshot),
                     "remote",
@@ -2314,6 +2316,7 @@ def run_pinned_pilot(
                 ],
                 capture_output=True,
                 check=True,
+                env=_canonical_git_env(),
             )
 
         command = [
@@ -2350,9 +2353,12 @@ def run_pinned_pilot(
             if trusted_git is not None
             else os.defpath
         )
-        request_read, request_write = os.pipe()
-        response_read, response_write = os.pipe()
         env = {
+            **{
+                key: value
+                for key, value in _canonical_git_env().items()
+                if key.startswith("GIT_")
+            },
             "PATH": trusted_path,
             "HOME": str(sandbox_home),
             "LANG": "C",
@@ -2360,12 +2366,6 @@ def run_pinned_pilot(
             "PYTHONPATH": str(evaluator_snapshot / "src"),
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONNOUSERSITE": "1",
-            "GIT_CONFIG_GLOBAL": os.devnull,
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_GRAFT_FILE": os.devnull,
-            "GIT_NO_REPLACE_OBJECTS": "1",
-            "GIT_OPTIONAL_LOCKS": "0",
-            "GIT_TERMINAL_PROMPT": "0",
             "HOLUS_PINNED_EVALUATOR_DIGEST": _sha256_hex(
                 json.dumps(pin.evaluator_blobs, sort_keys=True).encode("utf-8")
             ),
@@ -2375,8 +2375,6 @@ def run_pinned_pilot(
             "HOLUS_EVALUATOR_SNAPSHOT": str(evaluator_snapshot),
             "HOLUS_CANDIDATE_SNAPSHOT": str(candidate_snapshot),
             "HOLUS_EVALUATOR_SCRATCH": str(scratch_root),
-            "HOLUS_CANDIDATE_BROKER_REQUEST_FD": str(request_write),
-            "HOLUS_CANDIDATE_BROKER_RESPONSE_FD": str(response_read),
         }
         command = _sandboxed_evaluator_command(
             command,
@@ -2384,34 +2382,18 @@ def run_pinned_pilot(
             candidate_snapshot=candidate_snapshot,
             scratch_root=scratch_root,
         )
-        broker = threading.Thread(
-            target=_candidate_adapter_broker,
-            args=(request_read, response_write),
-            kwargs={
-                "candidate_snapshot": candidate_snapshot,
-                "scratch_root": scratch_root,
-            },
-            daemon=True,
+        completed = _run_bounded_process(
+            command,
+            cwd=evaluator_snapshot,
+            env=env,
+            input_text=None,
+            timeout=120,
+            output_dir=scratch_root,
+            cpu_seconds=110,
+            memory_bytes=1_610_612_736,
+            process_count=1024,
+            max_output_bytes=1_048_576,
         )
-        broker.start()
-        try:
-            completed = _run_bounded_process(
-                command,
-                cwd=evaluator_snapshot,
-                env=env,
-                input_text=None,
-                timeout=120,
-                output_dir=scratch_root,
-                cpu_seconds=110,
-                memory_bytes=1_610_612_736,
-                process_count=1024,
-                max_output_bytes=1_048_576,
-                pass_fds=(request_write, response_read),
-            )
-        finally:
-            os.close(request_write)
-            os.close(response_read)
-            broker.join(timeout=35)
         if completed.returncode not in {0, 1} or completed.timed_out or completed.output_truncated:
             detail = completed.stderr.strip() or f"returncode={completed.returncode}"
             raise ValueError(
@@ -2464,7 +2446,7 @@ def execute_trusted_evaluation(
     model: str | None = None,
     allow_egress: bool = False,
     allow_semantic: bool = False,
-    launcher_subject: str | None = None,
+    evaluator_subject: str | None = None,
     approved_pin_blob: str | None = None,
 ) -> PreparedTrustedEvaluation:
     repo_root = repo_root.resolve()
@@ -2483,14 +2465,14 @@ def execute_trusted_evaluation(
         raise ValueError("trusted evaluation requires an external acceptance record pin")
     if approved_pin_blob is None:
         raise ValueError("trusted evaluation requires the accepted evaluator pin blob")
-    if launcher_subject is None:
-        raise ValueError("trusted evaluation requires approved launcher authority")
+    if evaluator_subject is None:
+        raise ValueError("trusted evaluation worker requires a pinned evaluator subject")
     evaluator_pin = load_accepted_evaluator_pin(
         repo_root, accepted_pin_path, approved_blob=approved_pin_blob
     )
     pin_source: Literal["explicit", "derived"] = "explicit"
-    if evaluator_pin.subject.commit != launcher_subject:
-        raise ValueError("approved launcher subject does not match evaluator pin")
+    if evaluator_pin.subject.commit != evaluator_subject:
+        raise ValueError("worker evaluator subject does not match the accepted pin")
 
     baseline_result = None
     baseline_anchor = None
@@ -2545,18 +2527,38 @@ def _tree_digest(repo_root: Path, prefixes: tuple[str, ...]) -> str:
     return "sha256:" + digest.hexdigest()
 
 
+_SAFE_GIT_CONFIG = (
+    ("core.fsmonitor", "false"),
+    ("core.hooksPath", os.devnull),
+    ("core.sshCommand", "false"),
+    ("credential.helper", ""),
+    ("diff.external", ""),
+    ("interactive.diffFilter", ""),
+    ("pager.config", "false"),
+    ("pager.diff", "false"),
+    ("pager.log", "false"),
+    ("pager.show", "false"),
+)
+
+
 def _canonical_git_env() -> dict[str, str]:
-    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    """Disable host and candidate executable Git configuration."""
+    env = {"PATH": os.defpath, "LANG": "C", "LC_ALL": "C"}
     env.update(
         {
             "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_SYSTEM": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_COUNT": str(len(_SAFE_GIT_CONFIG)),
             "GIT_GRAFT_FILE": os.devnull,
             "GIT_NO_REPLACE_OBJECTS": "1",
             "GIT_OPTIONAL_LOCKS": "0",
             "GIT_TERMINAL_PROMPT": "0",
         }
     )
+    for index, (key, value) in enumerate(_SAFE_GIT_CONFIG):
+        env[f"GIT_CONFIG_KEY_{index}"] = key
+        env[f"GIT_CONFIG_VALUE_{index}"] = value
     return env
 
 
@@ -2573,7 +2575,7 @@ def _git_run(
     except OSError:
         expected_root = None
     probe = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+        ["git", "--no-replace-objects", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
         capture_output=True,
         text=True,
         check=False,
@@ -3006,38 +3008,24 @@ def main(argv: list[str] | None = None) -> int:
         help="Also print the Fleet aggregate scorecard preview",
     )
 
-    trusted_p = sub.add_parser("trusted-evaluate-internal", help=argparse.SUPPRESS)
+    trusted_p = sub.add_parser("trusted-evaluation-worker", help=argparse.SUPPRESS)
     trusted_p.add_argument("--repo-root", type=Path, default=REPO_ROOT)
     trusted_p.add_argument("--cases", type=Path, default=DEFAULT_CASES_PATH)
-    trusted_p.add_argument(
-        "--evaluator-pin",
-        type=Path,
-        default=None,
-        help="Candidate-tracked advisory pin; never launch authority.",
-    )
-    trusted_p.add_argument("--accepted-pin", type=Path, default=None)
+    trusted_p.add_argument("--accepted-pin", type=Path, required=True)
     trusted_p.add_argument("--approved-pin-blob", required=True)
-    trusted_p.add_argument("--acceptance-record-sha256", required=True)
-    trusted_p.add_argument("--acceptance-replay-epoch", type=int, required=True)
-    trusted_p.add_argument("--acceptance-replay-sequence", type=int, required=True)
-    trusted_p.add_argument("--configuration-sha256", required=True)
+    trusted_p.add_argument("--evaluator-subject", required=True)
     trusted_p.add_argument("--compare-result", type=Path, default=None)
     trusted_p.add_argument("--candidate-id", default="current-worktree")
     trusted_p.add_argument("--workflow", default="manual")
-    trusted_p.add_argument("--tool", default="eval_pilot-trusted-entrypoint")
+    trusted_p.add_argument("--tool", default="eval-pilot-worker")
     trusted_p.add_argument("--model", default=None)
 
     args = parser.parse_args(argv)
-    if args.command == "trusted-evaluate-internal":
+    if args.command == "trusted-evaluation-worker":
         repo_root = args.repo_root.resolve()
-        launcher_subject = os.environ.get("HOLUS_TRUSTED_LAUNCHER_SUBJECT")
-        if not launcher_subject:
-            print("trusted evaluation rejected: approved launcher required", file=sys.stderr)
-            return 2
         try:
             artifacts = execute_trusted_evaluation(
                 repo_root,
-                evaluator_pin_path=args.evaluator_pin,
                 accepted_pin_path=args.accepted_pin,
                 cases_path=args.cases,
                 compare_path=args.compare_result,
@@ -3045,38 +3033,38 @@ def main(argv: list[str] | None = None) -> int:
                 workflow=args.workflow,
                 tool=args.tool,
                 model=args.model,
-                launcher_subject=launcher_subject,
+                evaluator_subject=args.evaluator_subject,
                 approved_pin_blob=args.approved_pin_blob,
             )
+            progress = _evaluate_progress(
+                artifacts.result,
+                artifacts.baseline_result,
+                trusted_anchor=artifacts.baseline_anchor,
+                repo_root=repo_root,
+                evaluator_pin=artifacts.evaluator_pin,
+            )
+            if progress["outcome"] != "invalid_comparison":
+                progress["comparison"]["classification"] = "advisory"
+            payload = {
+                "schema_version": SCHEMA_PREPARED_EVALUATION,
+                "result": artifacts.result.model_dump(mode="json"),
+                "evaluator_pin": artifacts.evaluator_pin.model_dump(mode="json"),
+                "evaluator_pin_source": artifacts.evaluator_pin_source,
+                "baseline_result": (
+                    artifacts.baseline_result.model_dump(mode="json")
+                    if artifacts.baseline_result is not None
+                    else None
+                ),
+                "baseline_anchor": (
+                    artifacts.baseline_anchor.model_dump(mode="json")
+                    if artifacts.baseline_anchor is not None
+                    else None
+                ),
+                "progress": progress,
+            }
         except (OSError, ValueError, json.JSONDecodeError, UnsafeStoragePath) as exc:
             print(f"trusted evaluation rejected: {exc}", file=sys.stderr)
             return 2
-        receipt = build_trusted_receipt(
-            artifacts.result,
-            evaluator_pin=artifacts.evaluator_pin,
-            evaluator_pin_source=artifacts.evaluator_pin_source,
-            baseline_result=artifacts.baseline_result,
-            baseline_anchor=artifacts.baseline_anchor,
-            acceptance=ExternalAcceptanceBinding(
-                record_sha256=args.acceptance_record_sha256,
-                replay_epoch=args.acceptance_replay_epoch,
-                replay_sequence=args.acceptance_replay_sequence,
-                configuration_sha256=args.configuration_sha256,
-            ),
-        )
-        progress = evaluate_receipt_progress(receipt, repo_root=repo_root)
-        payload = {
-            "schema_version": SCHEMA_TRUSTED_FINALIZATION,
-            "acceptance": {
-                "record_sha256": args.acceptance_record_sha256,
-                "replay_epoch": args.acceptance_replay_epoch,
-                "replay_sequence": args.acceptance_replay_sequence,
-                "configuration_sha256": args.configuration_sha256,
-            },
-            "receipt": receipt.model_dump(mode="json"),
-            "progress": progress,
-            "promotion": {"allowed": False, "status": "human_review_required"},
-        }
         print(json.dumps(payload, indent=2, sort_keys=True))
         return (
             0 if artifacts.result.counts.failed == 0 and artifacts.result.counts.errored == 0 else 1

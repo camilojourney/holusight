@@ -97,10 +97,11 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `toon.py`       | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
 | `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |
-| `eval_suite.py` | Versioned local-evaluation suite/method/holdout-hash-manifest schemas. Dataset foundation only; evaluator execution stays blocked until G2. See spec 022. |
+| `eval_suite.py` | Versioned local-evaluation suite/method/holdout-hash-manifest schemas. Dataset foundation only; evaluator execution stays blocked until an independently reviewed G2 launcher commit is accepted. See specs 022 and 023. |
+| `trusted_eval_launcher.py` | Supervisor-owned G2 acceptance boundary. Authenticates held authority/record descriptors, atomically consumes replay state, launches nested OS sandboxes, constructs receipts, and persists through held no-follow directories. No promotion authority. See spec 023 and ADR-0019. |
 | `improvement_control.py` | Deterministic tracked-manifest review, monotonic evidence-stage validation, recomputed Git-subject applicability for pilot results, constrained research signal, and bounded content-minimized derived records for the existing `holus improve-*` commands. See specs 019 and 021. |
 | `retrieval_variation.py` | Fixed local evidence-display baseline/candidate evaluator. It content-addresses benchmark and lineage, separates hard constraints from reward, and leaves promotion to independent human review. See spec 020. |
-| `control_storage.py` | Shared no-follow, restrictive, atomic durable writer for gitignored control-plane result/history state. It rejects canonical tracked destinations and symlink aliases. |
+| `control_storage.py` | Shared held-directory, no-follow, restrictive atomic writer for gitignored control-plane result/history state. It rejects canonical tracked destinations, symlink aliases, and executable Git configuration. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
 | `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
 

@@ -1,0 +1,25 @@
+{
+  "schema_version": "holus-g2-protocol-pin/v1",
+  "protocol_revision": "holus-g2-external-acceptance/v2",
+  "acceptance_schema": "holus-external-evaluator-acceptance/v2",
+  "authority_schema": "holus-supervisor-evaluator-authority/v2",
+  "replay_state_schema": "holus-supervisor-replay-state/v1",
+  "prepared_evaluation_schema": "holus-prepared-trusted-evaluation/v1",
+  "finalization_schema": "holus-trusted-evaluation-finalization/v2",
+  "receipt_schema": "holus-trusted-evaluation-receipt/v1",
+  "authority_owner": "distinct_from_candidate_worktree_owner",
+  "authority_transport": "held_immutable_regular_descriptor",
+  "acceptance_transport": "held_immutable_regular_descriptor",
+  "replay_transport": "held_private_directory_descriptor",
+  "replay_consumption": "atomic_create_only_marker",
+  "candidate_import_sandbox": "required_fail_closed",
+  "network_egress": "denied",
+  "semantic_provider": "denied",
+  "promotion": "denied",
+  "canonical_cases_path": "tests/fixtures/holusight_eval_pilot_cases.jsonl",
+  "evaluator_paths": [
+    "src/codesight/control_storage.py",
+    "src/codesight/eval_pilot.py",
+    "src/codesight/trusted_eval_launcher.py"
+  ]
+}

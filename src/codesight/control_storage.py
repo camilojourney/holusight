@@ -23,6 +23,43 @@ _PROTECTED_PREFIXES = (
     Path("docs"),
     Path(".claude/skills"),
 )
+_SAFE_GIT_CONFIG = (
+    ("core.fsmonitor", "false"),
+    ("core.hooksPath", os.devnull),
+    ("core.sshCommand", "false"),
+    ("credential.helper", ""),
+    ("diff.external", ""),
+    ("interactive.diffFilter", ""),
+    ("pager.config", "false"),
+    ("pager.diff", "false"),
+    ("pager.log", "false"),
+    ("pager.show", "false"),
+)
+
+
+def _safe_git_env() -> dict[str, str]:
+    """Disable host and candidate executable Git configuration."""
+    env = {"PATH": os.defpath, "LANG": "C", "LC_ALL": "C"}
+    env.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_SYSTEM": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_COUNT": str(len(_SAFE_GIT_CONFIG)),
+            "GIT_GRAFT_FILE": os.devnull,
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
+    for index, (key, value) in enumerate(_SAFE_GIT_CONFIG):
+        env[f"GIT_CONFIG_KEY_{index}"] = key
+        env[f"GIT_CONFIG_VALUE_{index}"] = value
+    return env
+
+
+def _safe_git_command(repo_root: Path, *args: str) -> list[str]:
+    return ["git", "--no-replace-objects", "-C", str(repo_root), *args]
 
 
 class UnsafeStoragePath(ValueError):
@@ -55,10 +92,11 @@ def _lstat_no_symlink(path: Path) -> None:
 def _tracked(repo_root: Path, path: Path) -> bool:
     relative = path.relative_to(repo_root).as_posix()
     result = subprocess.run(
-        ["git", "-C", str(repo_root), "ls-files", "--error-unmatch", "--", relative],
+        _safe_git_command(repo_root, "ls-files", "--error-unmatch", "--", relative),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
+        env=_safe_git_env(),
     )
     return result.returncode == 0
 
@@ -80,16 +118,18 @@ def is_clean_tracked_file(repo_root: Path, path: Path) -> bool:
     if path.is_symlink() or not path.is_file():
         return False
     head_blob = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", f"HEAD:{relative}"],
+        _safe_git_command(repo_root, "rev-parse", f"HEAD:{relative}"),
         capture_output=True,
         text=True,
         check=False,
+        env=_safe_git_env(),
     )
     worktree_blob = subprocess.run(
-        ["git", "-C", str(repo_root), "hash-object", "--", relative],
+        _safe_git_command(repo_root, "hash-object", "--", relative),
         capture_output=True,
         text=True,
         check=False,
+        env=_safe_git_env(),
     )
     return (
         head_blob.returncode == 0

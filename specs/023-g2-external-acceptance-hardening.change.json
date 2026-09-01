@@ -1,0 +1,46 @@
+{
+  "schema_version": "holus-improvement-change/v1",
+  "change_id": "g2-external-acceptance-hardening-v2",
+  "classification": "accepted",
+  "classification_evidence": "accepted",
+  "evidence_state": "familiar",
+  "structured_sections": [
+    "context",
+    "evidence",
+    "decision",
+    "implementation",
+    "test"
+  ],
+  "links": {
+    "governing": [
+      "specs/023-holusight-g2-external-acceptance.md",
+      "specs/023-g2-external-acceptance.protocol.json",
+      "docs/decisions/0019-supervisor-owned-g2-acceptance-authority.md"
+    ],
+    "implementation": [
+      "src/codesight/control_storage.py",
+      "src/codesight/eval_pilot.py",
+      "src/codesight/trusted_eval_launcher.py"
+    ],
+    "tests": [
+      "tests/test_g2_external_acceptance_adversarial.py",
+      "tests/test_evaluator_subject_pin.py"
+    ],
+    "documentation": [
+      "docs/playbooks/run-g2-external-acceptance.md",
+      "ARCHITECTURE.md"
+    ]
+  },
+  "link_hashes": {
+    "specs/023-holusight-g2-external-acceptance.md": "sha256:e997addbfb6af857b863256089568f5be353a29bc2763af82f1301265cf07bc9",
+    "specs/023-g2-external-acceptance.protocol.json": "sha256:046b9403225e82d3172dcb7fd96789988a04c45ed94137d7a8a626d1d5f9577b",
+    "docs/decisions/0019-supervisor-owned-g2-acceptance-authority.md": "sha256:5c1f7b20568da7d03d1f82df2c5c9a6606e770f6425985a25b1e81ccf42d1eed",
+    "src/codesight/control_storage.py": "sha256:9d113a3c24d9157cb55c9e03cc5f88bd460f3f3d2301eafcf547176b0a589266",
+    "src/codesight/eval_pilot.py": "sha256:dcfccc9a1076bd25fbdfcd555270211eaa2dc46a99a04ee11f585d047d22d23f",
+    "src/codesight/trusted_eval_launcher.py": "sha256:c88b713394e2e2cf36a89e6cfc98e76f168be4be996db5c2cdc5d1d3d37d8a47",
+    "tests/test_g2_external_acceptance_adversarial.py": "sha256:a7bf37f2f21c6c6700eff847db1c564ae4d8ad1164168ecec1459864d05536a2",
+    "tests/test_evaluator_subject_pin.py": "sha256:3b71fe7dc3f4e2b4a9768b3cc90b3cb267a14fef9456d69b2055eec45c581a16",
+    "docs/playbooks/run-g2-external-acceptance.md": "sha256:a9e614e372b8446573f1f303992dcb168e8cf6b6875a7ae7541c67e296edc247",
+    "ARCHITECTURE.md": "sha256:7001bdf80b90a027fd7e850ddf3dd05e13ca234a2173d33eabef8852fe8164cc"
+  }
+}

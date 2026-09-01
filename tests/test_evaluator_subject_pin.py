@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
+import importlib.util
+import io
 import json
 import os
 import platform
@@ -50,6 +53,11 @@ def _repo(tmp_path: Path) -> Path:
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
     (tmp_path / "tests/fixtures").mkdir(parents=True)
+    (tmp_path / "specs").mkdir()
+    shutil.copy2(
+        Path(eval_pilot.__file__).resolve().parents[2] / eval_pilot.G2_PROTOCOL_PIN_PATH,
+        tmp_path / eval_pilot.G2_PROTOCOL_PIN_PATH,
+    )
     (tmp_path / ".gitignore").write_text(".holusight/\n", encoding="utf-8")
     (tmp_path / "src/codesight/production.py").write_text("production-v1\n", encoding="utf-8")
     (tmp_path / eval_pilot.CANONICAL_EVALUATOR_CASES_PATH).write_text(
@@ -159,6 +167,8 @@ def _trusted_launcher(
         "protocol_revision": pin["protocol_revision"],
         "subject": pin["subject"],
         "evaluator_blobs": pin["evaluator_blobs"],
+        "protocol_path": pin["protocol_path"],
+        "protocol_blob": pin["protocol_blob"],
     }
     configuration_identity = {
         "cases_path": eval_pilot.CANONICAL_EVALUATOR_CASES_PATH,
@@ -176,9 +186,14 @@ def _trusted_launcher(
     replay_sequence = 1
     key = b"external-captain-attestation-key" * 2
     key_id = "captain-local-v1"
+    authority_id = "captain-supervisor-v2"
     unsigned = {
-        "schema_version": "holus-external-evaluator-acceptance/v1",
-        "record_version": 1,
+        "schema_version": "holus-external-evaluator-acceptance/v2",
+        "record_version": 2,
+        "authority": {
+            "authority_id": authority_id,
+            "protocol_revision": "holus-g2-external-acceptance/v2",
+        },
         "candidate": {"commit": candidate_commit, "tree": candidate_tree},
         "evaluator": {
             "pin_blob": pin_blob,
@@ -219,7 +234,8 @@ def _trusted_launcher(
     record = {
         **unsigned,
         "attestation": {
-            "algorithm": "hmac-sha256",
+            "algorithm": "hmac-sha256-supervisor-fd-v2",
+            "authority_id": authority_id,
             "key_id": key_id,
             "payload_sha256": _sha256(unsigned_bytes),
             "mac": hmac.new(key, unsigned_bytes, hashlib.sha256).hexdigest(),
@@ -229,8 +245,10 @@ def _trusted_launcher(
     if transform_record_bytes is not None:
         record_bytes = transform_record_bytes(record_bytes)
     capability = {
-        "schema_version": "holus-evaluator-attestation-capability/v1",
-        "capability_version": 1,
+        "schema_version": "holus-supervisor-evaluator-authority/v2",
+        "authority_version": 2,
+        "protocol_revision": "holus-g2-external-acceptance/v2",
+        "authority_id": authority_id,
         "key_id": key_id,
         "key_hex": key.hex(),
         "acceptance_record_sha256": _sha256(record_bytes),
@@ -245,6 +263,13 @@ def _trusted_launcher(
         record_path.chmod(0o600)
     record_path.write_bytes(record_bytes)
     record_path.chmod(record_mode)
+    authority_path = repo.parent / f"{repo.name}-supervisor-authority.json"
+    if authority_path.exists():
+        authority_path.chmod(0o600)
+    authority_path.write_bytes(_canonical(capability))
+    authority_path.chmod(0o400)
+    state_path = repo.parent / f"{repo.name}-supervisor-state-{time.time_ns()}"
+    state_path.mkdir(mode=0o700)
     launcher_path = repo.parent / f"{repo.name}-trusted-launcher.py"
     running_launcher = (
         transform_launcher_bytes(launcher_bytes)
@@ -254,53 +279,44 @@ def _trusted_launcher(
     launcher_path.write_bytes(running_launcher)
     if before_launch is not None:
         before_launch(repo)
-    if capability_as_regular_file:
-        capability_path = repo.parent / f"{repo.name}-capability.json"
-        capability_path.write_bytes(_canonical(capability))
-        read_fd = os.open(capability_path, os.O_RDONLY)
-    else:
-        read_fd, write_fd = os.pipe()
-        try:
-            os.write(write_fd, _canonical(capability))
-        finally:
-            os.close(write_fd)
+
+    module_name = f"_holus_test_launcher_{time.time_ns()}"
+    spec = importlib.util.spec_from_file_location(module_name, launcher_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    supervisor_uid = authority_path.stat().st_uid
+    module._candidate_owner_uid = lambda _repo: supervisor_uid + 1
+    record_fd = os.open(record_path, os.O_RDONLY)
+    authority_fd = os.open(authority_path, os.O_RDONLY)
+    state_fd = os.open(state_path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    stdout = io.StringIO()
+    stderr = io.StringIO()
     try:
-        return subprocess.run(
-            [
-                sys.executable,
-                "-I",
-                str(launcher_path),
-                "--repo-root",
-                str(repo),
-                "--acceptance-record",
-                str(record_path),
-                "--attestation-capability-fd",
-                str(read_fd),
-                "--cases",
-                str(repo / eval_pilot.CANONICAL_EVALUATOR_CASES_PATH),
-                "--candidate-id",
-                "trusted-entrypoint",
-            ],
-            cwd=repo,
-            env={
-                "PATH": (
-                    f"{Path(sys.executable).parent}{os.pathsep}"
-                    f"{Path(shutil.which('git')).resolve().parent}{os.pathsep}{os.defpath}"
-                ),
-                "PYTHONDONTWRITEBYTECODE": "1",
-                "GIT_CONFIG_GLOBAL": os.devnull,
-                "GIT_CONFIG_NOSYSTEM": "1",
-                "GIT_GRAFT_FILE": os.devnull,
-                "GIT_NO_REPLACE_OBJECTS": "1",
-            },
-            pass_fds=(read_fd,),
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=210,
-        )
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            returncode = module.main(
+                [
+                    "--repo-root",
+                    str(repo),
+                    "--acceptance-record-fd",
+                    str(record_fd),
+                    "--supervisor-authority-fd",
+                    str(authority_fd),
+                    "--supervisor-state-fd",
+                    str(state_fd),
+                    "--cases",
+                    str(repo / eval_pilot.CANONICAL_EVALUATOR_CASES_PATH),
+                    "--candidate-id",
+                    "trusted-entrypoint",
+                ]
+            )
+        return subprocess.CompletedProcess([], returncode, stdout.getvalue(), stderr.getvalue())
     finally:
-        os.close(read_fd)
+        for fd in (record_fd, authority_fd, state_fd):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
 
 def _anchor(repo: Path, result: eval_pilot.PilotRunResult) -> eval_pilot.BaselineAnchor:
@@ -394,7 +410,7 @@ def test_legitimate_evaluator_revision_requires_new_protocol_pin_and_baseline(tm
     baseline = _run(repo)
     old_pin = eval_pilot.build_evaluator_pin(repo, protocol_revision="holus-eval-pilot/v1")
     pin_path = repo / "specs/approved.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(old_pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "approve evaluator pin")
@@ -718,7 +734,7 @@ def test_trusted_entrypoint_remains_authoritative_when_candidate_cli_is_broken(t
     repo = _repo(tmp_path)
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/approved.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "approve evaluator")
@@ -743,7 +759,7 @@ def test_candidate_internal_evaluation_cannot_persist_trusted_receipt(tmp_path):
     repo = _repo(tmp_path)
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/approved.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "approve evaluator")
@@ -798,7 +814,7 @@ def test_candidate_internal_evaluation_cannot_persist_trusted_receipt(tmp_path):
     )
 
     assert completed.returncode == 2
-    assert "acceptance-record-sha256" in completed.stderr
+    assert "invalid choice" in completed.stderr
     assert not (repo / ".holusight/improvement-results/receipts").exists()
 
 
@@ -806,7 +822,7 @@ def test_approved_launcher_never_imports_candidate_evaluator_before_preflight(tm
     repo = _repo(tmp_path)
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/approved.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "approve evaluator")
@@ -833,7 +849,7 @@ def test_git_replacements_cannot_substitute_approved_authority(tmp_path):
     repo = _repo(tmp_path)
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/approved.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "approve evaluator")
@@ -901,7 +917,7 @@ def test_candidate_cannot_replace_approved_pin_configuration(tmp_path):
     repo = _repo(tmp_path)
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/approved.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "approve evaluator")
@@ -925,7 +941,7 @@ def _external_acceptance_candidate(tmp_path: Path) -> tuple[Path, Path]:
     repo = _repo(tmp_path)
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/advisory.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "record advisory evaluator pin")
@@ -950,7 +966,7 @@ def test_candidate_created_pin_only_lineage_cannot_establish_acceptance(tmp_path
     repo = _repo(tmp_path)
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/candidate.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "candidate-created pin-only authority")
@@ -980,8 +996,8 @@ def test_candidate_created_pin_only_lineage_cannot_establish_acceptance(tmp_path
     )
 
     assert completed.returncode == 2
-    assert "--acceptance-record" in completed.stderr
-    assert "--attestation-capability-fd" in completed.stderr
+    assert "--acceptance-record-fd" in completed.stderr
+    assert "--supervisor-authority-fd" in completed.stderr
     assert not (repo / ".holusight/improvement-results/receipts").exists()
 
 
@@ -1050,7 +1066,7 @@ def test_external_capability_rejects_substitution_and_rollback(
     assert error in completed.stderr
 
 
-def test_attestation_capability_must_be_launcher_held_and_one_shot(tmp_path):
+def test_supervisor_authority_uses_an_immutable_held_regular_descriptor(tmp_path):
     repo, pin_path = _external_acceptance_candidate(tmp_path)
 
     completed = _trusted_launcher(
@@ -1059,8 +1075,7 @@ def test_attestation_capability_must_be_launcher_held_and_one_shot(tmp_path):
         capability_as_regular_file=True,
     )
 
-    assert completed.returncode == 2
-    assert "launcher-held one-shot descriptor" in completed.stderr
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_external_acceptance_rejects_ambiguous_or_absent_fields(tmp_path):
@@ -1082,22 +1097,26 @@ def test_external_acceptance_rejects_ambiguous_or_absent_fields(tmp_path):
     assert "fields are not closed" in absent.stderr
 
 
-@pytest.mark.parametrize(
-    ("mode", "inside"),
-    [(0o600, False), (0o400, True)],
-)
-def test_external_acceptance_rejects_candidate_writable_records(tmp_path, mode, inside):
+def test_external_acceptance_rejects_writable_record_descriptor(tmp_path):
+    repo, pin_path = _external_acceptance_candidate(tmp_path)
+
+    completed = _trusted_launcher(repo, pin_path, record_mode=0o600)
+
+    assert completed.returncode == 2
+    assert "immutable while held" in completed.stderr
+
+
+def test_held_acceptance_descriptor_is_not_reopened_through_candidate_parent(tmp_path):
     repo, pin_path = _external_acceptance_candidate(tmp_path)
 
     completed = _trusted_launcher(
         repo,
         pin_path,
-        record_mode=mode,
-        record_inside_candidate=inside,
+        record_mode=0o400,
+        record_inside_candidate=True,
     )
 
-    assert completed.returncode == 2
-    assert "candidate-writable" in completed.stderr
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_external_acceptance_rejects_self_reference_and_stale_candidate(tmp_path):
@@ -1190,7 +1209,7 @@ def test_external_launcher_sandboxes_evaluator_import_and_finalization(tmp_path)
     _git(repo, "commit", "-q", "-m", "approved evaluator sandbox probes")
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/advisory.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "record advisory pin")
@@ -1235,7 +1254,7 @@ def test_candidate_manifest_cannot_refer_to_acceptance_authority(tmp_path):
     repo, pin_path = _external_acceptance_candidate(tmp_path)
     manifest = repo / "specs/candidate.change.json"
     manifest.write_text(
-        '{"schema_version":"holus-external-evaluator-acceptance/v1"}\n',
+        '{"schema_version":"holus-external-evaluator-acceptance/v2"}\n',
         encoding="utf-8",
     )
     _git(repo, "add", manifest.relative_to(repo).as_posix())
@@ -1251,7 +1270,7 @@ def test_candidate_owned_authority_at_head_is_rejected(tmp_path):
     repo = _repo(tmp_path)
     pin = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/self-approved.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(pin.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "self-approved candidate authority")
@@ -1311,8 +1330,8 @@ def test_candidate_owned_authority_at_head_is_rejected(tmp_path):
     )
 
     assert completed.returncode == 2
-    assert "--acceptance-record" in completed.stderr
-    assert "--attestation-capability-fd" in completed.stderr
+    assert "--acceptance-record-fd" in completed.stderr
+    assert "--supervisor-authority-fd" in completed.stderr
 
 
 def test_candidate_adapter_cannot_spawn_processes_under_trusted_profile(tmp_path):
@@ -1550,7 +1569,7 @@ def test_trusted_execution_rejects_baseline_derived_evaluator_authority(
             candidate_id="candidate",
             workflow="test",
             tool="pytest",
-            launcher_subject=pin.subject.commit,
+            evaluator_subject=pin.subject.commit,
             approved_pin_blob="0" * 40,
         )
 
@@ -1559,7 +1578,7 @@ def test_load_pin_rejects_worktree_swap_after_git_subject_capture(tmp_path, monk
     repo = _repo(tmp_path)
     approved = eval_pilot.build_evaluator_pin(repo)
     pin_path = repo / "specs/approved.evaluator-pin.json"
-    pin_path.parent.mkdir()
+    pin_path.parent.mkdir(exist_ok=True)
     pin_path.write_text(json.dumps(approved.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "approve evaluator")
@@ -1583,7 +1602,7 @@ def test_load_pin_rejects_reused_protocol_revision(tmp_path):
     repo = _repo(tmp_path)
     approved = eval_pilot.build_evaluator_pin(repo)
     specs = repo / "specs"
-    specs.mkdir()
+    specs.mkdir(exist_ok=True)
     approved_path = specs / "approved.evaluator-pin.json"
     approved_path.write_text(json.dumps(approved.model_dump(mode="json")) + "\n", encoding="utf-8")
     _git(repo, "add", ".")

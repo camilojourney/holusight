@@ -24,6 +24,7 @@ Project documentation index.
 | [playbooks/improvement-control-review.md](playbooks/improvement-control-review.md) | Deterministic staged review and derived-record rebuild for tracked improvement changes |
 | [playbooks/run-retrieval-variation-program.md](playbooks/run-retrieval-variation-program.md) | Run the local controlled evidence-display variation baseline/candidate loop |
 | [playbooks/versioned-eval-suite-fixtures.md](playbooks/versioned-eval-suite-fixtures.md) | Load and hash-verify the versioned suite/method/holdout dataset foundation (no runner) |
+| [playbooks/run-g2-external-acceptance.md](playbooks/run-g2-external-acceptance.md) | Supervisor-owned G2 authority descriptor handoff and hard-stop procedure |
 
 ## Rules
 
