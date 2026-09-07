@@ -26,6 +26,94 @@ def indexed_engine(tmp_path, monkeypatch):
     return engine
 
 
+@pytest.mark.parametrize("edit_second_chunk", [False, True], ids=["unchanged", "partial-edit"])
+def test_incremental_partial_file_matches_fresh_index(tmp_path, monkeypatch, edit_second_chunk):
+    """An edit must not erase a sibling chunk that hash deduplication skips."""
+    import numpy as np
+
+    embedded = []
+
+    class SyntheticEmbedder:
+        def embed(self, texts):
+            embedded.extend(texts)
+            return np.array([[1.0, float("changed" in text)] for text in texts], dtype=np.float32)
+
+        def embed_query(self, text):
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    embedder = SyntheticEmbedder()
+    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
+    monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+    config = ServerConfig(
+        embedding_model="synthetic", embedding_dim=2,
+        chunk_max_lines=2, chunk_overlap_lines=0,
+        reranker=False, query_enhancement=False, metadata_boost=False, cnfb_alpha=0,
+    )
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    source = corpus / "sample.txt"
+    original = "alpha\none\nbeta\ntwo"
+    source.write_text(original)
+    engine = CodeSight(corpus, config=config)
+    initial = engine.index()
+    assert initial.total_chunks == initial.chunks_created == 2
+    before = engine.search("alpha", top_k=10)
+    retained = next(result for result in before if "alpha" in result.snippet)
+    retained_metadata = engine.store.get_chunk_metadata([retained.chunk_id])
+    retained_vectors = engine.store.get_chunk_vectors([retained.chunk_id])
+    assert len(retained_vectors) == 1
+    assert len(embedded) == 2
+    engine.store.close()
+
+    edited = original.replace("two", "changed") if edit_second_chunk else original
+    source.write_text(edited)
+    embedded.clear()
+    incremental = engine.index()
+    actual = engine.search("alpha", top_k=10)
+    incremental_texts = list(embedded)
+
+    # Counterfactual: an independent fresh index of the identical edited corpus.
+    fresh_corpus = tmp_path / "fresh-corpus"
+    fresh_corpus.mkdir()
+    (fresh_corpus / "sample.txt").write_text(edited)
+    fresh_engine = CodeSight(fresh_corpus, config=config)
+    try:
+        fresh = fresh_engine.index()
+        expected = fresh_engine.search("alpha", top_k=10)
+        assert fresh.total_chunks == 2
+        assert {(r.start_line, r.end_line) for r in expected} == {(1, 2), (3, 4)}
+        assert len(expected) == 2
+        assert incremental.chunks_created == int(edit_second_chunk)
+        assert incremental.chunks_skipped_unchanged == 2 - int(edit_second_chunk)
+        assert len(incremental_texts) == int(edit_second_chunk)
+        assert all("changed" in text and "alpha" not in text for text in incremental_texts)
+        assert len(actual) == len(expected), "Partial edit lost a searchable unchanged chunk"
+        assert incremental.total_chunks == fresh.total_chunks
+        assert {r.chunk_id for r in actual} == {r.chunk_id for r in expected}
+        assert {(r.file_path, r.start_line, r.end_line, r.snippet) for r in actual} == {
+            (r.file_path, r.start_line, r.end_line, r.snippet) for r in expected
+        }
+        assert engine.store.get_chunk_metadata([retained.chunk_id]) == retained_metadata
+        np.testing.assert_array_equal(
+            engine.store.get_chunk_vectors([retained.chunk_id]), retained_vectors,
+        )
+        assert engine.store.bm25_search("alpha") == [retained.chunk_id]
+        assert source.read_text() == edited
+
+        engine.store.close()
+        embedded.clear()
+        repeat = engine.index()
+        assert repeat.total_chunks == repeat.chunks_skipped_unchanged == 2
+        assert repeat.chunks_created == 0
+        assert embedded == []
+    finally:
+        engine.store.close()
+        fresh_engine.store.close()
+
+
 class TestE2ERetrieval:
     def test_bm25_finds_exact_payment_terms(self, indexed_engine):
         results = indexed_engine.search("Net 30 payment terms")

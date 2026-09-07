@@ -112,6 +112,13 @@ class FTSSidecar:
         self.conn.execute("DELETE FROM chunks WHERE file_path = ?", (file_path,))
         return count
 
+    def delete_chunks_by_ids(self, chunk_ids: list[str]) -> int:
+        """Delete selected chunks, letting the delete trigger keep FTS in sync."""
+        cursor = self.conn.executemany(
+            "DELETE FROM chunks WHERE chunk_id = ?", ((cid,) for cid in chunk_ids),
+        )
+        return cursor.rowcount
+
     def get_chunk_hashes(self, file_path: str) -> dict[str, str]:
         """Return {chunk_id: content_hash} for all chunks of a file."""
         cursor = self.conn.execute(
@@ -469,11 +476,15 @@ class ChunkStore:
         id_filter = " OR ".join(f'chunk_id = "{cid}"' for cid in safe_ids)
         target_table.delete(id_filter)
 
-    def delete_file_chunks(self, file_path: str) -> int:
-        """Remove all chunks for a file from both stores."""
-        # Get chunk IDs before deleting from FTS
+    def delete_file_chunks(
+        self, file_path: str, *, keep_chunk_ids: set[str] | None = None,
+    ) -> int:
+        """Remove a file's chunks from both stores, except explicitly retained IDs."""
+        # Get chunk IDs before deleting from FTS. Retained rows stay untouched
+        # in both vector tables and the metadata/keyword sidecar.
         hashes = self.fts.get_chunk_hashes(file_path)
-        chunk_ids = list(hashes.keys())
+        keep_chunk_ids = keep_chunk_ids or set()
+        chunk_ids = [cid for cid in hashes if cid not in keep_chunk_ids]
 
         # Delete from LanceDB
         if chunk_ids and self.lance_table is not None:
@@ -491,7 +502,7 @@ class ChunkStore:
                 raise
 
         # Delete from FTS
-        count = self.fts.delete_chunks_for_file(file_path)
+        count = self.fts.delete_chunks_by_ids(chunk_ids)
         self.fts.commit()
         return count
 
