@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from unittest.mock import patch
 
 import pytest
@@ -217,12 +218,28 @@ class TestChunkFileAST:
         assert len(chunks) >= 2
 
     @pytestmark_ts
-    def test_leading_imports_become_separate_chunk(self):
-        """Module-level imports before the first function → own chunk."""
-        content = "import os\nimport sys\n\ndef main():\n    pass\n"
+    @pytest.mark.parametrize("preamble", [
+        "import os\nimport sys\n\n",
+        '"""Module summary.\nMore context.\n"""\n\n',
+    ])
+    def test_leading_imports_become_separate_chunk(self, preamble):
+        """Emit imports/module docstrings once with unchanged content and anchors."""
+        content = preamble + "def main():\n    pass\n"
         chunks = chunk_file_ast(content, "main.py")
-        # Should have at least 2 chunks: imports + main function
-        assert len(chunks) >= 2
+        assert len(chunks) == len({chunk.chunk_id for chunk in chunks}) == 2
+        leading, function = chunks
+        leading_end = len(preamble.splitlines())
+        assert leading.content == preamble[:-1]
+        assert (leading.start_line, leading.end_line) == (1, leading_end)
+        assert leading.content_hash == hashlib.sha256(leading.content.encode()).hexdigest()[:16]
+        assert leading.chunk_id == f"main.py:1-{leading_end}:{leading.content_hash}"
+        assert leading.context_header == (
+            f"# File: main.py\n# Scope: {leading.scope}\n# Lines: 1-{leading_end}"
+        )
+        assert leading.embedding_text == f"{leading.context_header}\n{leading.content}"
+        assert function.content == "def main():\n    pass"
+        assert (function.start_line, function.end_line) == (leading_end + 1, leading_end + 2)
+        assert function.scope == "function main"
 
     @pytestmark_ts
     def test_javascript_functions_chunked(self):
