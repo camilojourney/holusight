@@ -146,77 +146,88 @@ def index_repo(
         if VOYAGE_API_KEY
         else None
     )
-    store = ChunkStore(repo_path, embedding_dim=config.embedding_dim)
-    has_existing_code_index = code_embedder is not None and store.code_lance_table is not None
+    with ChunkStore(repo_path, embedding_dim=config.embedding_dim) as store:
+        has_existing_code_index = code_embedder is not None and store.code_lance_table is not None
 
-    # Store canonical path
-    store.repo_canonical_path = str(repo_path)
+        # Store canonical path
+        store.repo_canonical_path = str(repo_path)
 
-    if force_rebuild and store.is_indexed:
-        logger.info("Force rebuild: clearing existing index for %s", repo_path)
+        if force_rebuild and store.is_indexed:
+            logger.info("Force rebuild: clearing existing index for %s", repo_path)
 
-    # Walk all indexable files
-    files = walk_repo_files(repo_path)
-    logger.info("Found %d indexable files in %s", len(files), repo_path)
+        # Walk all indexable files
+        files = walk_repo_files(repo_path)
+        logger.info("Found %d indexable files in %s", len(files), repo_path)
 
-    total_chunks_created = 0
-    total_chunks_skipped = 0
-    total_files_indexed = 0
+        total_chunks_created = 0
+        total_chunks_skipped = 0
+        total_files_indexed = 0
 
-    # Process files in batches for embedding efficiency
-    batch_chunks: list[Chunk] = []
-    BATCH_SIZE = 128
+        # Process files in batches for embedding efficiency
+        batch_chunks: list[Chunk] = []
+        BATCH_SIZE = 128
 
-    total_files = len(files)
-    _log_progress(0, total_files, "Starting indexing...")
+        total_files = len(files)
+        _log_progress(0, total_files, "Starting indexing...")
 
-    for file_idx, fpath in enumerate(files, 1):
-        rel_path = str(fpath.relative_to(repo_path))
+        for file_idx, fpath in enumerate(files, 1):
+            rel_path = str(fpath.relative_to(repo_path))
 
-        # Route: binary documents vs text files
-        if is_document(fpath):
-            chunks = _chunk_document_file(fpath, rel_path, config)
-        else:
-            chunks = _chunk_text_file(fpath, rel_path, config)
+            # Route: binary documents vs text files
+            if is_document(fpath):
+                chunks = _chunk_document_file(fpath, rel_path, config)
+            else:
+                chunks = _chunk_text_file(fpath, rel_path, config)
 
-        if not chunks:
-            continue
-
-        # Get existing chunk hashes for this file
-        existing_hashes = store.fts.get_chunk_hashes(rel_path)
-
-        total_files_indexed += 1
-
-        # Progress feedback every 10 files or at completion
-        if file_idx % 10 == 0 or file_idx == total_files:
-            _log_progress(file_idx, total_files, f"Processing: {rel_path}")
-            if progress_callback is not None:
-                progress_callback(file_idx, total_files, rel_path)
-
-        # Determine which chunks need (re-)embedding
-        new_chunk_ids = {c.chunk_id for c in chunks}
-        old_chunk_ids = set(existing_hashes.keys())
-
-        # If the file changed, remove all old chunks for it
-        if new_chunk_ids != old_chunk_ids:
-            store.delete_file_chunks(rel_path)
-
-        is_code_file = (
-            code_embedder is not None
-            and fpath.suffix.lower() in CODE_EMBEDDING_EXTENSIONS
-        )
-        for chunk in chunks:
-            if (
-                chunk.content_hash in existing_hashes.values()
-                and not force_rebuild
-                and (not is_code_file or has_existing_code_index)
-            ):
-                total_chunks_skipped += 1
+            if not chunks:
                 continue
-            batch_chunks.append(chunk)
 
-        # Flush batch when large enough
-        if len(batch_chunks) >= BATCH_SIZE:
+            # Get existing chunk hashes for this file
+            existing_hashes = store.fts.get_chunk_hashes(rel_path)
+
+            total_files_indexed += 1
+
+            # Progress feedback every 10 files or at completion
+            if file_idx % 10 == 0 or file_idx == total_files:
+                _log_progress(file_idx, total_files, f"Processing: {rel_path}")
+                if progress_callback is not None:
+                    progress_callback(file_idx, total_files, rel_path)
+
+            # Determine which chunks need (re-)embedding
+            new_chunk_ids = {c.chunk_id for c in chunks}
+            old_chunk_ids = set(existing_hashes.keys())
+
+            # If the file changed, remove all old chunks for it
+            if new_chunk_ids != old_chunk_ids:
+                store.delete_file_chunks(rel_path)
+
+            is_code_file = (
+                code_embedder is not None
+                and fpath.suffix.lower() in CODE_EMBEDDING_EXTENSIONS
+            )
+            for chunk in chunks:
+                if (
+                    chunk.content_hash in existing_hashes.values()
+                    and not force_rebuild
+                    and (not is_code_file or has_existing_code_index)
+                ):
+                    total_chunks_skipped += 1
+                    continue
+                batch_chunks.append(chunk)
+
+            # Flush batch when large enough
+            if len(batch_chunks) >= BATCH_SIZE:
+                _embed_and_store_batch(
+                    batch_chunks,
+                    embedder,
+                    store,
+                    code_embedder=code_embedder,
+                )
+                total_chunks_created += len(batch_chunks)
+                batch_chunks = []
+
+        # Flush remaining
+        if batch_chunks:
             _embed_and_store_batch(
                 batch_chunks,
                 embedder,
@@ -224,39 +235,28 @@ def index_repo(
                 code_embedder=code_embedder,
             )
             total_chunks_created += len(batch_chunks)
-            batch_chunks = []
 
-    # Flush remaining
-    if batch_chunks:
-        _embed_and_store_batch(
-            batch_chunks,
-            embedder,
-            store,
-            code_embedder=code_embedder,
+        # Update metadata
+        commit = current_commit(repo_path) if is_git_repo(repo_path) else None
+        if commit:
+            store.last_commit = commit
+        store.touch_indexed()
+        store.fts.set_meta("embedding_model", config.embedding_model)
+
+        elapsed = time.time() - start_time
+        logger.info(
+            "Indexed %s: %d files, %d chunks created, %d skipped in %.1fs",
+            repo_path, total_files_indexed, total_chunks_created, total_chunks_skipped, elapsed,
         )
-        total_chunks_created += len(batch_chunks)
 
-    # Update metadata
-    commit = current_commit(repo_path) if is_git_repo(repo_path) else None
-    if commit:
-        store.last_commit = commit
-    store.touch_indexed()
-    store.fts.set_meta("embedding_model", config.embedding_model)
-
-    elapsed = time.time() - start_time
-    logger.info(
-        "Indexed %s: %d files, %d chunks created, %d skipped in %.1fs",
-        repo_path, total_files_indexed, total_chunks_created, total_chunks_skipped, elapsed,
-    )
-
-    return IndexStats(
-        repo_path=str(repo_path),
-        files_indexed=total_files_indexed,
-        chunks_created=total_chunks_created,
-        chunks_skipped_unchanged=total_chunks_skipped,
-        total_chunks=store.chunk_count,
-        elapsed_seconds=round(elapsed, 2),
-    )
+        return IndexStats(
+            repo_path=str(repo_path),
+            files_indexed=total_files_indexed,
+            chunks_created=total_chunks_created,
+            chunks_skipped_unchanged=total_chunks_skipped,
+            total_chunks=store.chunk_count,
+            elapsed_seconds=round(elapsed, 2),
+        )
 
 
 def _chunk_text_file(fpath: Path, rel_path: str, config: ServerConfig) -> list[Chunk]:
