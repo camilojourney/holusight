@@ -197,9 +197,10 @@ def index_repo(
         new_chunk_ids = {c.chunk_id for c in chunks}
         old_chunk_ids = set(existing_hashes.keys())
 
-        # If the file changed, remove all old chunks for it
-        if new_chunk_ids != old_chunk_ids:
-            store.delete_file_chunks(rel_path)
+        # Remove only obsolete IDs: unchanged chunks must survive the hash
+        # guard below, including their existing vectors and metadata.
+        if old_chunk_ids - new_chunk_ids:
+            store.delete_file_chunks(rel_path, keep_chunk_ids=new_chunk_ids)
 
         is_code_file = (
             code_embedder is not None
@@ -207,7 +208,7 @@ def index_repo(
         )
         for chunk in chunks:
             if (
-                chunk.content_hash in existing_hashes.values()
+                existing_hashes.get(chunk.chunk_id) == chunk.content_hash
                 and not force_rebuild
                 and (not is_code_file or has_existing_code_index)
             ):
