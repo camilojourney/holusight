@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pytest
 
 from codesight.search import (
     _cnfb_boost,
@@ -14,6 +15,59 @@ from codesight.search import (
     vprf_enhance_query,
 )
 from codesight.types import SearchResult
+
+
+@pytest.mark.parametrize("arm", ["general", "code"])
+def test_search_glob_reaches_semantic_target_beyond_decoys(tmp_path, monkeypatch, arm):
+    """A small corpus masks starvation; lexical retrieval cannot rescue this target."""
+    from codesight.api import CodeSight
+    from codesight.config import BM25_CANDIDATE_MULTIPLIER, ServerConfig
+    from codesight.store import CODE_EMBEDDING_DIM
+
+    monkeypatch.setattr("codesight.config.DATA_DIR", tmp_path / "data")
+    dimension = CODE_EMBEDDING_DIM if arm == "code" else 2
+    query_vector = np.zeros(dimension, dtype=np.float32)
+    query_vector[0] = 1.0
+    embedder = MagicMock()
+    embedder.embed_query.return_value = query_vector
+    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("codesight.search.get_embedder", lambda *a, **kw: embedder)
+    # Exercise automatic code-arm routing without a real provider or credential.
+    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", arm == "code")
+    folder = tmp_path / "corpus"
+    folder.mkdir()
+    engine = CodeSight(folder, config=ServerConfig(
+        embedding_model="synthetic", embedding_dim=dimension, reranker=False,
+        metadata_boost=False, query_enhancement=False,
+    ))
+    with engine.store as store:
+        upsert = store.upsert_code_chunks if arm == "code" else store.upsert_chunks
+        target_vector = query_vector.copy()
+        target_vector[1] = 2.0
+        target_meta = dict(file_path="src/target.py", start_line=4, end_line=5,
+                           scope="module", language="python", content_hash="synthetic",
+                           content="unrelated fixture content")
+        upsert(["target"], np.array([target_vector]), [target_meta])
+        store.touch_indexed()
+        query = "quasarzz"
+        assert store.bm25_search(query) == []
+        control = engine.search(query, top_k=1, file_glob="*.py")
+        assert [r.chunk_id for r in control] == ["target"]
+
+        count = max(513, BM25_CANDIDATE_MULTIPLIER + 1)
+        decoy_ids = [f"decoy-{i}" for i in range(count)]
+        vectors = np.tile(query_vector, (count, 1))
+        vectors[:, 1] = np.linspace(0.001, 1.0, count)
+        upsert(decoy_ids, vectors, [
+            {**target_meta, "file_path": f"notes/decoy-{i}.txt"} for i in range(count)
+        ])
+        assert store.bm25_search(query, file_glob="*.py") == []
+        unfiltered = engine.search(query, top_k=1)
+        assert [r.chunk_id for r in unfiltered] == ["decoy-0"]
+        filtered = engine.search(query, top_k=1, file_glob="*.py")
+        assert [r.chunk_id for r in filtered] == ["target"]
+        assert filtered[0].file_path == "src/target.py"
+        assert (filtered[0].start_line, filtered[0].end_line) == (4, 5)
 
 
 class TestRRFMerge:
