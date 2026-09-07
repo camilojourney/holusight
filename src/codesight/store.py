@@ -11,6 +11,7 @@ import logging
 import re
 import sqlite3
 from datetime import datetime, timezone
+from fnmatch import fnmatch
 from pathlib import Path
 
 import lancedb
@@ -37,6 +38,9 @@ class FTSSidecar:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
         self.conn = sqlite3.connect(str(db_path))
+        # Use the vector arm's platform-aware glob semantics inside SQL so
+        # membership is exact before BM25's ranked LIMIT is applied.
+        self.conn.create_function("fnmatch", 2, fnmatch, deterministic=True)
         self.conn.execute("PRAGMA journal_mode=WAL")
         self._init_tables()
 
@@ -151,8 +155,10 @@ class FTSSidecar:
         conditions = ["chunks_fts MATCH ?"]
         values: list[object] = [safe_query]
         if file_glob:
-            conditions.append("chunk_id IN (SELECT chunk_id FROM chunks WHERE file_path LIKE ?)")
-            values.append(file_glob.replace("*", "%").replace("?", "_"))
+            conditions.append(
+                "chunk_id IN (SELECT chunk_id FROM chunks WHERE fnmatch(file_path, ?))"
+            )
+            values.append(file_glob)
         if source == "holus":
             conditions.append("chunk_id LIKE 'holus:%'")
         values.append(top_k)

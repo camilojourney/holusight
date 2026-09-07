@@ -7,8 +7,10 @@ tests lock that contract so future MCP re-exposure stays compatible.
 
 from __future__ import annotations
 
+import fnmatch
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 import codesight.config as config_module
@@ -69,13 +71,45 @@ def isolated_data_dir(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def engine(doc_folder, isolated_data_dir):
-    """CodeSight instance with local embeddings and isolated storage."""
+def engine(doc_folder, isolated_data_dir, monkeypatch):
+    """Real index/search with deterministic embeddings and no provider calls."""
+    from codesight.store import ChunkStore
+
+    class FakeEmbedder:
+        def embed(self, texts):
+            return np.tile(np.array([1.0, 0.0], dtype=np.float32), (len(texts), 1))
+
+        def embed_query(self, query):
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    embedder = FakeEmbedder()
+    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
+    stores = []
+
+    def tracked_store(*args, **kwargs):
+        store = ChunkStore(*args, **kwargs)
+        stores.append(store)
+        return store
+
+    monkeypatch.setattr("codesight.indexer.ChunkStore", tracked_store)
+    monkeypatch.setattr("codesight.api.ChunkStore", tracked_store)
     config = ServerConfig(
-        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+        embedding_model="synthetic",
         embedding_backend="local",
+        embedding_dim=2,
+        reranker=False,
+        query_enhancement=False,
+        metadata_boost=False,
+        cnfb_alpha=0,
     )
-    return CodeSight(doc_folder, config=config)
+    try:
+        yield CodeSight(doc_folder, config=config)
+    finally:
+        for store in stores:
+            store.close()
 
 
 class TestMCPIndexTool:
@@ -141,7 +175,32 @@ class TestMCPSearchTool:
 
         py_only = engine.search("payment", file_glob="*.py", top_k=5)
 
-        assert all(r.file_path.endswith(".py") for r in py_only)
+        assert {r.file_path for r in py_only} == {"payments.py"}
+
+    @pytest.mark.parametrize("pattern", [
+        "file_a.py", "rate%.md", "file[ab].py", "file[!X]a.py", "file[[]ab].py",
+        "case.py", "Case.py", "src/*.py", r"src\*.py", "*.py", "file?a.py", "missing*",
+    ])
+    def test_search_glob_membership_matches_fnmatch(self, engine, doc_folder, pattern):
+        paths = [
+            "file_a.py", "fileXa.py", "rate%.md", "rateX.md", "fileb.py", "file[ab].py",
+            "Case.py", "lower.py", "src/nested.py", "src/deep/leaf.py", r"src\windows.py",
+            "plain.txt",
+        ]
+        for name in paths:
+            path = doc_folder / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("needle\n")
+        before = {p: p.read_bytes() for p in doc_folder.rglob("*") if p.is_file()}
+        # All files, including payments.py, participate in vector retrieval.
+        indexed_paths = {str(path.relative_to(doc_folder)) for path in before}
+        expected = {name for name in indexed_paths if fnmatch.fnmatch(name, pattern)}
+
+        results = engine.search("needle", file_glob=pattern, top_k=30)
+
+        assert {r.file_path for r in results} == expected
+        assert all(r.start_line >= 1 and r.end_line >= r.start_line for r in results)
+        assert {p: p.read_bytes() for p in doc_folder.rglob("*") if p.is_file()} == before
 
     def test_search_empty_query_returns_list(self, engine):
         engine.index()
