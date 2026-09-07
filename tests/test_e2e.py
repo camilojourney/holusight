@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 from codesight import config as config_module
@@ -100,3 +101,87 @@ class TestE2ERetrieval:
         e2 = CodeSight(FIXTURES, config=ServerConfig())
         assert e2.store.is_indexed
         assert e2.store.chunk_count == count
+
+
+@pytest.mark.parametrize("mode", ["ast-preamble", "ast-no-preamble", "regex-preamble"])
+def test_index_search_emits_each_python_chunk_once(tmp_path, monkeypatch, mode):
+    """Preamble chunks must not be embedded/stored twice or re-embedded unchanged."""
+    if mode.startswith("ast"):
+        pytest.importorskip("tree_sitter")
+        pytest.importorskip("tree_sitter_python")
+    else:
+        def unavailable_parser(_language):
+            raise ImportError("synthetic unavailable tree-sitter")
+
+        monkeypatch.setattr("codesight.chunker._get_ts_parser", unavailable_parser)
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    preamble = "" if mode == "ast-no-preamble" else "import os\nimport sys\n\n"
+    content = preamble + "def main():\n    return 'needle'\n"
+    source = corpus / "main.py"
+    source.write_text(content, encoding="utf-8")
+    monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "index-data")
+
+    class RecordingEmbedder:
+        def __init__(self):
+            self.texts = []
+
+        def embed(self, texts):
+            self.texts.extend(texts)
+            return np.tile(np.array([1.0, 0.0], dtype=np.float32), (len(texts), 1))
+
+        def embed_query(self, _query):
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    embedder = RecordingEmbedder()
+    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
+    engine = CodeSight(
+        corpus,
+        config=ServerConfig(
+            embedding_model="synthetic",
+            embedding_backend="local",
+            embedding_dim=2,
+            stale_threshold_seconds=3600,
+            reranker=False,
+            metadata_boost=False,
+            query_enhancement=False,
+            cnfb_alpha=0.0,
+        ),
+    )
+    stores = []
+    try:
+        first = engine.index()
+        results = engine.search("needle", top_k=8)
+        stores.append(engine.store)
+        vector_ids = engine.store.lance_table.to_arrow().column("chunk_id").to_pylist()
+        expected_count = 1 if not preamble else 2
+
+        assert results
+        assert any("needle" in result.snippet for result in results)
+        assert all(result.file_path == "main.py" for result in results)
+        assert len(vector_ids) == len(set(vector_ids)) == expected_count
+        assert first.chunks_created == first.total_chunks == expected_count
+        assert len(embedder.texts) == len(set(embedder.texts)) == expected_count
+        assert {result.chunk_id for result in results} == set(vector_ids)
+        assert source.read_text(encoding="utf-8") == content
+        assert list(corpus.iterdir()) == [source]
+
+        original_embedding_texts = list(embedder.texts)
+        second = engine.index()
+        stores.append(engine.store)
+        repeated = engine.search("needle", top_k=8)
+        repeated_ids = engine.store.lance_table.to_arrow().column("chunk_id").to_pylist()
+        assert second.chunks_created == 0
+        assert second.chunks_skipped_unchanged == expected_count
+        assert second.total_chunks == expected_count
+        assert embedder.texts == original_embedding_texts
+        assert repeated_ids == vector_ids
+        assert {result.chunk_id for result in repeated} == set(vector_ids)
+        assert source.read_text(encoding="utf-8") == content
+    finally:
+        for store in stores:
+            store.close()

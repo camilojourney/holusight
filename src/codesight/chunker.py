@@ -466,7 +466,6 @@ def chunk_file_ast(
             chunks.extend(
                 _split_by_windows(leading, file_path, language, max_lines, 0)
             )
-            chunks.extend(_split_by_windows(leading, file_path, language, max_lines, 0))
 
     prev_end = first_seg_start
     for seg_start, seg_end in merged:
