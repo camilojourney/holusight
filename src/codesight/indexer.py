@@ -178,6 +178,10 @@ def index_repo(
             chunks = _chunk_document_file(fpath, rel_path, config)
         else:
             chunks = _chunk_text_file(fpath, rel_path, config)
+            # Only a successful text read can certify empty content. Document
+            # parsers may swallow failures and return [], so leave those alone.
+            if chunks is not None and not chunks:
+                store.delete_file_chunks(rel_path)
 
         if not chunks:
             continue
@@ -259,13 +263,13 @@ def index_repo(
     )
 
 
-def _chunk_text_file(fpath: Path, rel_path: str, config: ServerConfig) -> list[Chunk]:
-    """Read and chunk a text-based file (code, markdown, etc.)."""
+def _chunk_text_file(fpath: Path, rel_path: str, config: ServerConfig) -> list[Chunk] | None:
+    """Read and chunk text; None means read failure, [] means successful emptiness."""
     try:
         content = fpath.read_text(encoding="utf-8", errors="ignore")
     except Exception as e:
         logger.warning("Could not read %s: %s", fpath, e)
-        return []
+        return None
 
     if not content.strip():
         return []
