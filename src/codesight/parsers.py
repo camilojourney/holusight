@@ -132,8 +132,8 @@ def _extract_pptx(file_path: Path) -> list[DocumentPage]:
                         if text:
                             texts.append(text)
 
-                # Grab slide title
-                if hasattr(shape, "is_placeholder") and shape.placeholder_format:
+                # placeholder_format raises ValueError on ordinary shapes.
+                if shape.is_placeholder:
                     if shape.placeholder_format.idx == 0:  # title placeholder
                         slide_title = shape.text.strip() or None
 

@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
+from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.util import Inches
 
 from codesight import config as config_module
 from codesight.api import CodeSight
@@ -24,6 +28,101 @@ def indexed_engine(tmp_path, monkeypatch):
     assert stats.files_indexed >= 2
     assert stats.total_chunks >= 2
     return engine
+
+
+@pytest.fixture
+def pptx_engine(tmp_path, monkeypatch):
+    """Use only generated slides, a private index, and deterministic local vectors."""
+    class FakeEmbedder:
+        def embed(self, texts):
+            return np.tile(np.array([1.0, 0.0], dtype=np.float32), (len(texts), 1))
+
+        def embed_query(self, text):
+            return self.embed([text])[0]
+
+    embedder = FakeEmbedder()
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
+    for key in ("VOYAGE_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: embedder)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    engine = CodeSight(corpus, config=ServerConfig(
+        embedding_model="synthetic-pptx", embedding_backend="local", embedding_dim=2,
+        reranker=False, query_enhancement=False, metadata_boost=False, cnfb_alpha=0.0,
+    ))
+    yield engine
+    if engine._store is not None:
+        engine.store.close()
+
+
+class TestPptxE2E:
+    @pytest.mark.parametrize("placeholder", [True, False], ids=["placeholder", "textbox"])
+    def test_visible_text_is_searchable(self, pptx_engine, placeholder):
+        prs = Presentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[1 if placeholder else 6])
+        shape = (slide.placeholders[1] if placeholder else slide.shapes.add_textbox(
+            Inches(1), Inches(1), Inches(3), Inches(1),
+        ))
+        assert shape.is_placeholder is placeholder
+        shape.text = "Textboxneedle visible slide content"
+        path = pptx_engine.folder_path / "generated.pptx"
+        prs.save(path)
+        original = path.read_bytes()
+
+        stats = pptx_engine.index()
+        results = pptx_engine.search("Textboxneedle", file_glob="*.pptx")
+
+        assert stats.files_indexed == 1
+        assert stats.total_chunks == 1
+        assert len(results) == 1
+        result = results[0]
+        assert result.snippet == shape.text
+        assert result.file_path == path.name
+        assert result.start_line == result.end_line == 1
+        assert result.scope == "page 1"
+        assert path.read_bytes() == original
+        assert list(pptx_engine.folder_path.iterdir()) == [path]
+
+    def test_decorative_shapes_preserve_later_slide_citations(self, pptx_engine):
+        prs = Presentation()
+        prs.slides.add_slide(prs.slide_layouts[6])  # Empty slide must not renumber citations.
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        decoration = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(1), Inches(1),
+        )
+        assert decoration.is_placeholder is False
+        box = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(3), Inches(1))
+        box.text = "Decoratedneedle visible textbox"
+        later = prs.slides.add_slide(prs.slide_layouts[1])
+        later.shapes.title.text = "Laterneedle title"
+        later.placeholders[1].text = "Laterbodyneedle visible body"
+        path = pptx_engine.folder_path / "mixed.pptx"
+        prs.save(path)
+        original = path.read_bytes()
+
+        stats = pptx_engine.index()
+        assert stats.total_chunks == 2
+        for query, number, scope, text in (
+            ("Decoratedneedle", 2, "page 2", box.text),
+            ("Laterneedle", 3, later.shapes.title.text,
+             "Laterneedle title\nLaterbodyneedle visible body"),
+        ):
+            results = pptx_engine.search(query, file_glob="*.pptx", top_k=2)
+            matching = [result for result in results if query in result.snippet]
+            assert len(matching) == 1
+            result = matching[0]
+            assert result.file_path == path.name
+            assert result.start_line == result.end_line == number
+            assert result.scope == scope
+            assert result.snippet == text
+        assert path.read_bytes() == original
+        assert list(pptx_engine.folder_path.iterdir()) == [path]
 
 
 class TestE2ERetrieval:
