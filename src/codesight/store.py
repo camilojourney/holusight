@@ -6,6 +6,7 @@ querying full-text, and managing repo metadata.
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import logging
 import re
@@ -509,24 +510,37 @@ class ChunkStore:
         search = self.lance_table.search(query_vector.tolist())
         if source == "holus":
             search = search.where("chunk_id LIKE 'holus:%'")
-        results = search.limit(top_k).to_pandas()
+        return self._vector_search_ids(search, top_k, file_glob)
 
-        if results.empty:
+    def _vector_search_ids(self, search, top_k: int, file_glob: str | None) -> list[str]:
+        """Page ranked IDs until the glob has enough matches or the table is exhausted.
+
+        Paths live in the sidecar, not the vector tables. Project only IDs and
+        bound each page so selective globs never materialize the vector corpus.
+        The source predicate, if any, remains on the query for every page.
+        """
+        if top_k <= 0:
             return []
+        search = search.select(["chunk_id"])
+        if not file_glob:
+            return search.limit(top_k).to_pandas()["chunk_id"].tolist()
 
-        chunk_ids = results["chunk_id"].tolist()
-
-        # Post-filter by file glob if specified
-        if file_glob:
-            import fnmatch
-            filtered = []
+        page_size = 256
+        offset = 0
+        filtered = []
+        while True:
+            results = search.offset(offset).limit(page_size).to_pandas()
+            chunk_ids = results["chunk_id"].tolist()
+            metadatas = self.fts.get_chunks_by_ids(chunk_ids)
             for cid in chunk_ids:
-                meta = self.fts.get_chunk_by_id(cid)
+                meta = metadatas.get(cid)
                 if meta and fnmatch.fnmatch(meta["file_path"], file_glob):
                     filtered.append(cid)
-            return filtered
-
-        return chunk_ids
+                    if len(filtered) == top_k:
+                        return filtered
+            if len(chunk_ids) < page_size:
+                return filtered
+            offset += len(chunk_ids)
 
     def bm25_search(
         self,
@@ -545,29 +559,8 @@ class ChunkStore:
         if self.code_lance_table is None:
             return []
 
-        results = (
-            self.code_lance_table
-            .search(query_vector.tolist())
-            .limit(top_k)
-            .to_pandas()
-        )
-
-        if results.empty:
-            return []
-
-        chunk_ids = results["chunk_id"].tolist()
-
-        if file_glob:
-            import fnmatch
-
-            filtered = []
-            for cid in chunk_ids:
-                meta = self.fts.get_chunk_by_id(cid)
-                if meta and fnmatch.fnmatch(meta["file_path"], file_glob):
-                    filtered.append(cid)
-            return filtered
-
-        return chunk_ids
+        search = self.code_lance_table.search(query_vector.tolist())
+        return self._vector_search_ids(search, top_k, file_glob)
 
     def get_chunk_metadata(self, chunk_ids: list[str]) -> dict[str, dict]:
         """Get full metadata for a batch of chunk IDs."""
