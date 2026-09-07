@@ -39,25 +39,27 @@ logger = logging.getLogger(__name__)
 def _load_gitignore(repo_path: Path) -> pathspec.PathSpec | None:
     """Load .gitignore patterns if present."""
     gitignore_path = repo_path / ".gitignore"
-    if gitignore_path.exists():
-        try:
-            with open(gitignore_path, "r") as f:
-                return pathspec.PathSpec.from_lines("gitwildmatch", f)
-        except Exception:
-            pass
-    return None
+    try:
+        with open(gitignore_path, "r") as f:
+            return pathspec.PathSpec.from_lines("gitwildmatch", f)
+    except FileNotFoundError:
+        return None
 
 
 def walk_repo_files(repo_path: str | Path) -> list[Path]:
     """Walk a directory, respecting .gitignore and skip lists.
 
     Returns absolute paths to indexable files (code + documents).
+    Raises on traversal/stat errors: a partial listing must not authorize pruning.
     """
     repo_path = Path(repo_path).resolve()
     gitignore = _load_gitignore(repo_path)
     files: list[Path] = []
 
-    for dirpath, dirnames, filenames in os.walk(repo_path):
+    def raise_walk_error(error: OSError) -> None:
+        raise error
+
+    for dirpath, dirnames, filenames in os.walk(repo_path, onerror=raise_walk_error):
         # Filter out skipped directories IN PLACE (os.walk respects this)
         dirnames[:] = [
             d for d in dirnames
@@ -89,15 +91,37 @@ def walk_repo_files(repo_path: str | Path) -> list[Path]:
                 continue
 
             # Check file size
-            try:
-                if fpath.stat().st_size > MAX_FILE_SIZE_BYTES:
-                    continue
-            except OSError:
+            if fpath.stat().st_size > MAX_FILE_SIZE_BYTES:
                 continue
 
             files.append(fpath)
 
     return files
+
+
+def _removed_file_paths(repo_path: Path, files: list[Path], store: ChunkStore) -> list[str]:
+    """Prove absence, not just exclusion, after a successful complete walk.
+
+    Existing ignored/oversized files and symlinks are not removals. Collect all
+    absence checks before deleting anything so a stat error cannot partially
+    authorize pruning. Paths outside the ordinary relative-file namespace are
+    never probed or reconciled.
+    """
+    repo_path.stat()  # A vanished/inaccessible root is not an empty corpus.
+    seen = {str(path.relative_to(repo_path)) for path in files}
+    removed = []
+    for file_path in sorted(store.fts.get_indexed_file_paths() - seen):
+        relative = Path(file_path)
+        if relative.is_absolute() or ".." in relative.parts or "://" in file_path:
+            continue
+        path = repo_path / relative
+        if not path.resolve().is_relative_to(repo_path):
+            continue
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            removed.append(file_path)
+    return removed
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +260,13 @@ def index_repo(
         )
         total_chunks_created += len(batch_chunks)
 
+    # Only reconcile after walking and processing complete without an exception.
+    # Seen read/parse failures retain their previous records; exclusion is not deletion.
+    removed_chunks = sum(
+        store.delete_file_chunks(removed_path)
+        for removed_path in _removed_file_paths(repo_path, files, store)
+    )
+
     # Update metadata
     commit = current_commit(repo_path) if is_git_repo(repo_path) else None
     if commit:
@@ -254,6 +285,7 @@ def index_repo(
         files_indexed=total_files_indexed,
         chunks_created=total_chunks_created,
         chunks_skipped_unchanged=total_chunks_skipped,
+        chunks_deleted=removed_chunks,
         total_chunks=store.chunk_count,
         elapsed_seconds=round(elapsed, 2),
     )
