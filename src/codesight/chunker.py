@@ -523,9 +523,13 @@ def chunk_document(
 ) -> list[Chunk]:
     """Split document pages into chunks by paragraph boundaries.
 
-    Each page's text is split into paragraph-sized chunks. The page number
-    is used for start_line/end_line, and heading (if any) for scope.
+    Paragraph boundaries are preferred; oversized paragraphs use overlapping
+    character windows. The page number is used for start_line/end_line, and
+    heading (if any) for scope. max_chars bounds content, not the context header.
     """
+    if max_chars <= 0 or not 0 <= overlap_chars < max_chars:
+        raise ValueError("Require max_chars > 0 and 0 <= overlap_chars < max_chars")
+
     ext = Path(file_path).suffix.lower().lstrip(".")
     language = ext  # "pdf", "docx", "pptx"
 
@@ -567,31 +571,13 @@ def _split_text_by_paragraphs(
     if not paragraphs:
         return []
 
-    chunks: list[Chunk] = []
+    contents: list[str] = []
     current_text = ""
-    chunk_idx = 0
 
     for para in paragraphs:
         # If adding this paragraph exceeds max_chars, flush current chunk
         if current_text and len(current_text) + len(para) + 2 > max_chars:
-            chunk_idx += 1
-            header = _make_context_header(
-                file_path,
-                scope,
-                page_number,
-                page_number,
-            )
-            chunks.append(
-                Chunk(
-                    file_path=file_path,
-                    start_line=page_number,
-                    end_line=page_number,
-                    content=current_text,
-                    scope=scope,
-                    language=language,
-                    context_header=header,
-                )
-            )
+            contents.append(current_text)
             # Keep overlap from the end of current chunk
             if overlap_chars > 0 and len(current_text) > overlap_chars:
                 current_text = current_text[-overlap_chars:]
@@ -603,19 +589,28 @@ def _split_text_by_paragraphs(
         else:
             current_text = para
 
+        # Bound both oversized paragraphs and overlap + separator + paragraph.
+        # Advance offsets rather than repeatedly copying the unconsumed suffix.
+        start = 0
+        while len(current_text) - start > max_chars:
+            contents.append(current_text[start:start + max_chars])
+            start += max_chars - overlap_chars
+        current_text = current_text[start:]
+
     # Flush remaining text
     if current_text.strip():
-        header = _make_context_header(file_path, scope, page_number, page_number)
-        chunks.append(
-            Chunk(
-                file_path=file_path,
-                start_line=page_number,
-                end_line=page_number,
-                content=current_text,
-                scope=scope,
-                language=language,
-                context_header=header,
-            )
-        )
+        contents.append(current_text)
 
-    return chunks
+    header = _make_context_header(file_path, scope, page_number, page_number)
+    return [
+        Chunk(
+            file_path=file_path,
+            start_line=page_number,
+            end_line=page_number,
+            content=content,
+            scope=scope,
+            language=language,
+            context_header=header,
+        )
+        for content in contents
+    ]
