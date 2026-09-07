@@ -119,6 +119,22 @@ class FTSSidecar:
         )
         return dict(cursor.fetchall())
 
+    def get_indexed_file_paths(self) -> set[str]:
+        """Return ordinary file paths eligible for missing-file reconciliation.
+
+        Lineage owns its virtual namespace independently of filesystem scans.
+        Exclude the entire path if any record there belongs to lineage, so the
+        file-wide deletion primitive cannot remove a collocated lineage record.
+        """
+        cursor = self.conn.execute(
+            "SELECT file_path FROM chunks "
+            "WHERE file_path NOT LIKE 'holus-lineage/%' "
+            "GROUP BY file_path "
+            "HAVING SUM(CASE WHEN chunk_id LIKE 'holus:%' OR language = 'holus-lineage' "
+            "THEN 1 ELSE 0 END) = 0"
+        )
+        return {row[0] for row in cursor.fetchall()}
+
     @staticmethod
     def _sanitize_fts_query(query: str) -> str:
         """Sanitize a query for FTS5 MATCH to prevent injection.
