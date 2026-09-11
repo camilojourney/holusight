@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "holusight-avo-ledger/v1",
+  "title": "Holusight AVO Append-Only Lane Ledger Entry",
+  "description": "One JSON object per line (JSONL). Entries are append-only; prior lines are immutable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "lane_id",
+    "sequence",
+    "recorded_at",
+    "experiment_id",
+    "outcome",
+    "trial"
+  ],
+  "properties": {
+    "schema_version": { "const": "holusight-avo-ledger/v1" },
+    "campaign_id": { "const": "holusight-avo-v1" },
+    "lane_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic 1-based line number within this lane ledger."
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "experiment_id": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "kept",
+        "discarded",
+        "rejected",
+        "indeterminate",
+        "crashed"
+      ]
+    },
+    "trial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose_id",
+        "hypothesis",
+        "target_failure_mode",
+        "intervention",
+        "expected_effect",
+        "falsifier",
+        "control",
+        "protected_gates",
+        "lineage_parent",
+        "decision_informed",
+        "seed",
+        "evaluator_identity"
+      ],
+      "properties": {
+        "purpose_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9._-]+$"
+        },
+        "hypothesis": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "target_failure_mode": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "intervention": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "summary", "digest"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "evaluator_method",
+                "display_selection",
+                "scoring_weight",
+                "abstention_threshold",
+                "other_bounded"
+              ]
+            },
+            "summary": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          }
+        },
+        "expected_effect": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "falsifier": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "digest"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["baseline", "parent_lineage", "manifest_frozen"]
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          }
+        },
+        "protected_gates": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "lineage_parent": {
+          "type": "string",
+          "description": "Git commit or experiment_id of parent lineage head."
+        },
+        "decision_informed": {
+          "type": "string",
+          "enum": [
+            "calibration",
+            "product_improvement",
+            "supervisor_directive",
+            "gate_recovery"
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evaluator_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["digest", "method_config_sha256"],
+          "properties": {
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "method_config_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Named primary metrics only; no raw vectors."
+        },
+        "hard_constraint_violations": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 256
+        }
+      }
+    },
+    "crash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "error_class"],
+      "properties": {
+        "phase": {
+          "type": "string",
+          "enum": [
+            "preflight",
+            "intervention_apply",
+            "evaluate",
+            "record",
+            "checkpoint"
+          ]
+        },
+        "error_class": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "description": "Required when outcome is crashed."
+    },
+    "rejection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_code"],
+      "properties": {
+        "reason_code": {
+          "type": "string",
+          "enum": [
+            "manifest_mismatch",
+            "gate_violation",
+            "duplicate_experiment_id",
+            "invalid_intervention",
+            "resource_limit",
+            "replay_mismatch",
+            "supervisor_veto",
+            "schema_invalid"
+          ]
+        }
+      },
+      "description": "Required when outcome is rejected."
+    },
+    "ledger_chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prev_entry_sha256"],
+      "properties": {
+        "prev_entry_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "description": "Optional hash chain; sequence 1 uses sha256:000...000."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "outcome": { "const": "crashed" } },
+        "required": ["outcome"]
+      },
+      "then": { "required": ["crash"] }
+    },
+    {
+      "if": {
+        "properties": { "outcome": { "const": "rejected" } },
+        "required": ["outcome"]
+      },
+      "then": { "required": ["rejection"] }
+    }
+  ]
+}

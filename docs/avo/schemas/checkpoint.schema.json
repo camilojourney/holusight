@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "holusight-avo-checkpoint/v1",
+  "title": "Holusight AVO Compact Lane Checkpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "lane_id",
+    "branch",
+    "checkpoint_sequence",
+    "created_at",
+    "manifest_sha256",
+    "last_experiment_id",
+    "lineage_head",
+    "evaluator_identity_digest",
+    "counts",
+    "ledger_tail_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "holusight-avo-checkpoint/v1" },
+    "campaign_id": { "const": "holusight-avo-v1" },
+    "lane_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "branch": {
+      "type": "string",
+      "pattern": "^fm/holusight-avo-[a-z0-9-]+$"
+    },
+    "checkpoint_sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "last_experiment_id": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$"
+    },
+    "lineage_head": {
+      "type": "string",
+      "description": "Git commit SHA of current-best lineage on this lane branch."
+    },
+    "evaluator_identity_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completed",
+        "kept",
+        "discarded",
+        "crashed",
+        "rejected",
+        "indeterminate"
+      ],
+      "properties": {
+        "completed": { "type": "integer", "minimum": 0 },
+        "kept": { "type": "integer", "minimum": 0 },
+        "discarded": { "type": "integer", "minimum": 0 },
+        "crashed": { "type": "integer", "minimum": 0 },
+        "rejected": { "type": "integer", "minimum": 0 },
+        "indeterminate": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ledger_tail_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "SHA-256 of the last ledger line bytes (canonical JSON, no trailing newline in hash input)."
+    }
+  }
+}
