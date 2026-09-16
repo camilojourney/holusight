@@ -30,6 +30,21 @@ Feature specifications for codesight.
 | 021 | [Holusight Evidence Subject Binding](021-holusight-evidence-subject-binding.md) | Implemented | Direct-PR |
 | 022 | [Holusight Versioned Suite Fixtures](022-holusight-versioned-suite-fixtures.md) | Dataset foundation implemented | Direct-PR |
 
+## Evaluation readiness (local/advisory) — 2026-09-16
+
+**Captain decision (ADR-0019):** local/advisory evaluator; **promotion denied**.
+
+| Surface | Status | How to run |
+|---------|--------|------------|
+| Fleet protocol pilot (spec 016) | Ready on `master` | `just fleet-smoke` |
+| Safe continuous-eval pilot (spec 017) | Ready on `master` | `just eval-pilot` |
+| Consistency / AXI / improvement / fixtures (013–015, 018–022) | Implemented on `master` | see each spec |
+| Overnight AVO / G2 external acceptance (PR #32+) | **Deferred** — not required for local-eval readiness | preserve custody; do not treat as blocker |
+
+Verdicts are advisory for humans only. No autonomous promote / merge / deploy / retrain from gates.
+
+See [ADR-0019](../docs/decisions/0019-local-advisory-evaluator-promotion-denied.md).
+
 ## Implementation History
 
 ### v0.1 — Hybrid Code Search (completed)
