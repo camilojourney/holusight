@@ -65,3 +65,4 @@ graphify-out/cypher.txt
 graphify-out/manifest.json
 !graphify-out/graph.json
 .vercel
+graphify-out/.vocab.txt

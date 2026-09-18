@@ -39,9 +39,9 @@ def _subject(*, clean: bool = True) -> EvaluationSubject:
 def test_named_suite_loads_and_binds_public_85_and_hidden_32_identities():
     loaded = _load()
     assert loaded.suite_id == "holusight-local-retrieval-v1"
-    assert loaded.suite.status == "dataset_foundation_only"
-    assert loaded.suite.runner == "not_implemented"
-    assert loaded.suite.evaluator_execution == "blocked_until_g2_trusted_sandbox"
+    assert loaded.suite.status == "local_advisory_execution"
+    assert loaded.suite.runner == "python -m codesight.eval_suite run"
+    assert loaded.suite.evaluator_execution == "local_visible_development_only"
     assert loaded.suite.promotion == "denied"
     assert loaded.suite.visible_development.case_count == 85
     assert loaded.suite.hidden_holdout.case_count == 32
@@ -170,7 +170,7 @@ def test_verify_holdout_payload_bytes_matches_declared_digest():
         eval_suite.verify_holdout_payload_bytes(synthetic, b"abc")
 
 
-def test_module_has_no_holdout_access_path_or_runner():
+def test_module_has_no_holdout_access_path_or_comparison_runner():
     forbidden = {
         "load_holdout_payload",
         "open_holdout",
@@ -198,9 +198,10 @@ def test_module_has_no_holdout_access_path_or_runner():
     assert "socket" not in imported
     assert "urllib" not in imported
     assert "requests" not in imported
-    # Dataset loading is public; evaluation is not.
+    # Dataset loading stays available and the CLI owns local advisory execution.
     assert inspect.isfunction(eval_suite.load_suite)
     assert inspect.isfunction(eval_suite.verify_holdout_payload_bytes)
+    assert inspect.isfunction(eval_suite.main)
 
 
 def test_comparison_identity_schema_requires_five_bindings_and_is_not_ready():
@@ -277,3 +278,81 @@ def test_comparison_ready_only_with_clean_git_subject_and_g2_pin():
     assert eval_suite.comparison_identity_is_ready(binding) is True
     dirty = binding.model_copy(update={"git_subject": _subject(clean=False)})
     assert eval_suite.comparison_identity_is_ready(dirty) is False
+
+
+def _harness_payload() -> dict:
+    return {
+        "results": {
+            "hybrid": {
+                "num_queries": 85,
+                "num_graded": 80,
+                "num_hits": 72,
+                "num_diagnostic_probes": 5,
+                "hit_rate": 0.9,
+                "recall_at_k": {"1": 0.5, "5": 0.8, "10": 0.9},
+                "mrr_at_10": 0.7,
+                "ndcg_at_10": 0.75,
+                "evidence_completeness": 0.9,
+            }
+        }
+    }
+
+
+def test_named_runner_passes_only_for_a_clean_bound_public_dev_run(monkeypatch):
+    clean_subject = _subject()
+    monkeypatch.setattr(eval_suite, "_current_subject", lambda _root: clean_subject)
+    monkeypatch.setattr(eval_suite, "_subject_binds_paths", lambda *_args: True)
+    monkeypatch.setattr(
+        eval_suite,
+        "_execute_visible_development_harness",
+        lambda *_args: (0, b"public-output", b"", _harness_payload()),
+    )
+
+    result = eval_suite._run_named_suite(REPO_ROOT, eval_suite.DEFAULT_SUITE_ID, 10)
+
+    assert result.outcome == "pass"
+    assert result.promotion == "denied"
+    assert result.hidden_holdout_access == "none"
+    assert result.network == "denied"
+    assert result.subject == clean_subject
+    assert result.evidence.metrics is not None
+    assert result.evidence.metrics.cases_total == 85
+    assert result.evidence.harness_stdout_sha256 == eval_suite.sha256_digest(b"public-output")
+
+
+def test_named_runner_blocks_a_failed_existing_harness(monkeypatch):
+    clean_subject = _subject()
+    monkeypatch.setattr(eval_suite, "_current_subject", lambda _root: clean_subject)
+    monkeypatch.setattr(eval_suite, "_subject_binds_paths", lambda *_args: True)
+    monkeypatch.setattr(
+        eval_suite,
+        "_execute_visible_development_harness",
+        lambda *_args: (1, b"", b"failure", None),
+    )
+
+    result = eval_suite._run_named_suite(REPO_ROOT, eval_suite.DEFAULT_SUITE_ID, 10)
+
+    assert result.outcome == "block"
+    assert result.evidence.harness_exit_code == 1
+    assert result.evidence.harness_stderr_sha256 == eval_suite.sha256_digest(b"failure")
+
+
+def test_named_runner_is_indeterminate_without_a_clean_subject(monkeypatch):
+    dirty_subject = _subject(clean=False)
+    monkeypatch.setattr(eval_suite, "_current_subject", lambda _root: dirty_subject)
+
+    result = eval_suite._run_named_suite(REPO_ROOT, eval_suite.DEFAULT_SUITE_ID, 10)
+
+    assert result.outcome == "indeterminate"
+    assert result.evidence.harness_exit_code is None
+
+
+def test_local_harness_environment_strips_network_credentials(tmp_path, monkeypatch):
+    monkeypatch.setenv("VOYAGE_API_KEY", "secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "secret")
+    env = eval_suite._local_harness_environment(tmp_path)
+
+    assert "VOYAGE_API_KEY" not in env
+    assert "OPENAI_API_KEY" not in env
+    assert env["CODESIGHT_DATA_DIR"] == str(tmp_path)
+    assert env["HF_HUB_OFFLINE"] == "1"

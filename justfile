@@ -65,6 +65,11 @@ fleet-smoke:
 eval-pilot:
     uv run --extra dev python -m codesight.eval_pilot run --scorecard
 
+# Run the named visible-development retrieval suite. Local, no-spend, and
+# advisory only; `pass` does not authorize promotion, merge, or deployment.
+eval-suite:
+    uv run --extra dev python -m codesight.eval_suite run
+
 # Advisory named-suite orchestration (ADR-0019). Loads suite identity, binds
 # EvaluationSubject, runs fleet-smoke + eval-pilot. Hidden holdout not scored.
 # Promotion always denied. Not the G2 trusted-sandbox runner.

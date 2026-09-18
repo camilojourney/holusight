@@ -24,7 +24,9 @@ def _pilot(*, failed: int = 0, errored: int = 0, total: int = 4) -> PilotRunResu
             case_id=f"c{i}",
             family="regression",
             kind="regression",
-            verdict="pass" if i < passed else ("error" if errored and i >= passed + failed else "fail"),
+            verdict=(
+                "pass" if i < passed else ("error" if errored and i >= passed + failed else "fail")
+            ),
             detail="t",
             provenance_origin="spec_documented_contract",
         )
@@ -81,7 +83,11 @@ def test_aggregate_pass_when_surfaces_ok_and_subject_clean():
     )
     with (
         mock.patch.object(proper_eval, "_current_subject", return_value=subject),
-        mock.patch.object(proper_eval, "_run_smoke_suite", return_value=(0, {"passed": 20, "failed": 0, "errors": 0})),
+        mock.patch.object(
+            proper_eval,
+            "_run_smoke_suite",
+            return_value=(0, {"passed": 20, "failed": 0, "errors": 0}),
+        ),
         mock.patch.object(proper_eval, "run_pilot", return_value=_pilot()),
     ):
         payload = proper_eval.run_proper_eval(REPO_ROOT, skip_smoke=False)
@@ -100,7 +106,11 @@ def test_aggregate_block_when_pilot_fails():
     )
     with (
         mock.patch.object(proper_eval, "_current_subject", return_value=subject),
-        mock.patch.object(proper_eval, "_run_smoke_suite", return_value=(0, {"passed": 20, "failed": 0, "errors": 0})),
+        mock.patch.object(
+            proper_eval,
+            "_run_smoke_suite",
+            return_value=(0, {"passed": 20, "failed": 0, "errors": 0}),
+        ),
         mock.patch.object(proper_eval, "run_pilot", return_value=_pilot(failed=1)),
     ):
         payload = proper_eval.run_proper_eval(REPO_ROOT)
@@ -116,7 +126,11 @@ def test_aggregate_indeterminate_when_dirty_subject():
     )
     with (
         mock.patch.object(proper_eval, "_current_subject", return_value=subject),
-        mock.patch.object(proper_eval, "_run_smoke_suite", return_value=(0, {"passed": 20, "failed": 0, "errors": 0})),
+        mock.patch.object(
+            proper_eval,
+            "_run_smoke_suite",
+            return_value=(0, {"passed": 20, "failed": 0, "errors": 0}),
+        ),
         mock.patch.object(proper_eval, "run_pilot", return_value=_pilot()),
     ):
         payload = proper_eval.run_proper_eval(REPO_ROOT)
