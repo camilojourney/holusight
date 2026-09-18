@@ -84,6 +84,21 @@ def _index_read_only(engine):
         assert _input_snapshot(engine.folder_path) == before
 
 
+def _normalized_search_results(engine, query, **kwargs):
+    # BM25 scoring is a SQLite FTS5 implementation detail: its exact float
+    # output for near-tied documents can differ across SQLite builds/versions
+    # (e.g. macOS dev vs Linux CI), which can swap the rank order of two
+    # results whose scores differ only in the fourth decimal place. Round
+    # and re-sort deterministically so the comparison asserts the real
+    # invariant -- same chunks, same content, same score to a stable
+    # precision -- without depending on cross-platform BM25 tie-break bits.
+    results = [r.model_dump() for r in engine.search(query, **kwargs)]
+    for result in results:
+        result["score"] = round(result["score"], 4)
+    results.sort(key=lambda r: (-r["score"], r["chunk_id"]))
+    return results
+
+
 def _stored_snapshot(engine):
     ids = engine.store.vector_search(np.array([1.0, 0.0], dtype=np.float32), top_k=100)
     ids = sorted(ids)
@@ -92,7 +107,7 @@ def _stored_snapshot(engine):
         engine.status().files_indexed,
         engine.store.get_chunk_metadata(ids),
         [v.tolist() for v in engine.store.get_chunk_vectors(ids)],
-        [r.model_dump() for r in engine.search("needle", top_k=100)],
+        _normalized_search_results(engine, "needle", top_k=100),
     )
 
 
