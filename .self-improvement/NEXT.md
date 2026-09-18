@@ -1,52 +1,36 @@
-# NEXT — codesight
+# NEXT — Holusight
 
-Current top priorities. Updated 2026-03-01 after v0.3 ship.
+_Reconciled 2026-09-18 — previous version described the stale 2026-03-01
+"codesight" v0.3 backlog. See `.self-improvement/MEMORY.md` for what changed._
 
 ## Status
 
-- **v0.1** — Core hybrid search engine — done
-- **v0.2** — Enterprise pivot (parsers, Python API, Streamlit) — done
-- **v0.3** — Pluggable LLM, configurable embeddings, reranking — done
-- **v0.4** — Docker + FastAPI deployment — **next**
+- **Self-improvement measurement loop** — `just improve-iterate`, live in CI
+  daily via `.github/workflows/improve-iterate.yml` — **running**
+- **Basic CI** (lint + full test suite on every push/PR) — **running**,
+  added 2026-09-18 (did not exist before)
+- **PR #27** (frozen-benchmark retrieval variation program) — **closed**,
+  2026-09-18: its verdict engine had a proven adversarial hole (a
+  reviewer could fabricate a "promotable" result from impossible rank
+  data) and duplicated what the simpler, already-merged `improve-iterate`
+  loop does. Branch preserved at `fm/holusight-continuous-variation-program-v1`
+  if anyone wants to salvage the benchmark fixtures later.
+- **PR #32** (AVO overnight campaign foundation) — **closed**, 2026-09-18:
+  infrastructure-only, calibration lanes stuck with no supported recovery
+  path, superseded by the same simpler loop. Branch preserved at
+  `fm/holusight-avo-setup-v1`.
 
-## P0 — Before v0.4
+## P0 — Next real gaps
 
-These unblock the production deployment spec:
-
-- [ ] **Write test suite** — only 2 placeholder tests exist. Need real coverage for:
-  - `api.py` — index/search/ask/status round-trip
-  - `llm.py` — backend factory, each backend validates env vars
-  - `embeddings.py` — LocalEmbedder + APIEmbedder factory
-  - `search.py` — reranker integration, RRF merge correctness
-  - `parsers.py` — PDF/DOCX/PPTX extraction
-  - `config.py` — env var parsing, embedding registry
-  - Security invariants: path traversal, read-only, chunk size limits
-- [ ] **Fix spec 004 format** — already done (template applied), but tree-sitter chunking itself is deferred to Future
-
-## P1 — Build v0.4 (Spec 008: Docker + FastAPI)
-
-The next spec to implement. Delivers the production deployment package:
-
-1. `src/codesight/web/server.py` — FastAPI app with /api/search, /api/ask, /api/index, /api/status
-2. `src/codesight/web/static/` — minimal HTML/JS/CSS chat UI (replaces Streamlit for production)
-3. Auth middleware — X-API-Key header validation
-4. `Dockerfile` — single-command deployment with pre-downloaded embedding model
-5. `docker-compose.yml` — dev/demo compose config
-6. Add `[server]` optional dependency group: `fastapi>=0.110`, `uvicorn>=0.30`
-
-Key decisions to make (open questions in spec 008):
-- Static SPA vs server-rendered HTML for chat UI?
-- WebSocket streaming for LLM responses or plain HTTP?
-- Pre-download embedding model in Docker image (~500MB) or on first run?
-- Separate admin API key for /api/index?
-
-## P2 — Backlog
-
-- [ ] Spec 003: Incremental refresh (v0.5) — skip unchanged files on re-index
-- [ ] Spec 004: Tree-sitter chunking (future) — AST-aware chunking for better code search
-- [ ] Benchmark Precision@10 with model-quality-auditor across embedding models
-- [ ] First security-sentinel audit on v0.3 codebase
-- [ ] Streamlit demo polish (keep as local dev tool alongside production FastAPI)
+- [ ] **Answer-quality/grounding benchmark** (AQ-R24) still doesn't exist.
+  `improve-iterate` measures retrieval ranking, not whether generated
+  answers are correct or grounded in the cited chunks. Until this exists,
+  "improving" only proves retrieval got better, not the product.
+- [ ] **Decide on the `workers.yaml` cron-worker design** — activate it for
+  real (needs `ANTHROPIC_API_KEY` secret + explicit spend approval) or
+  retire it in favor of the CI-driven measurement loop. See
+  `.self-improvement/MEMORY.md`.
+- [ ] Production deployment / live MCP still unverified end-to-end.
 
 ## Blocked
 
