@@ -11,6 +11,11 @@ on:
     - cron: "0 13 * * *" # daily, 9am ET
   workflow_dispatch: {}
 
+env:
+  # setup-uv has no python-version input; uv itself picks the interpreter,
+  # honoring UV_PYTHON. Pinned to match ci.yml.
+  UV_PYTHON: "3.12"
+
 jobs:
   measure:
     runs-on: ubuntu-latest
@@ -21,7 +26,6 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-          python-version: "3.12"
 
       - name: Cache Hugging Face models
         uses: actions/cache@v4
@@ -29,12 +33,36 @@ jobs:
           path: ~/.cache/huggingface
           key: huggingface-${{ runner.os }}-all-MiniLM-L6-v2
 
+      # .holusight/improvement-runs/ is gitignored derived state (never
+      # canonical truth, per .claude/rules/structure.md) that holds the
+      # prior iteration's receipt so improve-iterate can compare against it.
+      # Ephemeral runners start empty, so restore the last saved copy.
+      - name: Restore prior iteration receipts
+        uses: actions/cache/restore@v4
+        with:
+          path: .holusight/improvement-runs
+          key: improve-iterate-runs-${{ github.run_id }}
+          restore-keys: improve-iterate-runs-
+
+      # Write our own output file outside the checkout: the evaluator binds
+      # every result to an immutable, clean Git subject, so any file
+      # written inside the repo tree mid-run -- including a receipt file
+      # sitting next to it -- would make that check see the tree as dirty.
       - name: Run improve-iterate
-        run: uv run --extra dev python -m codesight.improve_iterate | tee improve-iterate-receipt.json
+        run: |
+          uv run --extra dev python -m codesight.improve_iterate \
+            | tee "$RUNNER_TEMP/improve-iterate-receipt.json"
+
+      - name: Save iteration receipts for the next run
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .holusight/improvement-runs
+          key: improve-iterate-runs-${{ github.run_id }}
 
       - name: Upload receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: improve-iterate-receipt
-          path: improve-iterate-receipt.json
+          path: ${{ runner.temp }}/improve-iterate-receipt.json
