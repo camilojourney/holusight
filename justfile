@@ -70,6 +70,12 @@ eval-pilot:
 eval-suite:
     uv run --extra dev python -m codesight.eval_suite run
 
+# Advisory named-suite orchestration (ADR-0019). Loads suite identity, binds
+# EvaluationSubject, runs fleet-smoke + eval-pilot. Hidden holdout not scored.
+# Promotion always denied. Not the G2 trusted-sandbox runner.
+proper-eval:
+    uv run --extra dev python -m codesight.proper_eval
+
 # ─── Autonomous Workers ──────────────────────────
 
 # Run self-improvement cycle

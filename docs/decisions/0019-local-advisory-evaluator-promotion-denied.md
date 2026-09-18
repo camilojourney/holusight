@@ -47,6 +47,18 @@ hold that only reports status forever.
 4. **Research stays research:** specs 011 and 012 remain reference-only
    and do not authorize expanding to the 96-task paid suite.
 
+## Operational entrypoint (2026-09-17)
+
+Run the advisory named-suite orchestration with:
+
+```bash
+just proper-eval
+```
+
+See `docs/playbooks/run-proper-eval.md`. This extends the accepted finish line
+with suite identity binding + visible surface orchestration; promotion remains
+denied. AVO/G2 external acceptance stays deferred.
+
 ## Consequences
 
 ### Easier
