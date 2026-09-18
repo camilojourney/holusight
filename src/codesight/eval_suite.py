@@ -1,20 +1,28 @@
-"""Versioned local-evaluation suite and method/config manifests (spec 022).
+"""Local advisory named-suite validation and execution (spec 022).
 
-This module is the dataset-only foundation for a later named frozen-suite
-entrypoint. It validates project-owned suite, method/config, and hidden-holdout
-hash-manifest documents, verifies public development-fixture hashes, and
-records the identity tuple later comparisons must bind.
+The module validates the project-owned suite, method/config, and hidden-holdout
+hash-manifest documents, then runs only the named suite's visible development
+fixture through the existing retrieval harness. It emits a bounded local
+advisory result with a clean immutable Git subject and one of ``pass``,
+``block``, or ``indeterminate``.
 
-It does not run evaluators, compare candidates, promote, persist receipts,
-open a network path, change retrieval models, capture queries, store secrets,
-or read hidden-holdout payloads.
+It never opens a hidden-holdout payload, compares candidates, promotes,
+persists receipts, changes retrieval models, captures queries, stores secrets,
+or permits network egress. A ``pass`` means the bounded local development run
+completed, never that a candidate is accepted or promotable. G2 and AVO remain
+owners of independent external acceptance.
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
+import os
 import re
+import subprocess
+import sys
+import tempfile
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,11 +34,17 @@ from pydantic import (
     Field,
     StrictBool,
     StrictInt,
+    ValidationError,
     field_validator,
     model_validator,
 )
 
-from .eval_pilot import EvaluationSubject
+from .eval_pilot import (
+    EvaluationSubject,
+    _current_subject,
+    _git_blob_oid_for_bytes,
+    _git_oid,
+)
 
 SCHEMA_SUITE = "holusight-eval-suite/v1"
 SCHEMA_METHOD = "holusight-eval-method-config/v1"
@@ -143,8 +157,8 @@ class FusionConfig(_Closed):
 class MethodConfigManifest(_Closed):
     schema_version: Literal["holusight-eval-method-config/v1"]
     method_id: str
-    status: Literal["identity_declaration_only"]
-    evaluator_execution: Literal["blocked_until_g2_trusted_sandbox"]
+    status: Literal["local_advisory_execution"]
+    evaluator_execution: Literal["local_visible_development_only"]
     promotion: Literal["denied"]
     network: Literal["denied"]
     paid_apis: Literal["denied"]
@@ -369,9 +383,9 @@ class IdentityBindingExpectation(_Closed):
 class SuiteManifest(_Closed):
     schema_version: Literal["holusight-eval-suite/v1"]
     suite_id: str
-    status: Literal["dataset_foundation_only"]
-    runner: Literal["not_implemented"]
-    evaluator_execution: Literal["blocked_until_g2_trusted_sandbox"]
+    status: Literal["local_advisory_execution"]
+    runner: Literal["python -m codesight.eval_suite run"]
+    evaluator_execution: Literal["local_visible_development_only"]
     promotion: Literal["denied"]
     method_config_path: str
     method_config_sha256: str
@@ -430,8 +444,8 @@ class EvaluatorPin(_Closed):
 class ComparisonIdentityBinding(_Closed):
     """The five identities a later baseline/candidate comparison must bind.
 
-    This slice only validates the shape. ``comparison_identity_is_ready`` is
-    false until a trusted G2 evaluator sandbox supplies a real pin.
+    The local named-suite runner does not create a comparison. This schema
+    remains false until a trusted G2 evaluator sandbox supplies a real pin.
     """
 
     schema_version: Literal["holusight-eval-comparison-identity/v1"]
@@ -458,8 +472,8 @@ class ComparisonIdentityBinding(_Closed):
 def comparison_identity_is_ready(binding: ComparisonIdentityBinding) -> bool:
     """Return True only when every later-comparison identity is actually bound.
 
-    Dataset foundation cannot satisfy this: evaluator execution remains blocked
-    until the trusted G2 sandbox is approved and landed.
+    A local visible-development run cannot satisfy this: independent evaluation
+    remains blocked until the trusted G2 sandbox is approved and landed.
     """
     if binding.evaluator.status != "pinned":
         return False
@@ -478,7 +492,8 @@ def comparison_identity_is_ready(binding: ComparisonIdentityBinding) -> bool:
 class LoadedSuite:
     """Validated suite plus referenced manifests and content hashes.
 
-    No evaluator result, no holdout payload, and no comparison outcome.
+    Loading neither executes the visible-development runner nor accesses a
+    holdout payload or creates a comparison outcome.
     """
 
     suite_id: str
@@ -611,7 +626,336 @@ def load_suite(repo_root: Path, suite_id: str = DEFAULT_SUITE_ID) -> LoadedSuite
     )
 
 
+# ---------------------------------------------------------------------------
+# Local named-suite runner - visible development fixture only
+# ---------------------------------------------------------------------------
+
+SCHEMA_RUN_RESULT = "holusight-eval-suite-run/v1"
+
+
+class LocalMetrics(_Closed):
+    """The bounded aggregate copied from the existing public harness output."""
+
+    cases_total: _Count
+    cases_graded: _Count
+    cases_hit: StrictInt = Field(ge=0)
+    diagnostic_probes: StrictInt = Field(ge=0)
+    hit_rate: float = Field(ge=0.0, le=1.0)
+    recall_at_1: float = Field(ge=0.0, le=1.0)
+    recall_at_5: float = Field(ge=0.0, le=1.0)
+    recall_at_10: float = Field(ge=0.0, le=1.0)
+    mrr_at_10: float = Field(ge=0.0, le=1.0)
+    ndcg_at_10: float = Field(ge=0.0, le=1.0)
+    evidence_completeness: float = Field(ge=0.0, le=1.0)
+
+
+class SuiteRunEvidence(_Closed):
+    """Content-free, bounded evidence for an advisory suite result."""
+
+    suite_sha256: str | None = None
+    method_sha256: str | None = None
+    development_sha256: str | None = None
+    holdout_manifest_sha256: str | None = None
+    evaluator_digest: str | None = None
+    harness_exit_code: StrictInt | None = None
+    harness_stdout_sha256: str | None = None
+    harness_stderr_sha256: str | None = None
+    metrics: LocalMetrics | None = None
+
+    @field_validator(
+        "suite_sha256",
+        "method_sha256",
+        "development_sha256",
+        "holdout_manifest_sha256",
+        "evaluator_digest",
+        "harness_stdout_sha256",
+        "harness_stderr_sha256",
+    )
+    @classmethod
+    def validate_optional_digest(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        return _require_sha256(value)
+
+
+class SuiteRunResult(_Closed):
+    """A local advisory result. It is explicitly not a promotion decision."""
+
+    schema_version: Literal["holusight-eval-suite-run/v1"] = SCHEMA_RUN_RESULT
+    suite_id: str
+    outcome: Literal["pass", "block", "indeterminate"]
+    reason: str
+    subject: EvaluationSubject
+    promotion: Literal["denied"] = "denied"
+    hidden_holdout_access: Literal["none"] = "none"
+    network: Literal["denied"] = "denied"
+    evidence: SuiteRunEvidence
+
+    @field_validator("suite_id")
+    @classmethod
+    def validate_suite_id(cls, value: str) -> str:
+        return _require_id(value)
+
+
+def _evaluator_digest(repo_root: Path) -> str:
+    """Content-address the existing evaluator implementation without exporting it."""
+    digest = hashlib.sha256()
+    for relative in (
+        Path("tests/eval_holusight.py"),
+        Path("tests/eval_harness.py"),
+        Path("tests/eval_baselines.py"),
+    ):
+        path = contained_path(repo_root, str(relative))
+        digest.update(str(relative).encode("utf-8"))
+        digest.update(path.read_bytes())
+    return "sha256:" + digest.hexdigest()
+
+
+def _subject_binds_paths(
+    repo_root: Path, subject: EvaluationSubject, paths: tuple[Path, ...]
+) -> bool:
+    """Require each consequential byte to equal the evaluated Git blob."""
+    if not subject.clean or subject.commit is None:
+        return False
+    root = repo_root.resolve()
+    for path in paths:
+        try:
+            relative = path.resolve().relative_to(root).as_posix()
+            working_blob = _git_blob_oid_for_bytes(repo_root, path.read_bytes())
+        except (OSError, ValueError):
+            return False
+        evaluated_blob = _git_oid(repo_root, f"{subject.commit}:{relative}")
+        if not working_blob or working_blob != evaluated_blob:
+            return False
+    return True
+
+
+def _base_evidence(loaded: LoadedSuite | None, repo_root: Path) -> SuiteRunEvidence:
+    if loaded is None:
+        return SuiteRunEvidence()
+    return SuiteRunEvidence(
+        suite_sha256=loaded.suite_sha256,
+        method_sha256=loaded.method_sha256,
+        development_sha256=loaded.development_sha256,
+        holdout_manifest_sha256=loaded.holdout_manifest_sha256,
+        evaluator_digest=_evaluator_digest(repo_root),
+    )
+
+
+def _local_harness_environment(data_dir: Path) -> dict[str, str]:
+    """A child environment with no API credentials and disposable index state."""
+    blocked = (
+        "VOYAGE_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "AZURE_OPENAI_API_KEY",
+        "GOOGLE_API_KEY",
+        "GEMINI_API_KEY",
+    )
+    env = {key: value for key, value in os.environ.items() if key not in blocked}
+    env.update(
+        {
+            "CODESIGHT_DATA_DIR": str(data_dir),
+            "CODESIGHT_EMBEDDING_BACKEND": "local",
+            "CODESIGHT_EMBEDDING_MODEL": "sentence-transformers/all-MiniLM-L6-v2",
+            "CODESIGHT_RERANKER": "false",
+            "CODESIGHT_QUERY_ENHANCEMENT": "false",
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+        }
+    )
+    return env
+
+
+def _execute_visible_development_harness(
+    repo_root: Path, loaded: LoadedSuite, top_k: int
+) -> tuple[int | None, bytes, bytes, dict[str, Any] | None]:
+    """Run the existing harness on public fixture bytes in disposable state.
+
+    No query-level output leaves the temporary child result. The caller retains
+    only a digest and a fixed aggregate projection.
+    """
+    with tempfile.TemporaryDirectory(prefix="holusight-eval-suite-") as tmp:
+        temp_root = Path(tmp)
+        output = temp_root / "harness.json"
+        command = [
+            sys.executable,
+            str(repo_root / "tests" / "eval_holusight.py"),
+            "--repo-path",
+            str(repo_root),
+            "--queries",
+            str(loaded.development_path),
+            "--baselines",
+            "hybrid",
+            "--top-k",
+            str(top_k),
+            "--output",
+            str(output),
+        ]
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(repo_root),
+                env=_local_harness_environment(temp_root / "data"),
+                capture_output=True,
+                timeout=600,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            return None, exc.stdout or b"", exc.stderr or b"", None
+        try:
+            payload = json.loads(output.read_text(encoding="utf-8")) if output.exists() else None
+        except (OSError, json.JSONDecodeError):
+            payload = None
+        return completed.returncode, completed.stdout, completed.stderr, payload
+
+
+def _metrics_from_harness_payload(payload: dict[str, Any], expected_cases: int) -> LocalMetrics:
+    """Project only fixed aggregate fields from the established harness report."""
+    results = payload.get("results")
+    if not isinstance(results, dict):
+        raise ValueError("harness result lacks baseline reports")
+    hybrid = results.get("hybrid")
+    if not isinstance(hybrid, dict):
+        raise ValueError("harness result lacks the hybrid baseline")
+    recall = hybrid.get("recall_at_k")
+    if not isinstance(recall, dict):
+        raise ValueError("harness result lacks recall metrics")
+    metrics = LocalMetrics(
+        cases_total=hybrid.get("num_queries"),
+        cases_graded=hybrid.get("num_graded"),
+        cases_hit=hybrid.get("num_hits"),
+        diagnostic_probes=hybrid.get("num_diagnostic_probes"),
+        hit_rate=hybrid.get("hit_rate"),
+        recall_at_1=recall.get("1"),
+        recall_at_5=recall.get("5"),
+        recall_at_10=recall.get("10"),
+        mrr_at_10=hybrid.get("mrr_at_10"),
+        ndcg_at_10=hybrid.get("ndcg_at_10"),
+        evidence_completeness=hybrid.get("evidence_completeness"),
+    )
+    if metrics.cases_total != expected_cases:
+        raise ValueError("harness case count does not match the suite manifest")
+    if metrics.cases_hit > metrics.cases_graded:
+        raise ValueError("harness hit count exceeds graded case count")
+    return metrics
+
+
+def _run_named_suite(repo_root: Path, suite_id: str, top_k: int) -> SuiteRunResult:
+    """Run one named local suite, returning advisory evidence only."""
+    subject = _current_subject(repo_root)
+    try:
+        loaded = load_suite(repo_root, suite_id)
+        evidence = _base_evidence(loaded, repo_root)
+    except (SuiteError, OSError, ValueError):
+        return SuiteRunResult(
+            suite_id=suite_id,
+            outcome="block",
+            reason="suite manifests failed local verification",
+            subject=subject,
+            evidence=SuiteRunEvidence(),
+        )
+
+    consequential_paths = (
+        loaded.suite_path,
+        loaded.method_path,
+        loaded.holdout_manifest_path,
+        loaded.development_path,
+        repo_root / "tests" / "eval_holusight.py",
+        repo_root / "tests" / "eval_harness.py",
+        repo_root / "tests" / "eval_baselines.py",
+    )
+    if not _subject_binds_paths(repo_root, subject, consequential_paths):
+        return SuiteRunResult(
+            suite_id=suite_id,
+            outcome="indeterminate",
+            reason="current worktree is not a clean immutable subject for the suite evidence",
+            subject=subject,
+            evidence=evidence,
+        )
+
+    returncode, stdout, stderr, payload = _execute_visible_development_harness(
+        repo_root, loaded, top_k
+    )
+    evidence = evidence.model_copy(
+        update={
+            "harness_exit_code": returncode,
+            "harness_stdout_sha256": sha256_digest(stdout),
+            "harness_stderr_sha256": sha256_digest(stderr),
+        }
+    )
+    final_subject = _current_subject(repo_root)
+    final_subject_is_bound = _subject_binds_paths(
+        repo_root, final_subject, consequential_paths
+    )
+    if final_subject != subject or not final_subject_is_bound:
+        return SuiteRunResult(
+            suite_id=suite_id,
+            outcome="indeterminate",
+            reason="Git subject changed while the local suite was running",
+            subject=final_subject,
+            evidence=evidence,
+        )
+    if returncode != 0:
+        return SuiteRunResult(
+            suite_id=suite_id,
+            outcome="block",
+            reason="local visible-development harness did not complete successfully",
+            subject=subject,
+            evidence=evidence,
+        )
+    if not isinstance(payload, dict):
+        return SuiteRunResult(
+            suite_id=suite_id,
+            outcome="indeterminate",
+            reason="local harness output could not be verified as a bounded report",
+            subject=subject,
+            evidence=evidence,
+        )
+    try:
+        metrics = _metrics_from_harness_payload(
+            payload, loaded.suite.visible_development.case_count
+        )
+    except (TypeError, ValueError, ValidationError):
+        return SuiteRunResult(
+            suite_id=suite_id,
+            outcome="indeterminate",
+            reason="local harness report does not match the named suite contract",
+            subject=subject,
+            evidence=evidence,
+        )
+    return SuiteRunResult(
+        suite_id=suite_id,
+        outcome="pass",
+        reason=(
+            "local visible-development run completed; advisory only, not acceptance or promotion"
+        ),
+        subject=subject,
+        evidence=evidence.model_copy(update={"metrics": metrics}),
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI boundary for the named local advisory runner."""
+    parser = argparse.ArgumentParser(prog="python -m codesight.eval_suite")
+    sub = parser.add_subparsers(dest="command", required=True)
+    run = sub.add_parser("run", help="Run a named local advisory development suite")
+    run.add_argument("--suite", default=DEFAULT_SUITE_ID)
+    run.add_argument("--repo-root", type=Path, default=Path.cwd())
+    run.add_argument("--top-k", type=int, default=10)
+    args = parser.parse_args(argv)
+    if args.command != "run" or args.top_k < 1:
+        parser.error("run requires --top-k >= 1")
+    result = _run_named_suite(args.repo_root.resolve(), args.suite, args.top_k)
+    print(json.dumps(result.model_dump(mode="json"), sort_keys=True))
+    return {"pass": 0, "block": 1, "indeterminate": 2}[result.outcome]
+
+
 def parse_comparison_identity(payload: dict[str, Any]) -> ComparisonIdentityBinding:
     parsed = _parse_model(ComparisonIdentityBinding, payload, "comparison identity")
     assert isinstance(parsed, ComparisonIdentityBinding)
     return parsed
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

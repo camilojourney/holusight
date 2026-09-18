@@ -1,8 +1,8 @@
 {
   "schema_version": "holusight-eval-method-config/v1",
   "method_id": "holusight-local-retrieval-hybrid-v1",
-  "status": "identity_declaration_only",
-  "evaluator_execution": "blocked_until_g2_trusted_sandbox",
+  "status": "local_advisory_execution",
+  "evaluator_execution": "local_visible_development_only",
   "promotion": "denied",
   "network": "denied",
   "paid_apis": "denied",
@@ -34,5 +34,5 @@
   "seed": 20260824,
   "parser_chunker_policy": "existing_ast_plus_fallback_unchanged",
   "chunk_content_hash_guard": "sha256(chunk_content)[:16]",
-  "notes": "Declares the identity of the current local hybrid retrieval method. It does not execute evaluation, change production defaults, or pin a new embedding model."
+  "notes": "Identity of the local hybrid retrieval method for the visible development run. It does not change production defaults, access hidden holdout payloads, or authorize promotion."
 }

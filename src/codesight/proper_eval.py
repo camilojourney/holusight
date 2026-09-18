@@ -22,8 +22,12 @@ from pathlib import Path
 from typing import Any, Literal
 
 from . import eval_suite
-from .eval_pilot import CandidateLineage, PilotRunResult, run_pilot
-from .eval_pilot import _current_subject  # subject binding; not a public judge knobs
+from .eval_pilot import (
+    CandidateLineage,
+    PilotRunResult,
+    _current_subject,  # subject binding; not a public judge knobs
+    run_pilot,
+)
 from .fleet_scorecard import _run_smoke_suite
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -159,7 +163,9 @@ def run_proper_eval(
 
     # If smoke was skipped, treat that surface as non-blocking for aggregate
     # only when other surfaces exist — skip_smoke is for fast unit tests.
-    effective = [s for s in surfaces if not (s.name == "fleet-smoke" and s.detail == "skipped_by_flag")]
+    effective = [
+        s for s in surfaces if not (s.name == "fleet-smoke" and s.detail == "skipped_by_flag")
+    ]
     if not effective and surfaces:
         effective = surfaces
 

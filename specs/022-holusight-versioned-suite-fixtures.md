@@ -1,11 +1,11 @@
 # Holusight Versioned Suite Fixtures v1
 
-**Status:** Dataset foundation implemented (bounded direct-PR).
+**Status:** Local advisory named-suite runner implemented (bounded direct-PR).
 **Depends on:** Spec 014 (85-case visible taxonomy), spec 021 / ADR-0017 (Git
 subject identity), the pinned public Bookstore corpus prepared for the
 multi-corpus public packet.
-**Blocks:** `holusight-named-frozen-suite-entrypoint-v1` (named-suite runner),
-actual evaluator execution, candidate comparison, and promotion.
+**Defers:** independent G2 evaluator pinning, candidate-independent acceptance,
+and promotion to G2/AVO custody.
 
 ## Purpose and boundary
 
@@ -21,14 +21,17 @@ reusable local evaluation product. It ships:
   comparisons must use: Git subject, corpus, evaluator, configuration, and
   suite/manifest hashes
 
-This is deliberately **not** the named-suite runner. `src/codesight/eval_suite.py`
-loads and verifies manifests so the later entrypoint can reuse them. It does
-not add a CLI, execute evaluators, compare candidates, promote, write receipts,
-open a network/control-plane path, change retrieval models, capture queries,
-store secrets, or provide a hidden-holdout access path.
+`src/codesight/eval_suite.py` loads and verifies manifests and provides the
+named CLI `python -m codesight.eval_suite run` (also `just eval-suite`). It
+reuses the existing retrieval harness only for the visible development fixture,
+in a disposable local index with API credentials removed and model downloads
+disabled. It reports a bounded `pass`, `block`, or `indeterminate` advisory
+result with clean commit/tree subject identity and content hashes.
 
-Actual evaluator execution and promotion remain blocked until the trusted G2
-evaluator sandbox is approved and landed.
+A local `pass` says only that the visible-development run completed. It does
+not compare candidates, access a hidden holdout, establish external acceptance,
+or authorize promotion. Independent G2 evaluator pinning and AVO acceptance
+remain deferred.
 
 ## Schemas
 
@@ -118,16 +121,20 @@ revision requires a separately reviewed protocol revision and a new baseline.
 `comparison_identity_is_ready()` is false while the evaluator pin status is
 `blocked_until_g2_trusted_sandbox` or the Git subject is not clean.
 
-## Named-suite reuse
+## Named-suite runner
 
-`eval_suite.load_suite(repo_root, "holusight-local-retrieval-v1")` is the
-library load path the later `holusight-named-frozen-suite-entrypoint-v1` task
-should call. This slice does not add a CLI or a second loader.
+`eval_suite.load_suite(repo_root, "holusight-local-retrieval-v1")` remains the
+single manifest-load path. The CLI `python -m codesight.eval_suite run` uses
+that loader and invokes the existing `tests/eval_holusight.py` harness against
+only the 85 visible development cases with the hybrid baseline.
+
+Its result keeps only fixed aggregate metrics, hashes, and subject identity.
+It does not persist a receipt, print query-level output, or change
+`just eval`, `just eval-pilot`, or `just fleet-smoke`.
 
 ## Non-goals
 
-- Named-suite runner / CLI / library entrypoint beyond `load_suite`
-- Evaluator logic or `tests.eval_harness` execution
+- Hidden-holdout payload execution or access
 - Candidate comparison, promotion, receipts
 - Network service or control-plane changes
 - Retrieval-model or production-default changes
@@ -152,5 +159,5 @@ modified.
 taxonomy hash and split preservation; holdout identified by hash without query
 text; unknown suite, unknown schema, extra fields, traversal, and digest
 mismatch fail closed; payload-byte verification against the hash-manifest;
-no runner/holdout-access symbols or evaluator imports; comparison-identity
-shape with G2 still blocked.
+pass/block/indeterminate local runner outcomes; stripped credentials and
+G2-blocked comparison identity.

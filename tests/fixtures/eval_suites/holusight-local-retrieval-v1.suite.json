@@ -1,12 +1,12 @@
 {
   "schema_version": "holusight-eval-suite/v1",
   "suite_id": "holusight-local-retrieval-v1",
-  "status": "dataset_foundation_only",
-  "runner": "not_implemented",
-  "evaluator_execution": "blocked_until_g2_trusted_sandbox",
+  "status": "local_advisory_execution",
+  "runner": "python -m codesight.eval_suite run",
+  "evaluator_execution": "local_visible_development_only",
   "promotion": "denied",
   "method_config_path": "tests/fixtures/eval_suites/holusight-local-retrieval-v1.method.json",
-  "method_config_sha256": "sha256:8507da9e978b3a313f3ab6d8b0c28b752a223b8b27dac13e4a9781f5f62b335a",
+  "method_config_sha256": "sha256:eb8aad5459a1fa3914a86191a950e1803c5d5b6ea34462932af15e2cfc551137",
   "visible_development": {
     "role": "visible_development_evidence_not_generalization",
     "fixture_path": "tests/fixtures/holusight_eval_taxonomy.json",
@@ -39,5 +39,5 @@
     "suite_manifest": "sha256 of this suite file and of the hidden-holdout hash-manifest",
     "comparison_rule": "A later baseline/candidate comparison is valid only when all five identities match. Changing any one invalidates the comparison. A legitimate evaluator revision requires a separately reviewed protocol revision and a new baseline."
   },
-  "notes": "Dataset and schema foundation only. The later named-suite entrypoint may load these manifests; it must not be duplicated here. Hidden-holdout query text is intentionally absent."
+  "notes": "Local advisory runner executes only the visible development fixture through the existing harness. It emits pass/block/indeterminate evidence bound to a clean Git subject. Hidden holdout access, candidate-independent acceptance, and promotion remain deferred to G2/AVO."
 }
