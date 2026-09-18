@@ -91,3 +91,10 @@ just eval-pilot     # frozen 4-case pilot + optional scorecard preview
 ```
 
 Exit codes and scorecards advise humans; they do not authorize promotion.
+
+## Iterative measurement (2026-09-17)
+
+`just improve-iterate` records successive `proper-eval` receipts locally and
+emits advisory `progress` / `next_action` signals so agents can improve across
+iterations without autonomous promotion.
+

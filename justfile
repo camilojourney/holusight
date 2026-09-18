@@ -76,6 +76,11 @@ eval-suite:
 proper-eval:
     uv run --extra dev python -m codesight.proper_eval
 
+# Iterative advisory loop: proper-eval + compare to prior local receipt.
+# Writes under .holusight/improvement-runs/proper-eval-iterations/. Promotion denied.
+improve-iterate:
+    uv run --extra dev python -m codesight.improve_iterate
+
 # ─── Autonomous Workers ──────────────────────────
 
 # Run self-improvement cycle
