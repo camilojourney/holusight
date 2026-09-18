@@ -1,0 +1,77 @@
+name: Security Sentinel
+
+# Weekly, read-only autonomous security audit -- the first worker activated
+# from .self-improvement/workers.yaml, as a deliberately conservative pilot
+# (captain decision, 2026-09-18): one worker, weekly, not the full
+# every-6-hours schedule that file documents.
+#
+# Safety model: this job has NO credential that can push to GitHub or open
+# a PR (default read-only GITHUB_TOKEN, never used) -- its only output is a
+# build artifact. Write/Edit are excluded from its tool list by
+# .claude/agents/security-sentinel.md's own frontmatter, and --max-budget-usd
+# caps spend per run regardless of anything else. Nothing here can modify
+# the repository even if the agent tried.
+
+on:
+  schedule:
+    - cron: "0 13 * * 1" # weekly, Monday 9am ET
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      # .claude/agent-memory/security-sentinel/ is git-tracked upstream, but
+      # this job has no push credential to update the committed copy. The
+      # cache lets the pilot accumulate real cross-run memory (known
+      # patterns, cleared issues); a human can fold findings worth keeping
+      # back into the committed file from the downloaded artifact below.
+      - name: Restore agent memory
+        uses: actions/cache/restore@v4
+        with:
+          path: .claude/agent-memory/security-sentinel
+          key: security-sentinel-memory-${{ github.run_id }}
+          restore-keys: security-sentinel-memory-
+
+      - name: Run security-sentinel audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude --agent security-sentinel \
+            --print --output-format text \
+            --model opus \
+            --dangerously-skip-permissions \
+            --disallowedTools "Write Edit WebFetch WebSearch" \
+            --max-budget-usd 3 \
+            "Run your standard security audit cycle now. This is an unattended weekly CI run: there is no human to answer questions, you have no credential that can push or open a PR, and Write/Edit are unavailable to you -- write your report and memory update using Bash redirection to the paths your own instructions name." \
+            | tee "$RUNNER_TEMP/security-sentinel-output.txt"
+
+      - name: Save agent memory for the next run
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .claude/agent-memory/security-sentinel
+          key: security-sentinel-memory-${{ github.run_id }}
+
+      - name: Upload report and session log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-sentinel-report
+          path: |
+            .self-improvement/reports/security-sentinel/
+            ${{ runner.temp }}/security-sentinel-output.txt
+          if-no-files-found: warn
