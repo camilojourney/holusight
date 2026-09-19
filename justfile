@@ -81,6 +81,13 @@ proper-eval:
 improve-iterate:
     uv run --extra dev python -m codesight.improve_iterate
 
+# Advisory: which other specs does each spec read most similarly to, and is
+# that relationship already declared in prose? Ranked, not pass/fail --
+# never blocks. Pass --changed <files...> to scope to specs touched in a
+# diff (the CI usage); omit it to report on every spec.
+specs-check-neighbors *args:
+    uv run --extra dev python -m codesight.spec_duplication {{args}}
+
 # ─── Autonomous Workers ──────────────────────────
 
 # Run self-improvement cycle

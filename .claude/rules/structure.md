@@ -54,8 +54,11 @@
 | `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents. Local, no-spend. See spec 016. |
 | `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Local, no-spend, advisory only. See specs 017 and 018. |
 | `src/codesight/eval_suite.py` | Versioned local-evaluation suite, method/config, and hidden-holdout hash-manifest schemas. Dataset foundation only; no runner, no holdout access path. See spec 022. |
+| `src/codesight/proper_eval.py` | Advisory named-suite orchestration (ADR-0019). Loads suite identity, binds `EvaluationSubject`, runs fleet-smoke + eval-pilot. Hidden holdout not scored. Promotion always denied. |
+| `src/codesight/improve_iterate.py` | Iterative measurement loop over `proper_eval.py`: compares each run to the previous local receipt and emits `progress` (baseline/improved/stagnated/regressed/blocked) + `next_action`. Promotion always denied (ADR-0019). |
 | `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for existing `holus improve-*` review commands. It validates tracked manifests, typed links, hashes, monotonic stages, and promotion blockers. See spec 019. |
 | `src/codesight/retrieval_variation.py` | Fixed local evidence-display variation evaluator using the existing improvement-control storage and promotion boundary. See spec 020. |
+| `src/codesight/spec_duplication.py` | Advisory nearest-neighbor similarity report over `specs/NNN-*.md`, so a new spec can be checked against existing ones before it's created. Ranked, not pass/fail. |
 | `src/codesight/control_storage.py` | Shared no-follow, atomic control-plane derived-state writer. It permits only gitignored result/history paths inside the repository and rejects tracked or symlinked destinations. |
 | `src/codesight/types.py` | Shared type definitions. |
 
