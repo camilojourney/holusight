@@ -60,6 +60,18 @@ class TestServerAuth:
         assert body["status"] == "ok"
         assert body["auth_required"] is True
 
+    def test_health_does_not_disclose_absolute_documents_path(self, client):
+        """SEC-006: /api/health is public/unauthenticated -- it must never
+        leak the absolute documents_dir path (host/container layout,
+        customer naming) to an unauthenticated network caller. Reproduces
+        the exact finding the security-sentinel audit found and confirmed
+        on 2026-09-19."""
+        r = client.get("/api/health")
+        body = r.json()
+        assert "documents_dir" not in body
+        assert str(FIXTURES) not in r.text
+        assert body["documents_dir_configured"] is True
+
 
 class TestServerAPI:
     def test_index_then_search_with_citations(self, client):
@@ -164,3 +176,65 @@ class TestProductionAuthRequired:
         monkeypatch.setenv("CODESIGHT_PRODUCTION", "1")
         with pytest.raises(RuntimeError, match="Documents directory not found"):
             web_server.validate_startup()
+
+
+class TestUnauthenticatedModeCannotReachTheNetwork:
+    """SEC-005: CODESIGHT_ALLOW_UNAUTHENTICATED must never combine with
+    production mode or a non-loopback bind. Reproduces the exact finding
+    the security-sentinel audit found and confirmed on 2026-09-19."""
+
+    def test_rejects_unauthenticated_combined_with_production(self, monkeypatch):
+        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.setenv("CODESIGHT_PRODUCTION", "1")
+        monkeypatch.setenv("CODESIGHT_BIND_HOST", "127.0.0.1")
+        with pytest.raises(RuntimeError, match="cannot be combined"):
+            web_server.validate_startup()
+
+    def test_rejects_unauthenticated_on_default_all_interfaces_bind(self, monkeypatch):
+        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.delenv("CODESIGHT_PRODUCTION", raising=False)
+        monkeypatch.setenv("CODESIGHT_BIND_HOST", "0.0.0.0")
+        with pytest.raises(RuntimeError, match="loopback"):
+            web_server.validate_startup()
+
+    def test_rejects_unauthenticated_with_unknown_bind_host(self, monkeypatch):
+        """A direct uvicorn.run() that bypassed the CLI never set
+        CODESIGHT_BIND_HOST -- must fail closed, not assume loopback."""
+        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.delenv("CODESIGHT_PRODUCTION", raising=False)
+        monkeypatch.delenv("CODESIGHT_BIND_HOST", raising=False)
+        with pytest.raises(RuntimeError, match="loopback"):
+            web_server.validate_startup()
+
+    def test_allows_unauthenticated_on_genuine_loopback_bind(self, monkeypatch):
+        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.delenv("CODESIGHT_PRODUCTION", raising=False)
+        monkeypatch.setenv("CODESIGHT_BIND_HOST", "127.0.0.1")
+        web_server.validate_startup()  # must not raise
+
+    def test_cli_serve_sets_bind_host_env_var(self, monkeypatch, tmp_path):
+        """The CLI entrypoint is the thing validate_startup()'s host check
+        actually relies on -- confirm it wires CODESIGHT_BIND_HOST through
+        rather than leaving it to be set by hand."""
+        import argparse
+        import os
+
+        from codesight.__main__ import _launch_serve
+
+        monkeypatch.delenv("CODESIGHT_BIND_HOST", raising=False)
+        called = {}
+
+        def fake_uvicorn_run(app, host, port, reload):
+            called["host"] = host
+
+        monkeypatch.setattr("uvicorn.run", fake_uvicorn_run)
+        args = argparse.Namespace(path=str(tmp_path), host="127.0.0.1", port=8000)
+
+        _launch_serve(args)
+
+        assert os.environ.get("CODESIGHT_BIND_HOST") == "127.0.0.1"
+        assert called["host"] == "127.0.0.1"

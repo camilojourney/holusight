@@ -30,8 +30,22 @@ def repo_data_dir(repo_path: str | Path) -> Path:
     Each folder gets its own subdirectory containing:
       - LanceDB table files (vectors)
       - metadata.db (SQLite FTS5 sidecar for BM25)
+
+    SEC-002: refuses to open a data directory that resolves inside, equal
+    to, or (via a symlink on either side) redirected into the indexed
+    folder itself -- the engine must never write where it reads.
     """
     canonical = os.path.realpath(str(repo_path))
+    resolved_data_root = os.path.realpath(str(DATA_DIR))
+    if resolved_data_root == canonical or resolved_data_root.startswith(
+        canonical + os.sep
+    ):
+        raise ValueError(
+            f"CODESIGHT_DATA_DIR ({DATA_DIR}) resolves inside the indexed "
+            f"folder ({repo_path}); the engine must never write inside a "
+            "folder it indexes. Point CODESIGHT_DATA_DIR somewhere outside "
+            "every folder you index."
+        )
     short_hash = hashlib.sha256(canonical.encode()).hexdigest()[:12]
     data_dir = DATA_DIR / short_hash
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -166,6 +180,22 @@ ALWAYS_SKIP_FILES: set[str] = {
 }
 
 MAX_FILE_SIZE_BYTES = 10_000_000  # 10 MB (documents can be large)
+
+# SEC-007: the per-file limit above bounds one file; without an aggregate
+# budget, a folder with an unbounded number of allowed files (or an
+# unbounded total size) can consume excessive CPU, RAM, provider quota, or
+# indexing time with no ceiling at all.
+MAX_INDEXED_FILES = 50_000
+MAX_TOTAL_INDEXED_BYTES = 2_000_000_000  # 2 GB aggregate across one index run
+
+
+class IndexBudgetExceeded(ValueError):
+    """Raised when a folder exceeds the aggregate indexing budget.
+
+    Deliberately raised, not silently truncated: walk_repo_files()'s
+    incremental-refresh caller treats any file absent from a returned
+    listing as a candidate removal from the index. A silently truncated
+    listing would make every file past the cutoff look deleted."""
 
 
 class ServerConfig(BaseModel):

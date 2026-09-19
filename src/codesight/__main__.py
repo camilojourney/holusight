@@ -273,6 +273,11 @@ def _launch_serve(args) -> None:
     if not os.environ.get("CODESIGHT_ALLOW_UNAUTHENTICATED"):
         os.environ.setdefault("CODESIGHT_PRODUCTION", "1")
 
+    # SEC-005: tell validate_startup() which host we're actually binding to,
+    # so it can refuse to start CODESIGHT_ALLOW_UNAUTHENTICATED on anything
+    # but a loopback bind.
+    os.environ["CODESIGHT_BIND_HOST"] = args.host
+
     try:
         import uvicorn
     except ImportError:

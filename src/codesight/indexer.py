@@ -19,7 +19,10 @@ from .config import (
     CODE_EMBEDDING_EXTENSIONS,
     INDEXABLE_EXTENSIONS,
     MAX_FILE_SIZE_BYTES,
+    MAX_INDEXED_FILES,
+    MAX_TOTAL_INDEXED_BYTES,
     VOYAGE_API_KEY,
+    IndexBudgetExceeded,
     ServerConfig,
 )
 from .embeddings import Embedder, get_embedder
@@ -55,6 +58,7 @@ def walk_repo_files(repo_path: str | Path) -> list[Path]:
     repo_path = Path(repo_path).resolve()
     gitignore = _load_gitignore(repo_path)
     files: list[Path] = []
+    total_bytes = 0
 
     def raise_walk_error(error: OSError) -> None:
         raise error
@@ -82,6 +86,14 @@ def walk_repo_files(repo_path: str | Path) -> list[Path]:
             fpath = Path(dirpath) / fname
             rel_path = fpath.relative_to(repo_path)
 
+            # SEC-001: reject symlinked files outright. A symlink inside an
+            # indexed folder can point anywhere the process can read; without
+            # this check its target's content gets indexed and disclosed
+            # through search/ask under the symlink's own name.
+            if fpath.is_symlink():
+                logger.warning("Skipping symlinked file (not indexed): %s", fpath)
+                continue
+
             # Check extension
             if fpath.suffix.lower() not in INDEXABLE_EXTENSIONS:
                 continue
@@ -91,8 +103,28 @@ def walk_repo_files(repo_path: str | Path) -> list[Path]:
                 continue
 
             # Check file size
-            if fpath.stat().st_size > MAX_FILE_SIZE_BYTES:
+            file_size = fpath.stat().st_size
+            if file_size > MAX_FILE_SIZE_BYTES:
                 continue
+
+            # SEC-007: the per-file check above bounds one file; without an
+            # aggregate budget a folder with enough allowed files (or
+            # enough total bytes) has no ceiling at all. Raised, not
+            # silently truncated -- see IndexBudgetExceeded's docstring for
+            # why a partial listing here is unsafe.
+            if len(files) + 1 > MAX_INDEXED_FILES:
+                raise IndexBudgetExceeded(
+                    f"{repo_path} exceeds the {MAX_INDEXED_FILES}-file indexing "
+                    "budget; index a narrower folder or raise "
+                    "codesight.config.MAX_INDEXED_FILES."
+                )
+            total_bytes += file_size
+            if total_bytes > MAX_TOTAL_INDEXED_BYTES:
+                raise IndexBudgetExceeded(
+                    f"{repo_path} exceeds the {MAX_TOTAL_INDEXED_BYTES}-byte "
+                    "aggregate indexing budget; index a narrower folder or "
+                    "raise codesight.config.MAX_TOTAL_INDEXED_BYTES."
+                )
 
             files.append(fpath)
 
@@ -199,9 +231,9 @@ def index_repo(
 
             # Route: binary documents vs text files
             if is_document(fpath):
-                chunks = _chunk_document_file(fpath, rel_path, config)
+                chunks = _chunk_document_file(fpath, rel_path, config, repo_path)
             else:
-                chunks = _chunk_text_file(fpath, rel_path, config)
+                chunks = _chunk_text_file(fpath, rel_path, config, repo_path)
                 # Only a successful text read can certify empty content. Document
                 # parsers may swallow failures and return [], so leave those alone.
                 if chunks is not None and not chunks:
@@ -296,8 +328,29 @@ def index_repo(
         )
 
 
-def _chunk_text_file(fpath: Path, rel_path: str, config: ServerConfig) -> list[Chunk] | None:
+def _is_contained_and_not_symlinked(fpath: Path, repo_root: Path) -> bool:
+    """SEC-001 defense in depth: re-verify immediately before reading, closing
+    the window between discovery (walk_repo_files) and read where a file
+    could be replaced with a symlink. Not fully race-proof (see SEC-001's
+    remediation note on no-follow/open-handle semantics for full race
+    resistance), but rejects the common case: a file that is, or resolves
+    outside the root, at the moment it is about to be read."""
+    if fpath.is_symlink():
+        return False
+    try:
+        resolved = fpath.resolve(strict=True)
+    except OSError:
+        return False
+    return resolved.is_relative_to(repo_root)
+
+
+def _chunk_text_file(
+    fpath: Path, rel_path: str, config: ServerConfig, repo_root: Path
+) -> list[Chunk] | None:
     """Read and chunk text; None means read failure, [] means successful emptiness."""
+    if not _is_contained_and_not_symlinked(fpath, repo_root):
+        logger.warning("Refusing to read symlinked/escaped file: %s", fpath)
+        return None
     try:
         content = fpath.read_text(encoding="utf-8", errors="ignore")
     except Exception as e:
@@ -315,8 +368,13 @@ def _chunk_text_file(fpath: Path, rel_path: str, config: ServerConfig) -> list[C
     )
 
 
-def _chunk_document_file(fpath: Path, rel_path: str, config: ServerConfig) -> list[Chunk]:
+def _chunk_document_file(
+    fpath: Path, rel_path: str, config: ServerConfig, repo_root: Path
+) -> list[Chunk]:
     """Parse and chunk a binary document (PDF, DOCX, PPTX)."""
+    if not _is_contained_and_not_symlinked(fpath, repo_root):
+        logger.warning("Refusing to read symlinked/escaped file: %s", fpath)
+        return []
     try:
         pages = extract_text(fpath)
     except Exception as e:
