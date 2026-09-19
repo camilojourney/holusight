@@ -3,7 +3,8 @@
 **Research ID:** `BEGIN_HOLUS_PRODUCT_ARCHITECTURE_RESEARCH_20260821`  
 **Decision horizon:** 12–24 months  
 **Access date for current web evidence:** August 21, 2026  
-**Authorization boundary:** research and specification only; **no code, installs, production indexing, customer communications, or purchases are authorized by this report.**
+**Authorization boundary:** research and specification only; **no code, installs, production indexing, customer communications, or purchases are authorized by this report.**  
+**Related:** spec 012 (companion research from the same 2026-08-21 effort, covering evaluation/benchmark methodology where this report covers product architecture)
 
 ## Executive decision
 

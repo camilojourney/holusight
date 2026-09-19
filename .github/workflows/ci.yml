@@ -21,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the spec-neighbor step can diff against the PR base
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
@@ -41,3 +43,64 @@ jobs:
 
       - name: Skill drift check
         run: uv run --extra dev pytest tests/test_axi_skill_drift.py -q
+
+      # Advisory (ADR-0019): never fails the build. Surfaces doc/code drift
+      # in the job summary so it's visible on every PR without requiring
+      # anyone to remember to run `holus check` by hand. Promotion to a
+      # blocking gate is a separate, deliberate decision -- see
+      # src/codesight/spec_duplication.py's module docstring for why an
+      # unproven threshold isn't hard-enforced here.
+      - name: Consistency check (advisory)
+        if: always()
+        continue-on-error: true
+        run: |
+          uv run --extra dev python -m codesight.cli_axi check --format json > /tmp/consistency.json
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open("/tmp/consistency.json"))
+          summary = d.get("summary", {})
+          print("## Holusight consistency check (advisory -- never blocks)")
+          print()
+          print(f"Checked {d.get('concepts_checked', 0)} concepts: "
+                + ", ".join(f"{k}={v}" for k, v in summary.items()))
+          drift = [c for c in d.get("concepts", []) if c["status"] != "up_to_date"]
+          if drift:
+              print()
+              print("Worth a look (from the concepts shown in this response):")
+              for c in drift:
+                  print(f"- `{c['concept_id']}`: {c['status']}")
+          if d.get("truncated"):
+              print()
+              # holus check caps the displayed concept list; the summary
+              # counts above still cover every concept, so a drift finding
+              # can exist outside what's listed here. Say so rather than
+              # imply completeness.
+              for line in d.get("help", []):
+                  print(f"> {line}")
+          PY
+
+      - name: Spec neighbor check (advisory)
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          changed=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD -- specs/ \
+            | xargs -n1 basename 2>/dev/null || true)
+          if [ -z "$changed" ]; then
+            echo "No specs/ changes in this PR -- skipping." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          uv run --extra dev python -m codesight.spec_duplication --changed $changed > /tmp/neighbors.json
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open("/tmp/neighbors.json"))
+          print("## Spec nearest-neighbor check (advisory -- ranked, not pass/fail)")
+          print()
+          worth_a_look = d.get("undeclared_and_worth_a_look", {})
+          if not worth_a_look:
+              print("No undeclared high-similarity neighbors for the specs changed in this PR.")
+          for spec, neighbors in worth_a_look.items():
+              print(f"**{spec}** reads similarly to, but doesn't mention:")
+              for n in neighbors:
+                  print(f"- `{n['spec']}` (similarity {n['similarity']}) -- "
+                        "update it instead, or name it in prose if this is genuinely separate")
+          PY

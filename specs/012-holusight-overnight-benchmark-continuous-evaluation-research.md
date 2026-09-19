@@ -2,7 +2,8 @@
 
 **Research date:** August 21, 2026  
 **Intended use:** freeze an evaluation specification for later review and prototyping.  
-**Authorization boundary:** this report authorizes **no downloads, API spending, code changes, credential use, private-code transfer, production deployment, or autonomous promotion**.
+**Authorization boundary:** this report authorizes **no downloads, API spending, code changes, credential use, private-code transfer, production deployment, or autonomous promotion**.  
+**Related:** spec 011 (companion research from the same 2026-08-21 effort, covering product architecture where this report covers evaluation/benchmark methodology)
 
 Evidence notation used below:
 
