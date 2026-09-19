@@ -603,17 +603,33 @@ class ChunkStore:
 
         Used by VPRF to fetch feedback vectors for query enhancement.
         Returns vectors in the same order as chunk_ids; missing IDs are skipped.
+
+        SEC-004: chunk_ids come from indexed filenames, so a filename
+        containing quote/filter syntax could otherwise reach this
+        interpolation. Validated through the same allowlist
+        _delete_vectors_by_ids already uses; an ID that fails validation is
+        skipped (never raised) to match this method's existing
+        missing-ID-is-skipped contract.
         """
         if self.lance_table is None or not chunk_ids:
             return []
 
+        safe_ids = []
+        for cid in chunk_ids:
+            try:
+                safe_ids.append(self._validate_chunk_id(cid))
+            except ValueError:
+                logger.warning("Skipping chunk_id that failed allowlist validation: %r", cid)
+        if not safe_ids:
+            return []
+
         try:
             # Use a predicate filter to avoid loading the entire table into RAM.
-            ids_sql = ", ".join(f"'{cid}'" for cid in chunk_ids)
+            ids_sql = ", ".join(f"'{cid}'" for cid in safe_ids)
             df = (
                 self.lance_table.search()
                 .where(f"chunk_id IN ({ids_sql})")
-                .limit(len(chunk_ids))
+                .limit(len(safe_ids))
                 .to_pandas()
             )
             if "vector" not in df.columns:

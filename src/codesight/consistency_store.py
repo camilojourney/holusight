@@ -88,12 +88,40 @@ CREATE TABLE IF NOT EXISTS health_flags (
 """
 
 
+def _reject_symlinked_holusight(db_path: Path) -> None:
+    """SEC-003: refuse to use `.holusight` (or the db file itself) as a
+    write destination if either is a symlink."""
+    holusight_dir = db_path.parent
+    if holusight_dir.is_symlink():
+        raise ValueError(
+            f"{holusight_dir} is a symlink; refusing to use it as the "
+            "consistency cache directory"
+        )
+    if db_path.is_symlink():
+        raise ValueError(
+            f"{db_path} is a symlink; refusing to use it as the consistency "
+            "cache file"
+        )
+
+
 class ConsistencyStore:
     """Thin dict-based CRUD layer over the ``.holusight/consistency.db`` file."""
 
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = Path(db_path)
+        # SEC-003: reject a symlinked `.holusight` before creating or
+        # connecting -- a repository-controlled symlink there redirects
+        # this write to an arbitrary external location. Checks only the
+        # repo-controlled component (`.holusight`, and the db file itself),
+        # not every ancestor of the absolute path: an OS-level symlink
+        # earlier in the path (e.g. macOS's /var -> /private/var, which
+        # every tmp directory resolves through) is not a repo-content
+        # attack surface and must not be conflated with one.
+        _reject_symlinked_holusight(self.db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        # Re-check after mkdir: narrows the window where a symlink could be
+        # introduced between the first check and the connect call below.
+        _reject_symlinked_holusight(self.db_path)
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")

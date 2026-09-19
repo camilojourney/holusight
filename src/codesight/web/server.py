@@ -50,6 +50,18 @@ def api_key() -> str | None:
     return os.environ.get("CODESIGHT_API_KEY")
 
 
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def bind_host() -> str | None:
+    """The host the server was launched to bind to, if the launcher told us
+    (set by `codesight serve`'s CLI entrypoint). None means unknown -- a
+    direct `uvicorn.run("codesight.web.server:app", ...)` invocation that
+    bypassed the CLI, which SEC-005's check below treats conservatively
+    (not provably loopback, so unauthenticated mode is still refused)."""
+    return os.environ.get("CODESIGHT_BIND_HOST")
+
+
 def require_auth() -> bool:
     """Production-shaped deployments must authenticate API calls."""
     # Explicit dev escape hatch only — never the default in Docker.
@@ -76,6 +88,25 @@ def validate_startup() -> None:
             "Set CODESIGHT_API_KEY to a secret value, or for local dev only "
             "set CODESIGHT_ALLOW_UNAUTHENTICATED=true"
         )
+    # SEC-005: CODESIGHT_ALLOW_UNAUTHENTICATED is a local-dev-only escape
+    # hatch. Refuse to start rather than silently exposing an unauthenticated
+    # search/ask/index/Holus-import surface on the network: reject it
+    # combined with production mode, and require a provably loopback bind
+    # (unknown bind host, e.g. a direct uvicorn.run() bypassing the CLI, is
+    # treated the same as a non-loopback one -- fail closed, not open).
+    if _env_bool("CODESIGHT_ALLOW_UNAUTHENTICATED", False):
+        if _env_bool("CODESIGHT_PRODUCTION", False):
+            raise RuntimeError(
+                "CODESIGHT_ALLOW_UNAUTHENTICATED cannot be combined with "
+                "CODESIGHT_PRODUCTION=1. Unset one of them."
+            )
+        host = bind_host()
+        if host not in _LOOPBACK_HOSTS:
+            raise RuntimeError(
+                f"CODESIGHT_ALLOW_UNAUTHENTICATED requires binding to a "
+                f"loopback host (127.0.0.1) -- refusing to start unauthenticated "
+                f"on {host!r}, which would expose search/ask/index to the network."
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +207,13 @@ class IndexRequest(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
-    documents_dir: str
+    # SEC-006: this endpoint is public/unauthenticated (no Depends(verify_api_key)
+    # -- the UI needs it before login). The absolute path disclosed host/
+    # container layout and customer document naming to any network caller.
+    # A readiness boolean is enough for this surface; the authenticated
+    # /api/status endpoint's RepoStatus.repo_path already exposes the real
+    # path to clients who've proven they're allowed to see it.
+    documents_dir_configured: bool
     auth_required: bool
     indexed: bool
     llm_backend: str
@@ -245,7 +282,7 @@ def create_app() -> FastAPI:
         cfg = ServerConfig()
         return HealthResponse(
             status="ok",
-            documents_dir=str(documents_dir()),
+            documents_dir_configured=documents_dir().is_dir(),
             auth_required=require_auth(),
             indexed=st.indexed,
             llm_backend=cfg.llm_backend,

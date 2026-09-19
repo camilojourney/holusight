@@ -30,6 +30,18 @@ _MAX_EMBEDDING_TEXT_CHARS = 16_384
 _MAX_EMBEDDING_BATCH_CHARS = 16_384
 
 
+def _bound_texts(texts: list[str]) -> list[str]:
+    """SEC-007: apply the same per-text character bound LocalEmbedder already
+    uses to every embedding backend. Without this, the OpenAI and Voyage
+    paths sent chunk text to a remote API with no character/token bound,
+    so a large number of allowed files or pathological content could
+    consume excessive provider quota, request size, or cost."""
+    return [
+        text if len(text) <= _MAX_EMBEDDING_TEXT_CHARS else text[:_MAX_EMBEDDING_TEXT_CHARS]
+        for text in texts
+    ]
+
+
 class Embedder(Protocol):
     """Protocol for embedding backends."""
 
@@ -178,6 +190,7 @@ class APIEmbedder:
         if not texts:
             return np.empty((0, self.expected_dim), dtype=np.float32)
 
+        texts = _bound_texts(texts)
         all_embeddings = []
         batch_size = 512
 
@@ -230,6 +243,7 @@ class VoyageEmbedder:
         if not texts:
             return np.empty((0, self.expected_dim), dtype=np.float32)
 
+        texts = _bound_texts(texts)
         all_embeddings: list[list[float]] = []
         for i in range(0, len(texts), self.BATCH_SIZE):
             batch = texts[i : i + self.BATCH_SIZE]

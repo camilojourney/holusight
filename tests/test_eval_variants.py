@@ -63,15 +63,24 @@ class TestEmbeddingVariantSpec:
 
 
 @pytest.fixture(autouse=True)
-def _isolated_codesight_data_dir(tmp_path, monkeypatch):
-    """Redirect codesight's data directory into pytest's tmp_path for every
-    test in this module, so these tests never write into a developer's real
-    ~/.codesight/data cache — mirrors the isolation eval_variants.py's CLI
-    gets for free via CODESIGHT_DATA_DIR (which only takes effect before
-    `codesight` is first imported; in-process tests need this instead)."""
+def _isolated_codesight_data_dir(tmp_path_factory, monkeypatch):
+    """Redirect codesight's data directory into an isolated tmp directory for
+    every test in this module, so these tests never write into a developer's
+    real ~/.codesight/data cache — mirrors the isolation eval_variants.py's
+    CLI gets for free via CODESIGHT_DATA_DIR (which only takes effect before
+    `codesight` is first imported; in-process tests need this instead).
+
+    Uses tmp_path_factory (a directory outside any single test's tmp_path),
+    not tmp_path itself: several tests in this module index tmp_path
+    directly as the repo root, and repo_data_dir() now refuses (SEC-002) a
+    data directory nested inside the folder being indexed -- correctly so,
+    since that's the exact misconfiguration the security audit found could
+    violate the read-only invariant in production."""
     from codesight import config as config_module
 
-    monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "codesight_data_isolated")
+    monkeypatch.setattr(
+        config_module, "DATA_DIR", tmp_path_factory.mktemp("codesight_data_isolated")
+    )
 
 
 class TestRunVariantEvalGuardrails:
