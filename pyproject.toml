@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 holus = "codesight.cli_axi:main"
+holusight-install-skill = "codesight.skill_installer:main"
 
 [project.optional-dependencies]
 claude = ["anthropic>=0.40"]

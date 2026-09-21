@@ -15,7 +15,7 @@ production deployment" boundary).
 
 from __future__ import annotations
 
-from codesight.axi_skill_gen import SKILL_PATH, render_skill
+from codesight.axi_skill_gen import SKILL_PATH, render_distribution_skill, render_skill
 
 
 def test_skill_file_exists():
@@ -43,3 +43,21 @@ def test_generated_skill_mentions_every_stable_job():
 def test_generated_skill_has_frontmatter():
     generated = render_skill()
     assert generated.startswith("---\nname: holus\n")
+
+
+def test_distribution_skill_has_frontmatter():
+    generated = render_distribution_skill()
+    assert generated.startswith("---\nname: holusight\n")
+
+
+def test_distribution_skill_has_install_step():
+    generated = render_distribution_skill()
+    assert "Ensure `holus` is installed" in generated
+    assert "uv tool install" in generated
+    assert "git+https://github.com/camilojourney/holusight" in generated
+
+
+def test_distribution_skill_carries_the_same_command_reference():
+    generated = render_distribution_skill()
+    for usage in ("holus\n", "holus evidence", "holus check", "holus status", "holus providers"):
+        assert usage in generated, f"distribution skill is missing a reference to {usage!r}"

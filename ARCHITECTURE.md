@@ -93,7 +93,8 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `axi_schema.py` | Versioned `holus` command/output schema - single source of truth for the CLI and generated skill. See spec 015. |
 | `axi_providers.py` | `holus` evidence providers (exact/structural/consistency/semantic), thin wrappers over `consistency.py`/`search.py`. |
 | `cli_axi.py`    | `holus` CLI entry point - job-oriented command surface (`[project.scripts] holus`). See spec 015. |
-| `axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`. |
+| `axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`, plus the general, install-anywhere `/holusight` distribution skill variant. |
+| `skill_installer.py` | `holusight-install-skill` console script: writes the distribution skill to `~/.claude/skills/holusight/` and symlinks it into every other supported harness (Codex, Cursor, Gemini, Agents), mirroring how `graphify` is distributed on this machine. |
 | `toon.py`       | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
 | `fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
 | `eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus, deterministic runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |

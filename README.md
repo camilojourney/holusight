@@ -4,6 +4,52 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 
 The live public site is [holusight.com](https://holusight.com/). That is Holusight's public marketing site; document indexing stays local-first, so indexed files are not published there and do not leave your environment by default.
 
+## Install anywhere (two commands)
+
+Distributed the same way `graphify` is: one global CLI, plus a `/holusight` skill that installs once and is available in every AI coding harness on your machine (Claude Code, Codex, Cursor, Gemini, Agents). Requires [`uv`](https://docs.astral.sh/uv/).
+
+```bash
+# 1. Install the CLI, globally, from anywhere
+uv tool install git+https://github.com/camilojourney/holusight
+
+# 2. Distribute the /holusight skill to every AI harness on this machine
+holusight-install-skill
+```
+
+That's it. `holus`, `holusight-install-skill`, and every other `[project.scripts]` entry this package ships land on your `PATH` (`uv tool install` puts them in `~/.local/bin` -- make sure that's on `PATH`). Step 2 writes one real copy to `~/.claude/skills/holusight/SKILL.md` and symlinks `~/.codex`, `~/.cursor`, `~/.gemini`, `~/.agents` to it, exactly like graphify's own skill layout.
+
+From then on, in **any** project, either run `holus` directly or invoke `/holusight` from an agent using one of those harnesses:
+
+```bash
+cd ~/some/other/project   # a repo holusight has never seen
+holus                      # exact + structural + consistency evidence, no setup at all
+python -m codesight index . && holus evidence "how does X work?"   # add semantic search
+```
+
+`/holusight`'s own `SKILL.md` also self-bootstraps `holus` the first time it's invoked from an agent in a fresh project that doesn't have it yet, the same way graphify's skill bootstraps `graphify`. There is nothing to configure per-project: `holus` always operates on the current working directory, and its index lives outside the indexed folder in `~/.codesight/data/` (see Configuration below), keyed by that folder's path -- never written where it reads.
+
+Useful variations:
+
+```bash
+# Upgrade later
+uv tool install --upgrade git+https://github.com/camilojourney/holusight
+
+# From a local checkout instead of GitHub (e.g. while developing this repo)
+uv tool install --editable .
+holusight-install-skill
+
+# Only link specific harnesses
+holusight-install-skill --harness claude,codex
+
+# Preview the generated skill without writing anything
+holusight-install-skill --print
+
+# Uninstall the CLI
+uv tool uninstall codesight
+```
+
+Uninstalling the skill itself is a plain `rm`: remove `~/.claude/skills/holusight/` (the real copy) and the four symlinks it created (`~/.codex/skills/holusight`, `~/.cursor/skills/holusight`, `~/.gemini/skills/holusight`, `~/.agents/skills/holusight`).
+
 ## Quick Start
 
 ```bash
