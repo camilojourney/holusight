@@ -15,19 +15,31 @@ from codesight.embeddings import (
 
 
 class RecordingSentenceTransformer:
-    """Deterministic SentenceTransformer stand-in that records encode inputs."""
+    """Deterministic SentenceTransformer stand-in that records encode inputs.
 
-    def __init__(self) -> None:
+    ``prompts`` mirrors the real sentence-transformers attribute: an empty
+    dict for a model with no named prompts (all-MiniLM-L6-v2, nomic,
+    mxbai), or e.g. ``{"query": "Instruct: ...\\nQuery:"}`` for a model
+    like Qwen3-Embedding that defines an asymmetric query prompt.
+    """
+
+    def __init__(self, prompts: dict[str, str] | None = None) -> None:
         self.batches: list[list[str]] = []
+        self.encode_kwargs: list[dict] = []
+        self.prompts = prompts or {}
 
-    def encode(self, texts: list[str], **_kwargs) -> np.ndarray:
+    def encode(self, texts: list[str], **kwargs) -> np.ndarray:
         self.batches.append(list(texts))
+        self.encode_kwargs.append(kwargs)
         return np.array([[len(text), 1.0] for text in texts], dtype=np.float32)
 
 
-def _recording_embedder() -> tuple[LocalEmbedder, RecordingSentenceTransformer]:
-    model = RecordingSentenceTransformer()
-    embedder = LocalEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", expected_dim=2)
+def _recording_embedder(
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+    prompts: dict[str, str] | None = None,
+) -> tuple[LocalEmbedder, RecordingSentenceTransformer]:
+    model = RecordingSentenceTransformer(prompts=prompts)
+    embedder = LocalEmbedder(model_name=model_name, expected_dim=2)
     embedder._model = model
     return embedder, model
 
@@ -57,6 +69,48 @@ def test_default_minilm_sized_text_remains_one_encode_input() -> None:
 
     assert model.batches == [[text]]
     assert vectors.shape == (1, 2)
+
+
+class TestQueryPrompting:
+    def test_query_gets_prompt_name_when_model_defines_one(self) -> None:
+        embedder, model = _recording_embedder(
+            model_name="Qwen/Qwen3-Embedding-0.6B",
+            prompts={"query": "Instruct: Given a query, retrieve relevant text.\nQuery:"},
+        )
+
+        embedder.embed_query("why did I turn down the second offer")
+
+        assert model.encode_kwargs == [{
+            "show_progress_bar": False,
+            "convert_to_numpy": True,
+            "normalize_embeddings": True,
+            "prompt_name": "query",
+        }]
+
+    def test_query_gets_no_prompt_name_when_model_defines_none(self) -> None:
+        embedder, model = _recording_embedder()  # default: no prompts, like all-MiniLM
+
+        embedder.embed_query("why did I turn down the second offer")
+
+        assert "prompt_name" not in model.encode_kwargs[0]
+
+    def test_indexing_documents_never_gets_the_query_prompt(self) -> None:
+        embedder, model = _recording_embedder(
+            model_name="Qwen/Qwen3-Embedding-0.6B",
+            prompts={"query": "Instruct: ...\nQuery:"},
+        )
+
+        embedder.embed(["a document chunk, not a query"])
+
+        assert "prompt_name" not in model.encode_kwargs[0]
+
+    def test_query_embedding_is_bounded_like_documents(self) -> None:
+        embedder, model = _recording_embedder()
+        pathological_query = "x" * (_MAX_EMBEDDING_TEXT_CHARS * 3)
+
+        embedder.embed_query(pathological_query)
+
+        assert len(model.batches[0][0]) == _MAX_EMBEDDING_TEXT_CHARS
 
 
 def test_codesight_index_routes_a_pathological_single_line_through_the_guard(

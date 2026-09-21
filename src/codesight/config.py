@@ -34,20 +34,31 @@ def repo_data_dir(repo_path: str | Path) -> Path:
     SEC-002: refuses to open a data directory that resolves inside, equal
     to, or (via a symlink on either side) redirected into the indexed
     folder itself -- the engine must never write where it reads.
+
+    Re-reads the CODESIGHT_DATA_DIR env var on every call rather than
+    trusting only the module-level DATA_DIR constant, which is computed
+    once at import time: a later `os.environ["CODESIGHT_DATA_DIR"] = ...`
+    (or test monkeypatch.setenv) in the same process would otherwise be
+    silently ignored, and every caller would keep writing to whatever
+    directory was current at first import. Code that instead monkeypatches
+    the module attribute directly (`monkeypatch.setattr(config, "DATA_DIR",
+    ...)`) still works when no env var is set.
     """
+    env_override = os.environ.get("CODESIGHT_DATA_DIR")
+    data_root = Path(env_override) if env_override else DATA_DIR
     canonical = os.path.realpath(str(repo_path))
-    resolved_data_root = os.path.realpath(str(DATA_DIR))
+    resolved_data_root = os.path.realpath(str(data_root))
     if resolved_data_root == canonical or resolved_data_root.startswith(
         canonical + os.sep
     ):
         raise ValueError(
-            f"CODESIGHT_DATA_DIR ({DATA_DIR}) resolves inside the indexed "
+            f"CODESIGHT_DATA_DIR ({data_root}) resolves inside the indexed "
             f"folder ({repo_path}); the engine must never write inside a "
             "folder it indexes. Point CODESIGHT_DATA_DIR somewhere outside "
             "every folder you index."
         )
     short_hash = hashlib.sha256(canonical.encode()).hexdigest()[:12]
-    data_dir = DATA_DIR / short_hash
+    data_dir = data_root / short_hash
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
 
@@ -65,9 +76,17 @@ VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY")
 
 # When VOYAGE_API_KEY is set, default to voyage-code-3 for everything (single model, no dual-index).
 # Override via CODESIGHT_EMBEDDING_MODEL / CODESIGHT_EMBEDDING_BACKEND env vars.
+#
+# Local default is Qwen3-Embedding-0.6B, not all-MiniLM-L6-v2: it scores
+# meaningfully higher on MTEB retrieval (mid-60s vs ~56) while staying fast
+# enough for interactive query embedding on modest hardware, and
+# LocalEmbedder applies its query/document asymmetric prompting
+# automatically. CODESIGHT_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B or -8B
+# trade speed for still-higher quality on a machine with the RAM to spare
+# (2560-dim / 4096-dim respectively) -- see both registry entries below.
 DEFAULT_EMBEDDING_MODEL = os.environ.get(
     "CODESIGHT_EMBEDDING_MODEL",
-    "voyage-code-3" if VOYAGE_API_KEY else "sentence-transformers/all-MiniLM-L6-v2",
+    "voyage-code-3" if VOYAGE_API_KEY else "Qwen/Qwen3-Embedding-0.6B",
 )
 DEFAULT_EMBEDDING_BACKEND = os.environ.get(
     "CODESIGHT_EMBEDDING_BACKEND",
@@ -80,6 +99,9 @@ EMBEDDING_MODEL_REGISTRY: dict[str, int] = {
     "nomic-ai/nomic-embed-text-v1.5": 768,
     "mixedbread-ai/mxbai-embed-large-v1": 1024,
     "jinaai/jina-embeddings-v2-base-code": 768,
+    "Qwen/Qwen3-Embedding-0.6B": 1024,
+    "Qwen/Qwen3-Embedding-4B": 2560,
+    "Qwen/Qwen3-Embedding-8B": 4096,
     "voyage-code-3": 1024,
     "text-embedding-3-large": 3072,  # OpenAI API model
     "text-embedding-3-small": 1536,  # OpenAI API model

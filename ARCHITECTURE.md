@@ -204,20 +204,30 @@ BM25 keyword matching                vector similarity
 ## Embedding Layer
 
 ```
-Dual embedding strategy (code vs documents):
-
-Code files (.py, .js, .ts, .go, etc.):
-  IF VOYAGE_API_KEY is set (recommended):
+Primary embedder — every file, code and documents alike:
+  IF VOYAGE_API_KEY is set:
     voyage-code-3 (1024 dims) → sent to Voyage AI API
-    Trained on code, 93 dataset benchmark, +13.8% NDCG@10 vs OpenAI v3-large
-  ELSE (local, no API key):
-    all-MiniLM-L6-v2 (384 dims) via sentence-transformers
-    Free, private, runs on CPU — lower recall on code-specific queries
+  ELSE (local, no API key, the default):
+    Qwen/Qwen3-Embedding-0.6B (1024 dims) via sentence-transformers
+    Free, private, runs on CPU/MPS/CUDA. Applies the model's own
+    asymmetric query prompt automatically (LocalEmbedder.embed_query) —
+    meaningfully better retrieval than a document-style query embedding.
+    CODESIGHT_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B or -8B trade speed
+    for still-higher quality on a machine with the RAM to spare (2560-dim
+    / 4096-dim; both are in EMBEDDING_MODEL_REGISTRY).
 
-Text/document files (.md, .pdf, .docx, etc.):
-  all-MiniLM-L6-v2 (384 dims) — sentence-transformers (always local)
+Second, additional code embedder — only when VOYAGE_API_KEY is set:
+  Files in CODE_EMBEDDING_EXTENSIONS (.py, .ts, .go, ...) are ALSO
+  embedded with voyage-code-3 into a separate code_chunks.lance table,
+  on top of (not instead of) the primary embedding above — this is what
+  the reranker/search layer calls the "code vector" arm. With no
+  VOYAGE_API_KEY there is only the one primary index, for every file.
 
-Configurable via CODESIGHT_EMBEDDING_MODEL + CODESIGHT_EMBEDDING_BACKEND
+Configurable via CODESIGHT_EMBEDDING_MODEL + CODESIGHT_EMBEDDING_BACKEND.
+Do not assume document/text files stay on a fixed small local model
+regardless of config — they go through the same primary embedder as
+everything else, so switching CODESIGHT_EMBEDDING_MODEL/_BACKEND (or
+setting VOYAGE_API_KEY) changes prose embeddings too, not just code.
 ```
 
 ---
