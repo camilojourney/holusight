@@ -81,6 +81,11 @@ proper-eval:
 improve-iterate:
     uv run --extra dev python -m codesight.improve_iterate
 
+# Deterministic agent-focus harness: context pack + fixed alignment council.
+# No LLM. Helps agents orient before changing Holusight. Promotion denied.
+agent-focus:
+    uv run --extra dev python -m codesight.agent_focus
+
 # Advisory: which other specs does each spec read most similarly to, and is
 # that relationship already declared in prose? Ranked, not pass/fail --
 # never blocks. Pass --changed <files...> to scope to specs touched in a

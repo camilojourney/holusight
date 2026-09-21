@@ -40,6 +40,7 @@ Feature specifications for codesight.
 | Safe continuous-eval pilot (spec 017) | Ready on `master` | `just eval-pilot` |
 | Advisory proper-eval orchestration | Ready on `master` | `just proper-eval` (suite bind + smoke + pilot; promotion denied) |
 | Improve-iterate measurement loop | Ready on this branch | `just improve-iterate` (compare+record; promotion denied) |
+| Agent-focus orientation harness | Ready on this branch | `just agent-focus` (deterministic council + context pack; promotion denied) |
 | Consistency / AXI / improvement / fixtures (013–015, 018–022) | Implemented on `master` | see each spec |
 | Overnight AVO / G2 external acceptance (PR #32+) | **Deferred** — not required for local-eval readiness | preserve custody; do not treat as blocker |
 

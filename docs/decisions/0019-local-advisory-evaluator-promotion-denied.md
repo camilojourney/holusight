@@ -98,3 +98,9 @@ Exit codes and scorecards advise humans; they do not authorize promotion.
 emits advisory `progress` / `next_action` signals so agents can improve across
 iterations without autonomous promotion.
 
+## Agent focus harness (2026-09-21)
+
+`just agent-focus` gives agents a deterministic context pack and a fixed
+alignment council before they change Holusight. It does not spawn chat agents
+and does not promote.
+

@@ -7,6 +7,8 @@ _Reconciled 2026-09-18 — previous version described the stale 2026-03-01
 
 - **Self-improvement measurement loop** — `just improve-iterate`, live in CI
   daily via `.github/workflows/improve-iterate.yml` — **running**
+- **Deterministic agent-focus harness** — `just agent-focus` (context pack +
+  fixed alignment council, no LLM) — **shipping**
 - **Basic CI** (lint + full test suite on every push/PR) — **running**,
   added 2026-09-18 (did not exist before)
 - **PR #27** (frozen-benchmark retrieval variation program) — **closed**,
