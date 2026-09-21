@@ -243,6 +243,64 @@ def test_vector_glob_preserves_source_filter(tmp_path, monkeypatch):
         ]
 
 
+class TestDeleteVectorsByIds:
+    """A real chunk_id shaped like production output (path/line-range/hash,
+    e.g. 'tests/test_consistency.py:1-29:64f9d1489d511b2e') must actually
+    delete, against a real LanceDB table -- not a filter-capturing spy.
+    LanceDB's filter syntax is DataFusion SQL, where a double-quoted token
+    is a quoted IDENTIFIER (column reference), not a string literal;
+    double-quoting the value made every real delete raise "No field named
+    <chunk_id>" instead of deleting anything, first surfaced by a genuine
+    multi-batch reindex of a 200+ file repo."""
+
+    def test_deletes_a_realistic_chunk_id_against_a_real_table(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+        realistic_id = "tests/test_consistency.py:1-29:64f9d1489d511b2e"
+        metadata = [_metadata("tests/test_consistency.py")]
+
+        with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
+            store.upsert_chunks(
+                [realistic_id], np.array([[1.0, 0.0]], dtype=np.float32), metadata,
+            )
+            assert store.chunk_count == 1
+
+            # upsert_chunks always deletes-then-inserts for the same IDs --
+            # this second upsert is what previously crashed instead of
+            # cleanly replacing the row.
+            store.upsert_chunks(
+                [realistic_id], np.array([[0.0, 1.0]], dtype=np.float32), metadata,
+            )
+
+            assert store.chunk_count == 1
+            vectors = store.get_chunk_vectors([realistic_id])
+            assert len(vectors) == 1
+            np.testing.assert_allclose(vectors[0], [0.0, 1.0])
+
+    def test_growing_a_multi_batch_index_does_not_crash(self, tmp_path, monkeypatch):
+        """Reproduces the real trigger: a table that already has rows from
+        an earlier batch, then a later batch upserts brand-new chunk_ids
+        that were never in the table -- the exact shape a large multi-batch
+        index run produces."""
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+
+        with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
+            first_batch = [f"src/a.py:{i}-{i + 5}:hash{i}" for i in range(5)]
+            store.upsert_chunks(
+                first_batch,
+                np.tile([1.0, 0.0], (5, 1)),
+                [_metadata("src/a.py") for _ in first_batch],
+            )
+
+            second_batch = [f"src/b.py:{i}-{i + 5}:hash{i}" for i in range(5)]
+            store.upsert_chunks(  # must not raise
+                second_batch,
+                np.tile([0.0, 1.0], (5, 1)),
+                [_metadata("src/b.py") for _ in second_batch],
+            )
+
+            assert store.chunk_count == 10
+
+
 class TestClear:
     """clear() is what force_rebuild relies on to actually reset the vector
     tables -- reproduces the real dimension-mismatch crash a stale table

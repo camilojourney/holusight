@@ -502,7 +502,13 @@ class ChunkStore:
                 continue
         if not safe_ids:
             return
-        id_filter = " OR ".join(f'chunk_id = "{cid}"' for cid in safe_ids)
+        # Single quotes: LanceDB's filter syntax is DataFusion SQL, where a
+        # double-quoted token is a QUOTED IDENTIFIER (column reference), not
+        # a string literal -- double-quoting the value here made every real
+        # delete raise "No field named <chunk_id>" instead of deleting
+        # anything. _SAFE_CHUNK_ID_RE (^[\w:./ -]+$) already excludes quote
+        # characters from any valid chunk_id, so no escaping is needed.
+        id_filter = " OR ".join(f"chunk_id = '{cid}'" for cid in safe_ids)
         target_table.delete(id_filter)
 
     def delete_file_chunks(
