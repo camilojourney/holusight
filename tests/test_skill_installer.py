@@ -1,24 +1,16 @@
-"""Tests for scripts/install_holusight_skill.py's canonical-copy + symlink
-fan-out (mirrors ~/.claude/skills/graphify/ being the one real copy with
+"""Tests for codesight.skill_installer's canonical-copy + symlink fan-out
+(mirrors ~/.claude/skills/graphify/ being the one real copy with
 ~/.codex, ~/.cursor, ~/.gemini, ~/.agents each symlinked to it)."""
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
-
-_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "install_holusight_skill.py"
-_spec = importlib.util.spec_from_file_location("install_holusight_skill", _SCRIPT_PATH)
-install_holusight_skill = importlib.util.module_from_spec(_spec)
-sys.modules[_spec.name] = install_holusight_skill
-_spec.loader.exec_module(install_holusight_skill)
+from codesight import skill_installer
 
 
 def test_install_writes_one_real_copy_and_symlinks_the_rest(tmp_path, monkeypatch):
-    monkeypatch.setattr(install_holusight_skill.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(skill_installer.Path, "home", classmethod(lambda cls: tmp_path))
 
-    install_holusight_skill.install(install_holusight_skill.ALL_HARNESSES)
+    skill_installer.install(skill_installer.ALL_HARNESSES)
 
     canonical = tmp_path / ".claude" / "skills" / "holusight"
     assert canonical.is_dir()
@@ -32,10 +24,10 @@ def test_install_writes_one_real_copy_and_symlinks_the_rest(tmp_path, monkeypatc
 
 
 def test_install_is_idempotent(tmp_path, monkeypatch):
-    monkeypatch.setattr(install_holusight_skill.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(skill_installer.Path, "home", classmethod(lambda cls: tmp_path))
 
-    first = install_holusight_skill.install(install_holusight_skill.ALL_HARNESSES)
-    second = install_holusight_skill.install(install_holusight_skill.ALL_HARNESSES)
+    first = skill_installer.install(skill_installer.ALL_HARNESSES)
+    second = skill_installer.install(skill_installer.ALL_HARNESSES)
 
     assert any("wrote" in line for line in first)
     # Second pass: canonical is rewritten (harmless -- same content), but no
@@ -45,12 +37,12 @@ def test_install_is_idempotent(tmp_path, monkeypatch):
 
 
 def test_install_refuses_to_clobber_a_real_directory(tmp_path, monkeypatch):
-    monkeypatch.setattr(install_holusight_skill.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(skill_installer.Path, "home", classmethod(lambda cls: tmp_path))
     real_dir = tmp_path / ".codex" / "skills" / "holusight"
     real_dir.mkdir(parents=True)
     (real_dir / "someone_elses_file.txt").write_text("not ours", encoding="utf-8")
 
-    changes = install_holusight_skill.install(install_holusight_skill.ALL_HARNESSES)
+    changes = skill_installer.install(skill_installer.ALL_HARNESSES)
 
     assert any("skipped" in line and "not a symlink" in line for line in changes)
     assert (real_dir / "someone_elses_file.txt").read_text(encoding="utf-8") == "not ours"

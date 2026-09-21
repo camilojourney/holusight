@@ -1,17 +1,22 @@
-"""Install (or update) the general, install-anywhere /holusight skill.
+"""Install (or update) the general, install-anywhere `/holusight` skill.
 
-Writes the distribution SKILL.md (see codesight.axi_skill_gen.
-render_distribution_skill -- single source of truth stays
-src/codesight/axi_schema.py) to one canonical real directory, then
+Writes the distribution SKILL.md (see :mod:`codesight.axi_skill_gen`'s
+``render_distribution_skill`` -- single source of truth stays
+``src/codesight/axi_schema.py``) to one canonical real directory, then
 symlinks every other supported harness's skills directory to it, exactly
-mirroring how ~/.claude/skills/graphify/ is the one real copy and
-~/.codex, ~/.cursor, ~/.gemini, ~/.agents each hold a symlink to a single
-canonical source.
+mirroring how ``~/.claude/skills/graphify/`` is the one real copy and
+``~/.codex``, ``~/.cursor``, ``~/.gemini``, ``~/.agents`` each hold a symlink
+to a single canonical source.
+
+Shipped as the ``holusight-install-skill`` console script (``[project.scripts]``
+in ``pyproject.toml``), so ``uv tool install`` (or ``pip install``) of this
+package puts it on PATH alongside ``holus`` -- see README.md's "Install
+anywhere" section for the two-command install.
 
 Usage:
-    python3 scripts/install_holusight_skill.py                # all harnesses, global
-    python3 scripts/install_holusight_skill.py --harness claude,codex
-    python3 scripts/install_holusight_skill.py --print         # print, don't write
+    holusight-install-skill                     # all harnesses, global
+    holusight-install-skill --harness claude,codex
+    holusight-install-skill --print              # print, don't write
 """
 
 from __future__ import annotations
@@ -20,12 +25,7 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from codesight.axi_skill_gen import (  # noqa: E402
-    render_distribution_skill,
-    write_distribution_skill,
-)
+from .axi_skill_gen import render_distribution_skill, write_distribution_skill
 
 SKILL_NAME = "holusight"
 CANONICAL_HARNESS = "claude"
