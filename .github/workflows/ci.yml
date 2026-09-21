@@ -50,6 +50,34 @@ jobs:
       # blocking gate is a separate, deliberate decision -- see
       # src/codesight/spec_duplication.py's module docstring for why an
       # unproven threshold isn't hard-enforced here.
+      # Advisory (ADR-0019): agent orientation council. Process exit codes:
+      # 0=pass, 1=block, 3=indeterminate. Only block fails CI; indeterminate
+      # stays advisory so agents still get a deterministic context pack.
+      - name: Agent focus harness (advisory unless block)
+        if: always()
+        run: |
+          set +e
+          uv run --extra dev python -m codesight.agent_focus > /tmp/agent-focus.json
+          code=$?
+          set -e
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open("/tmp/agent-focus.json"))
+          print("## Agent focus harness (advisory unless verdict=block)")
+          print()
+          print(f"Verdict: `{d.get('verdict')}` — {d.get('focus','')}")
+          print()
+          print(f"Council: {d.get('council_size', 0)} lenses")
+          for r in d.get("council", []):
+              mark = {"pass":"✅","indeterminate":"⚠️","block":"❌"}.get(r.get("verdict"),"•")
+              print(f"- {mark} `{r.get('lens_id')}`: {r.get('finding')}")
+          PY
+          if [ "$code" -eq 1 ]; then
+            echo "agent-focus blocked (exit 1)" >&2
+            exit 1
+          fi
+          exit 0
+
       - name: Consistency check (advisory)
         if: always()
         continue-on-error: true
