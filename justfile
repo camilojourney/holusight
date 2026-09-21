@@ -86,6 +86,12 @@ improve-iterate:
 agent-focus:
     uv run --extra dev python -m codesight.agent_focus
 
+# Advisory improve council: read focus and the latest improve receipt,
+# emit Eval/Fix/Chair seed takes, persist under .holusight/. No evaluator
+# run, no source edits, no /tmp copy. Promotion denied.
+council:
+    uv run --extra dev python -m codesight.council --board
+
 # Advisory: which other specs does each spec read most similarly to, and is
 # that relationship already declared in prose? Ranked, not pass/fail --
 # never blocks. Pass --changed <files...> to scope to specs touched in a
