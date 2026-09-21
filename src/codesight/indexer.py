@@ -203,13 +203,14 @@ def index_repo(
         else None
     )
     with ChunkStore(repo_path, embedding_dim=config.embedding_dim) as store:
+        if force_rebuild and store.is_indexed:
+            logger.info("Force rebuild: clearing existing index for %s", repo_path)
+            store.clear()
+
         has_existing_code_index = code_embedder is not None and store.code_lance_table is not None
 
         # Store canonical path
         store.repo_canonical_path = str(repo_path)
-
-        if force_rebuild and store.is_indexed:
-            logger.info("Force rebuild: clearing existing index for %s", repo_path)
 
         # Walk all indexable files
         files = walk_repo_files(repo_path)

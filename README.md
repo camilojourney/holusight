@@ -121,7 +121,7 @@ The package root exports `CodeSight`, `ServerConfig`, `Answer`, `IndexStats`,
 
 - **Document Parsing**: PDF, DOCX, PPTX text extraction with page/section metadata
 - **Chunking**: AST-based (tree-sitter) for Python/JS/TS — function/class boundaries preserve semantic units. Regex fallback for other languages. Paragraph-aware splitting for documents.
-- **Embeddings**: `voyage-code-3` (API, code files) / `all-MiniLM-L6-v2` (local, docs). Auto-detected via `VOYAGE_API_KEY`.
+- **Embeddings**: `voyage-code-3` (API, every file) or `Qwen/Qwen3-Embedding-0.6B` (local, every file, the default) — auto-detected via `VOYAGE_API_KEY`. With a key, code files additionally get a second `voyage-code-3` embedding into their own table. `CODESIGHT_EMBEDDING_MODEL` overrides the local model (`-4B`/`-8B` trade speed for quality).
 - **Vector Store**: LanceDB (serverless, file-based)
 - **Keyword Search**: SQLite FTS5 sidecar
 - **Retrieval**: Hybrid BM25 + vector + code-vector with RRF merge → metadata filename boost → optional reranker
@@ -165,7 +165,7 @@ See [docs/playbooks/docker-deployment.md](docs/playbooks/docker-deployment.md) a
 | `VOYAGE_API_KEY` | — | Enables voyage-code-3 embeddings + voyage rerank-2 (recommended for code) |
 | `CODESIGHT_LLM_BACKEND` | `claude` | LLM backend: `claude`, `azure`, `openai`, `ollama` |
 | `CODESIGHT_DATA_DIR` | `~/.codesight/data` | Where indexes are stored |
-| `CODESIGHT_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Embedding model (overridden by voyage-code-3 for code when key set) |
+| `CODESIGHT_EMBEDDING_MODEL` | `Qwen/Qwen3-Embedding-0.6B` | Local embedding model for every file (`-4B`/`-8B` for more quality at more cost); overridden entirely by `voyage-code-3` when `VOYAGE_API_KEY` is set |
 | `CODESIGHT_LLM_MODEL` | `claude-sonnet-4-20250514` | LLM model for answers |
 | `CODESIGHT_RERANKER` | `true` (if VOYAGE_API_KEY set) | Enable reranker |
 | `CODESIGHT_RERANKER_BACKEND` | `voyage` (if key set) | Reranker backend: `voyage` or `local` |

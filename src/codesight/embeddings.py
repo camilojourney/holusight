@@ -1,8 +1,13 @@
-"""Embedding model wrapper — local (sentence-transformers) or API (OpenAI).
+"""Embedding model wrapper — local (sentence-transformers), or API (OpenAI
+or Voyage AI).
 
 Backend is selected via CODESIGHT_EMBEDDING_BACKEND env var:
-  - local  (default) — runs on CPU/GPU, no API key, no data leaves
-  - api    — OpenAI text-embedding-3-large, best quality
+  - local  (default) — runs on CPU/GPU/MPS, no API key, no data leaves.
+             CODESIGHT_EMBEDDING_MODEL picks the model (default
+             Qwen/Qwen3-Embedding-0.6B; see config.EMBEDDING_MODEL_REGISTRY).
+  - api    — OpenAI text-embedding-3-large
+  - voyage — Voyage AI voyage-code-3 (also the automatic default whenever
+             VOYAGE_API_KEY is set, regardless of this env var)
 """
 
 from __future__ import annotations
@@ -150,8 +155,27 @@ class LocalEmbedder:
             per_text_vectors[text_index].append(vector)
 
     def embed_query(self, query: str) -> np.ndarray:
-        """Embed a single query string, returning a (dim,) float32 array."""
-        return self.embed([query])[0]
+        """Embed a single query string, returning a (dim,) float32 array.
+
+        Applies the model's own "query" prompt when it defines one --
+        asymmetric query/document prompting (the query gets an instruction
+        prefix, the document does not) is how models like Qwen3-Embedding
+        expect to be used, and materially improves retrieval quality for
+        them. It is a silent no-op for a model with no ``prompts`` dict
+        (all-MiniLM-L6-v2, nomic, mxbai): sentence-transformers exposes an
+        empty dict there, never an error, so this never special-cases a
+        specific model name.
+        """
+        bounded = _bound_texts([query])
+        encode_kwargs: dict = {
+            "show_progress_bar": False,
+            "convert_to_numpy": True,
+            "normalize_embeddings": True,
+        }
+        if "query" in getattr(self.model, "prompts", {}):
+            encode_kwargs["prompt_name"] = "query"
+        vector = self.model.encode(bounded, **encode_kwargs)[0]
+        return np.asarray(vector, dtype=np.float32)
 
 
 # ---------------------------------------------------------------------------

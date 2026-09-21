@@ -440,6 +440,37 @@ class TestDataDirContainment:
 
             assert result.exists()
 
+    def test_env_var_override_is_read_fresh_on_every_call(self, monkeypatch):
+        """A later os.environ mutation (e.g. a test's monkeypatch.setenv, or
+        any code path that sets CODESIGHT_DATA_DIR after codesight.config
+        was already imported) must actually take effect. DATA_DIR itself is
+        computed once at import time; repo_data_dir() must not silently
+        keep using that frozen value forever."""
+        import tempfile
+
+        from codesight import config
+
+        with tempfile.TemporaryDirectory() as source_dir, \
+                tempfile.TemporaryDirectory() as data_dir:
+            # DATA_DIR still points somewhere else entirely -- only the env
+            # var is set, simulating a real mid-process override.
+            monkeypatch.setenv("CODESIGHT_DATA_DIR", data_dir)
+
+            result = config.repo_data_dir(source_dir)
+
+            assert str(result).startswith(str(Path(data_dir)))
+
+    def test_env_var_override_still_enforces_containment(self, monkeypatch):
+        import tempfile
+
+        from codesight import config
+
+        with tempfile.TemporaryDirectory() as source_dir:
+            monkeypatch.setenv("CODESIGHT_DATA_DIR", source_dir)
+
+            with pytest.raises(ValueError, match="resolves inside the indexed"):
+                config.repo_data_dir(source_dir)
+
     def test_index_does_not_write_inside_source_when_misconfigured_end_to_end(
         self, monkeypatch
     ):

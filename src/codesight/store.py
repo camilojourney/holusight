@@ -123,6 +123,13 @@ class FTSSidecar:
         )
         return cursor.rowcount
 
+    def clear_all(self) -> None:
+        """Delete every chunk row (FTS trigger keeps the FTS5 index in sync).
+
+        Used for a genuine force-rebuild -- see ChunkStore.clear()."""
+        self.conn.execute("DELETE FROM chunks")
+        self.conn.commit()
+
     def get_chunk_hashes(self, file_path: str) -> dict[str, str]:
         """Return {chunk_id: content_hash} for all chunks of a file."""
         cursor = self.conn.execute(
@@ -495,7 +502,13 @@ class ChunkStore:
                 continue
         if not safe_ids:
             return
-        id_filter = " OR ".join(f'chunk_id = "{cid}"' for cid in safe_ids)
+        # Single quotes: LanceDB's filter syntax is DataFusion SQL, where a
+        # double-quoted token is a QUOTED IDENTIFIER (column reference), not
+        # a string literal -- double-quoting the value here made every real
+        # delete raise "No field named <chunk_id>" instead of deleting
+        # anything. _SAFE_CHUNK_ID_RE (^[\w:./ -]+$) already excludes quote
+        # characters from any valid chunk_id, so no escaping is needed.
+        id_filter = " OR ".join(f"chunk_id = '{cid}'" for cid in safe_ids)
         target_table.delete(id_filter)
 
     def delete_file_chunks(
@@ -682,6 +695,26 @@ class ChunkStore:
     def touch_indexed(self) -> None:
         """Update the last_indexed_at timestamp."""
         self.last_indexed_at = datetime.now(timezone.utc).isoformat()
+
+    def clear(self) -> None:
+        """Drop both vector tables and every chunk row -- a genuine reset.
+
+        Without this, force_rebuild only forced every chunk to be
+        re-embedded; the vector table itself, if one already existed, was
+        left in place with whatever dimension it was originally created
+        with. Inserting a different-dimension embedding (e.g. after
+        switching CODESIGHT_EMBEDDING_MODEL) into that stale schema fails
+        with a LanceDB Arrow cast error instead of rebuilding cleanly --
+        exactly the failure mode force_rebuild exists to avoid.
+        """
+        for table_name in (LANCE_TABLE_NAME, CODE_LANCE_TABLE_NAME):
+            try:
+                self.lance_db.drop_table(table_name)
+            except (FileNotFoundError, ValueError):
+                pass  # table never existed -- nothing to drop
+        self._lance_table = None
+        self._code_lance_table = None
+        self.fts.clear_all()
 
     def close(self) -> None:
         self.fts.close()

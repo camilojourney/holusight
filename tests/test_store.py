@@ -241,3 +241,147 @@ def test_vector_glob_preserves_source_filter(tmp_path, monkeypatch):
         assert store.vector_search(query, top_k=1, file_glob="*.py", source="holus") == [
             "holus:target",
         ]
+
+
+class TestDeleteVectorsByIds:
+    """A real chunk_id shaped like production output (path/line-range/hash,
+    e.g. 'tests/test_consistency.py:1-29:64f9d1489d511b2e') must actually
+    delete, against a real LanceDB table -- not a filter-capturing spy.
+    LanceDB's filter syntax is DataFusion SQL, where a double-quoted token
+    is a quoted IDENTIFIER (column reference), not a string literal;
+    double-quoting the value made every real delete raise "No field named
+    <chunk_id>" instead of deleting anything, first surfaced by a genuine
+    multi-batch reindex of a 200+ file repo."""
+
+    def test_deletes_a_realistic_chunk_id_against_a_real_table(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+        realistic_id = "tests/test_consistency.py:1-29:64f9d1489d511b2e"
+        metadata = [_metadata("tests/test_consistency.py")]
+
+        with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
+            store.upsert_chunks(
+                [realistic_id], np.array([[1.0, 0.0]], dtype=np.float32), metadata,
+            )
+            assert store.chunk_count == 1
+
+            # upsert_chunks always deletes-then-inserts for the same IDs --
+            # this second upsert is what previously crashed instead of
+            # cleanly replacing the row.
+            store.upsert_chunks(
+                [realistic_id], np.array([[0.0, 1.0]], dtype=np.float32), metadata,
+            )
+
+            assert store.chunk_count == 1
+            vectors = store.get_chunk_vectors([realistic_id])
+            assert len(vectors) == 1
+            np.testing.assert_allclose(vectors[0], [0.0, 1.0])
+
+    def test_growing_a_multi_batch_index_does_not_crash(self, tmp_path, monkeypatch):
+        """Reproduces the real trigger: a table that already has rows from
+        an earlier batch, then a later batch upserts brand-new chunk_ids
+        that were never in the table -- the exact shape a large multi-batch
+        index run produces."""
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+
+        with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
+            first_batch = [f"src/a.py:{i}-{i + 5}:hash{i}" for i in range(5)]
+            store.upsert_chunks(
+                first_batch,
+                np.tile([1.0, 0.0], (5, 1)),
+                [_metadata("src/a.py") for _ in first_batch],
+            )
+
+            second_batch = [f"src/b.py:{i}-{i + 5}:hash{i}" for i in range(5)]
+            store.upsert_chunks(  # must not raise
+                second_batch,
+                np.tile([0.0, 1.0], (5, 1)),
+                [_metadata("src/b.py") for _ in second_batch],
+            )
+
+            assert store.chunk_count == 10
+
+
+class TestClear:
+    """clear() is what force_rebuild relies on to actually reset the vector
+    tables -- reproduces the real dimension-mismatch crash a stale table
+    caused when reindexing after an embedding model/dimension change."""
+
+    def test_clear_drops_the_vector_table_so_a_new_dimension_can_be_written(
+        self, tmp_path, monkeypatch,
+    ):
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+        metadata = [_metadata("a.py")]
+
+        with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
+            store.upsert_chunks(["a"], np.array([[1.0, 0.0]], dtype=np.float32), metadata)
+            assert store.chunk_count == 1
+
+            store.clear()
+            assert store.chunk_count == 0
+            assert store.lance_table is None
+
+            # A different dimension -- the exact scenario a changed
+            # CODESIGHT_EMBEDDING_MODEL produces -- must not raise.
+            store.upsert_chunks(
+                ["a"], np.array([[1.0, 0.0, 0.0, 0.0]], dtype=np.float32), metadata,
+            )
+            assert store.chunk_count == 1
+            assert store.lance_table.schema.field("vector").type.list_size == 4
+
+    def test_clear_also_drops_the_code_table(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+        metadata = [_metadata("a.py")]
+
+        with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
+            code_vectors = np.zeros((1, CODE_EMBEDDING_DIM), dtype=np.float32)
+            store.upsert_code_chunks(["a"], code_vectors, metadata)
+            assert store.code_lance_table is not None
+
+            store.clear()
+
+            assert store.code_lance_table is None
+
+    def test_clear_on_a_never_indexed_store_is_a_safe_no_op(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+        with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
+            store.clear()  # must not raise -- nothing exists yet
+            assert store.chunk_count == 0
+
+    def test_force_rebuild_after_dimension_change_does_not_crash_end_to_end(
+        self, tmp_path, monkeypatch,
+    ):
+        """The exact bug: index once at dim=2, then force_rebuild at a
+        different dimension (simulating a CODESIGHT_EMBEDDING_MODEL change)
+        must rebuild cleanly instead of raising a LanceDB Arrow cast error."""
+        from codesight.api import CodeSight
+        from codesight.config import ServerConfig
+
+        monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
+        corpus = tmp_path / "corpus"
+        corpus.mkdir()
+        (corpus / "a.txt").write_text("hello world", encoding="utf-8")
+
+        class FixedDimEmbedder:
+            def __init__(self, dim: int) -> None:
+                self.model_name = "fake"
+                self.expected_dim = dim
+
+            def embed(self, texts):
+                return np.tile(np.arange(self.expected_dim, dtype=np.float32), (len(texts), 1))
+
+            def embed_query(self, query):
+                return self.embed([query])[0]
+
+        engine = CodeSight(corpus, config=ServerConfig(embedding_dim=2, reranker=False))
+        monkeypatch.setattr(
+            "codesight.indexer.get_embedder", lambda *a, **k: FixedDimEmbedder(2)
+        )
+        engine.index()
+
+        engine2 = CodeSight(corpus, config=ServerConfig(embedding_dim=5, reranker=False))
+        monkeypatch.setattr(
+            "codesight.indexer.get_embedder", lambda *a, **k: FixedDimEmbedder(5)
+        )
+        stats = engine2.index(force_rebuild=True)  # must not raise
+
+        assert stats.chunks_created >= 1
