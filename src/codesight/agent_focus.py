@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -71,6 +70,17 @@ def _git_subject(repo_root: Path) -> dict[str, Any]:
     }
 
 
+
+def _denies_promotion(source: str) -> bool:
+    """True if source hard-codes promotion allowed=False (Python or JSON-ish)."""
+    markers = (
+        '"allowed": False',
+        "'allowed': False",
+        '"allowed": false',
+        "'allowed': false",
+    )
+    return any(m in source for m in markers)
+
 def _lens_structure(repo_root: Path) -> LensResult:
     required = [
         "AGENTS.md",
@@ -111,18 +121,16 @@ def _lens_promotion(repo_root: Path) -> LensResult:
             ["docs/decisions/0019-local-advisory-evaluator-promotion-denied.md"],
         )
     evidence.append("ADR-0019 present")
-    if "allowed\": False" not in pe and "\"allowed\": False" not in pe and "allowed\": false" not in pe.lower():
-        # proper_eval uses "allowed": False in Python dict
-        if '"allowed": False' not in pe and "'allowed': False" not in pe:
-            return LensResult(
-                "promotion_boundary",
-                "safety officer",
-                "block",
-                "proper_eval does not hard-deny promotion",
-                evidence,
-            )
+    if not _denies_promotion(pe):
+        return LensResult(
+            "promotion_boundary",
+            "safety officer",
+            "block",
+            "proper_eval does not hard-deny promotion",
+            evidence,
+        )
     evidence.append("proper_eval denies promotion")
-    if "allowed\": False" not in ii and "'allowed': False" not in ii:
+    if not _denies_promotion(ii):
         return LensResult(
             "promotion_boundary",
             "safety officer",
