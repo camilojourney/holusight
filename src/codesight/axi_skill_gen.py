@@ -129,6 +129,134 @@ def write_skill(path: Path = SKILL_PATH) -> None:
     path.write_text(render_skill(), encoding="utf-8")
 
 
+# ---------------------------------------------------------------------------
+# Distribution skill -- installable in ANY project, any harness
+# ---------------------------------------------------------------------------
+#
+# render_skill() above renders the repo-local `.claude/skills/holus/SKILL.md`,
+# deliberately self-referential to this repository's own dev loop (its
+# fallback invocation is `python -m codesight.cli_axi`, which only works
+# from inside a checkout of this repo). The distribution variant below is
+# for the *general* /holusight skill installed once into
+# ~/.claude/skills/holusight/ (and symlinked into every other harness), so
+# it can bootstrap `holus` itself, in any project, the first time it runs
+# -- mirroring the self-installing Step 1 in ~/.claude/skills/graphify/
+# SKILL.md. It reuses render_skill()'s command reference verbatim (single
+# source of truth stays axi_schema.py) and only adds the install/index
+# preamble around it.
+
+GITHUB_URL = "https://github.com/camilojourney/holusight"
+
+_INSTALL_STEP = f"""## Step 0 -- Ensure `holus` is installed
+
+```bash
+PYTHON=""
+# 1. Already on PATH from a prior install in this shell
+if command -v holus >/dev/null 2>&1; then
+    PYTHON="__PATH__"
+fi
+# 2. uv tool install -- most reliable on modern Mac/Linux, isolated venv
+if [ "$PYTHON" != "__PATH__" ] && command -v uv >/dev/null 2>&1; then
+    _UV_PY=$(uv tool run --from codesight python -c "import sys; print(sys.executable)" 2>/dev/null)
+    if [ -n "$_UV_PY" ] && "$_UV_PY" -c "import codesight" 2>/dev/null; then PYTHON="$_UV_PY"; fi
+fi
+# 3. Fall back to python3 and check for an existing install
+if [ -z "$PYTHON" ]; then PYTHON="python3"; fi
+if [ "$PYTHON" != "__PATH__" ] && ! "$PYTHON" -c "import codesight" 2>/dev/null; then
+    if command -v uv >/dev/null 2>&1; then
+        uv tool install --upgrade "git+{GITHUB_URL}" -q 2>&1 | tail -5
+        _UV_PY=$(uv tool run --from codesight python \\
+            -c "import sys; print(sys.executable)" 2>/dev/null)
+        if [ -n "$_UV_PY" ]; then PYTHON="$_UV_PY"; fi
+    else
+        "$PYTHON" -m pip install "git+{GITHUB_URL}" -q 2>/dev/null \\
+          || "$PYTHON" -m pip install "git+{GITHUB_URL}" -q --break-system-packages 2>&1 | tail -5
+    fi
+fi
+mkdir -p .holusight
+if [ "$PYTHON" != "__PATH__" ]; then
+    "$PYTHON" -c "
+import sys
+open('.holusight/.holusight_python', 'w', encoding='utf-8').write(sys.executable)
+"
+fi
+```
+
+If `holus` was already on PATH (case 1), skip straight to Step 1 -- no
+install output to print. Otherwise print nothing on success and move to
+Step 1.
+
+**In every subsequent bash block below, prefer the bare `holus` command.**
+Only fall back to `$(cat .holusight/.holusight_python) -m codesight.cli_axi`
+when `holus` is not found on PATH (a fresh `uv tool install` shim may not
+be visible until a new shell) -- and to
+`$(cat .holusight/.holusight_python) -m codesight index .` for Step 1's
+`index` subcommand, which `python -m codesight` (not `holus`) exposes.
+
+## Step 1 -- Build the search index (first run, or after significant changes)
+
+`holus evidence`/`check`/`status` work with no index (exact + structural +
+consistency providers only). The `semantic` provider -- needed for
+fuzzy/conceptual search across this project -- requires an index built
+once, ahead of time; it is never built as a side effect of a read-only
+`holus` call:
+
+```bash
+holus_python="$(cat .holusight/.holusight_python 2>/dev/null || echo python3)"
+"$holus_python" -m codesight index . 2>&1 | tail -10
+```
+
+Re-run this after substantial content changes (`--force` to rebuild from
+scratch). Skip it entirely for a quick first look -- `holus evidence`
+already works without it, just without the semantic provider.
+"""
+
+
+def render_distribution_skill() -> str:
+    """SKILL.md for the general, cross-project /holusight install.
+
+    Same command reference as render_skill(), with a self-install preamble
+    spliced in front of it and the frontmatter's trigger name changed to
+    match the product name (``holusight``) rather than the binary name
+    (``holus``) -- see module docstring above.
+    """
+    body = render_skill()
+    # Drop render_skill()'s own frontmatter and title line; replace with
+    # distribution-specific ones, then splice the install step in before
+    # the rest of the (otherwise identical) command reference.
+    _, _, rest = body.partition("---\n")
+    _, _, rest = rest.partition("---\n")
+    rest = rest.strip("\n")
+    _, _, rest = rest.partition("\n\n")  # drop the "# holus - ..." title line
+
+    frontmatter = """---
+name: holusight
+description: >
+  Hybrid BM25 + vector + structural search over any project's code and
+  docs, with provenance/freshness/egress attached to every answer -- not
+  a fluent guess. Self-installs `holus` on first use, in any project.
+  Trigger: /holusight.
+---"""
+
+    blocks = [
+        frontmatter,
+        "# /holusight - install-anywhere Holusight-AXI search",
+        "Ask this project for evidence before trusting or editing a spec, "
+        "ADR, or the code it governs -- \"where is X enforced\", \"has this "
+        "spec drifted from its implementation\", \"is the structural graph "
+        "stale\". Works per-project: run it from inside any repository's "
+        "checkout, and it indexes and evidences that repository.",
+        _INSTALL_STEP.strip("\n"),
+        rest,
+    ]
+    return "\n\n".join(blocks).rstrip() + "\n"
+
+
+def write_distribution_skill(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_distribution_skill(), encoding="utf-8")
+
+
 if __name__ == "__main__":
     write_skill()
     print(f"wrote {SKILL_PATH}")
