@@ -1,7 +1,7 @@
-"""FastAPI production server for single-team CodeSight deployments.
+"""FastAPI production server for single-team Holusight deployments.
 
 Serves a minimal browser UI plus JSON API for search, ask, index, and status.
-Authentication is required in production-shaped runs (Docker / ``codesight serve``).
+Authentication is required in production-shaped runs (Docker / ``holusight serve``).
 """
 
 from __future__ import annotations
@@ -19,10 +19,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from codesight.api import CodeSight
-from codesight.config import ServerConfig
-from codesight.holus import HolusImportStats
-from codesight.types import Answer, IndexStats, RepoStatus, SearchResult
+from holusight.api import Holusight
+from holusight.config import ServerConfig
+from holusight.holus import HolusImportStats
+from holusight.types import Answer, IndexStats, RepoStatus, SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +42,12 @@ def _env_bool(name: str, default: bool) -> bool:
 
 def documents_dir() -> Path:
     """Folder mounted read-only for indexing (default /data in Docker)."""
-    raw = os.environ.get("CODESIGHT_DOCUMENTS_DIR", "/data")
+    raw = os.environ.get("HOLUSIGHT_DOCUMENTS_DIR", "/data")
     return Path(raw).expanduser().resolve()
 
 
 def api_key() -> str | None:
-    return os.environ.get("CODESIGHT_API_KEY")
+    return os.environ.get("HOLUSIGHT_API_KEY")
 
 
 _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
@@ -55,20 +55,20 @@ _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 def bind_host() -> str | None:
     """The host the server was launched to bind to, if the launcher told us
-    (set by `codesight serve`'s CLI entrypoint). None means unknown -- a
-    direct `uvicorn.run("codesight.web.server:app", ...)` invocation that
+    (set by `holusight serve`'s CLI entrypoint). None means unknown -- a
+    direct `uvicorn.run("holusight.web.server:app", ...)` invocation that
     bypassed the CLI, which SEC-005's check below treats conservatively
     (not provably loopback, so unauthenticated mode is still refused)."""
-    return os.environ.get("CODESIGHT_BIND_HOST")
+    return os.environ.get("HOLUSIGHT_BIND_HOST")
 
 
 def require_auth() -> bool:
     """Production-shaped deployments must authenticate API calls."""
     # Explicit dev escape hatch only — never the default in Docker.
-    if _env_bool("CODESIGHT_ALLOW_UNAUTHENTICATED", False):
+    if _env_bool("HOLUSIGHT_ALLOW_UNAUTHENTICATED", False):
         return False
-    # Server / Docker entrypoints set CODESIGHT_PRODUCTION=1
-    if _env_bool("CODESIGHT_PRODUCTION", False):
+    # Server / Docker entrypoints set HOLUSIGHT_PRODUCTION=1
+    if _env_bool("HOLUSIGHT_PRODUCTION", False):
         return True
     # If an API key is configured, enforce it even outside production flag.
     return bool(api_key())
@@ -80,30 +80,30 @@ def validate_startup() -> None:
         raise RuntimeError(
             f"Documents directory not found: {docs}. "
             "Mount your documents read-only, e.g. -v /path/to/docs:/data:ro "
-            "and set CODESIGHT_DOCUMENTS_DIR=/data"
+            "and set HOLUSIGHT_DOCUMENTS_DIR=/data"
         )
     if require_auth() and not api_key():
         raise RuntimeError(
-            "CODESIGHT_API_KEY is required for production deployments. "
-            "Set CODESIGHT_API_KEY to a secret value, or for local dev only "
-            "set CODESIGHT_ALLOW_UNAUTHENTICATED=true"
+            "HOLUSIGHT_API_KEY is required for production deployments. "
+            "Set HOLUSIGHT_API_KEY to a secret value, or for local dev only "
+            "set HOLUSIGHT_ALLOW_UNAUTHENTICATED=true"
         )
-    # SEC-005: CODESIGHT_ALLOW_UNAUTHENTICATED is a local-dev-only escape
+    # SEC-005: HOLUSIGHT_ALLOW_UNAUTHENTICATED is a local-dev-only escape
     # hatch. Refuse to start rather than silently exposing an unauthenticated
     # search/ask/index/Holus-import surface on the network: reject it
     # combined with production mode, and require a provably loopback bind
     # (unknown bind host, e.g. a direct uvicorn.run() bypassing the CLI, is
     # treated the same as a non-loopback one -- fail closed, not open).
-    if _env_bool("CODESIGHT_ALLOW_UNAUTHENTICATED", False):
-        if _env_bool("CODESIGHT_PRODUCTION", False):
+    if _env_bool("HOLUSIGHT_ALLOW_UNAUTHENTICATED", False):
+        if _env_bool("HOLUSIGHT_PRODUCTION", False):
             raise RuntimeError(
-                "CODESIGHT_ALLOW_UNAUTHENTICATED cannot be combined with "
-                "CODESIGHT_PRODUCTION=1. Unset one of them."
+                "HOLUSIGHT_ALLOW_UNAUTHENTICATED cannot be combined with "
+                "HOLUSIGHT_PRODUCTION=1. Unset one of them."
             )
         host = bind_host()
         if host not in _LOOPBACK_HOSTS:
             raise RuntimeError(
-                f"CODESIGHT_ALLOW_UNAUTHENTICATED requires binding to a "
+                f"HOLUSIGHT_ALLOW_UNAUTHENTICATED requires binding to a "
                 f"loopback host (127.0.0.1) -- refusing to start unauthenticated "
                 f"on {host!r}, which would expose search/ask/index to the network."
             )
@@ -113,16 +113,16 @@ def validate_startup() -> None:
 # Engine + indexing lock (single-flight index)
 # ---------------------------------------------------------------------------
 
-_engine: CodeSight | None = None
+_engine: Holusight | None = None
 _index_lock = threading.Lock()
 _index_operation_lock = threading.RLock()
 _index_in_progress = False
 
 
-def get_engine() -> CodeSight:
+def get_engine() -> Holusight:
     global _engine
     if _engine is None:
-        _engine = CodeSight(documents_dir(), config=ServerConfig())
+        _engine = Holusight(documents_dir(), config=ServerConfig())
     return _engine
 
 
@@ -165,7 +165,7 @@ def _extract_key(request: Request) -> str | None:
 async def verify_api_key(request: Request) -> None:
     if not require_auth():
         logger.warning(
-            "API authentication disabled — set CODESIGHT_API_KEY for production"
+            "API authentication disabled — set HOLUSIGHT_API_KEY for production"
         )
         return
     expected = api_key()
@@ -235,14 +235,14 @@ class PublicConfigResponse(BaseModel):
 async def lifespan(app: FastAPI):
     validate_startup()
     docs = documents_dir()
-    logger.info("CodeSight server starting — documents=%s auth=%s", docs, require_auth())
+    logger.info("Holusight server starting — documents=%s auth=%s", docs, require_auth())
     yield
-    logger.info("CodeSight server shutting down")
+    logger.info("Holusight server shutting down")
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="CodeSight",
+        title="Holusight",
         description="Hybrid BM25 + vector document search with source citations",
         version="0.3.0",
         lifespan=lifespan,
@@ -327,7 +327,7 @@ def create_app() -> FastAPI:
                         "error": "LLM backend unavailable",
                         "message": str(exc),
                         "hint": (
-                            "Search works without an LLM. Configure CODESIGHT_LLM_BACKEND "
+                            "Search works without an LLM. Configure HOLUSIGHT_LLM_BACKEND "
                             "and the provider API key for ask(), or use Ollama locally."
                         ),
                     },

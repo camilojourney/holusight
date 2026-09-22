@@ -15,11 +15,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from codesight import eval_suite
-from codesight.eval_pilot import EvaluationSubject
+from holusight import eval_suite
+from holusight.eval_pilot import EvaluationSubject
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SOURCE = REPO_ROOT / "src" / "codesight" / "eval_suite.py"
+SOURCE = REPO_ROOT / "src" / "holusight" / "eval_suite.py"
 
 
 def _load() -> eval_suite.LoadedSuite:
@@ -40,7 +40,7 @@ def test_named_suite_loads_and_binds_public_85_and_hidden_32_identities():
     loaded = _load()
     assert loaded.suite_id == "holusight-local-retrieval-v1"
     assert loaded.suite.status == "local_advisory_execution"
-    assert loaded.suite.runner == "python -m codesight.eval_suite run"
+    assert loaded.suite.runner == "python -m holusight.eval_suite run"
     assert loaded.suite.evaluator_execution == "local_visible_development_only"
     assert loaded.suite.promotion == "denied"
     assert loaded.suite.visible_development.case_count == 85
@@ -354,5 +354,5 @@ def test_local_harness_environment_strips_network_credentials(tmp_path, monkeypa
 
     assert "VOYAGE_API_KEY" not in env
     assert "OPENAI_API_KEY" not in env
-    assert env["CODESIGHT_DATA_DIR"] == str(tmp_path)
+    assert env["HOLUSIGHT_DATA_DIR"] == str(tmp_path)
     assert env["HF_HUB_OFFLINE"] == "1"

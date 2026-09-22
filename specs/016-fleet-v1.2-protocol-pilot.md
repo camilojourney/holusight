@@ -3,7 +3,7 @@
 ## 1. Purpose
 
 Wire Holusight's repository manifest and its existing Phase 1
-documentation-code consistency evaluator (`src/codesight/consistency.py`,
+documentation-code consistency evaluator (`src/holusight/consistency.py`,
 spec 013) to Fleet's canonical, now-landed `v1.2` agentic contracts —
 without reconstructing, forking, or vendoring those contracts into this
 repository. This is a bounded pilot: it wires two contract-required
@@ -54,10 +54,10 @@ inspecting the `fleet-system` repository directly: its git log,
 | A repo declares one `eval_entrypoint` | `agentic/manifest.yaml`: `command: just fleet-smoke` |
 | A repo declares a `privacy` boundary that `agentic/memory.yaml`'s `fleet_visibility` must agree with exactly | `agentic/manifest.yaml` + `agentic/memory.yaml`, byte-identical `exported_to_fleet` / `not_exported_to_fleet` lists |
 | `fleet.repo_agent_manifest.v1.2` requires `provenance_policy` with `default_training_eligibility: false` | `agentic/manifest.yaml`'s `provenance_policy` block |
-| The runner's `parse_domain_result()` reads a JSON object from the entrypoint's last stdout line | `src/codesight/fleet_scorecard.py::main()` — printed by `just fleet-smoke` |
-| A domain evaluator's four outcomes, honestly shaped into `fleet.eval_scorecard.v1.2` | `src/codesight/fleet_scorecard.py::build_eval_scorecard()`, exercised for all four outcomes in `tests/test_fleet_smoke.py` (tasks 7–10) |
+| The runner's `parse_domain_result()` reads a JSON object from the entrypoint's last stdout line | `src/holusight/fleet_scorecard.py::main()` — printed by `just fleet-smoke` |
+| A domain evaluator's four outcomes, honestly shaped into `fleet.eval_scorecard.v1.2` | `src/holusight/fleet_scorecard.py::build_eval_scorecard()`, exercised for all four outcomes in `tests/test_fleet_smoke.py` (tasks 7–10) |
 
-`src/codesight/consistency.py` itself is **not modified** by this pilot.
+`src/holusight/consistency.py` itself is **not modified** by this pilot.
 `fleet_scorecard.py` reads its output (`ConsistencyReport`); it does not
 change how consistency is computed.
 
@@ -185,8 +185,8 @@ Matching the launch instructions exactly:
   covers this, per §7 of `eval_privacy_boundary.py`'s required
   categories).
 - No new root-level `fleet` CLI path — `fleet_scorecard.py` is a library
-  module plus a `python -m codesight.fleet_scorecard smoke` entrypoint,
-  not a new subcommand under `python -m codesight` or `holus`.
+  module plus a `python -m holusight.fleet_scorecard smoke` entrypoint,
+  not a new subcommand under `python -m holusight` or `holus`.
 - No duplication of the `holus`/AXI command surface (PR #18): this pilot
   calls `consistency.check_consistency()` directly (the same function
   `holus check` calls), rather than adding a second CLI wrapper around

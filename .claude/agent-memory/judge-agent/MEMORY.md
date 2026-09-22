@@ -1,4 +1,4 @@
-# judge-agent Memory — codesight
+# judge-agent Memory — holusight
 
 ## Session Notes
 

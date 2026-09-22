@@ -133,8 +133,8 @@ def main(argv: list[str] | None = None) -> int:
     sys.path.insert(0, str(repo_path / "src"))
     sys.path.insert(0, str(repo_path))
 
-    from codesight import CodeSight
-    from codesight.config import ServerConfig
+    from holusight import Holusight
+    from holusight.config import ServerConfig
     from tests.eval_baselines import graphify_availability
     from tests.eval_harness import run_eval
 
@@ -146,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
 
     queries = _load_queries(args.queries)
     config = ServerConfig()
-    engine = CodeSight(repo_path, config=config)
+    engine = Holusight(repo_path, config=config)
 
     if not args.no_index:
         engine.index(force_rebuild=args.reindex)

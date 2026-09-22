@@ -71,13 +71,13 @@ Not coding tools. Not chatbots. A **knowledge indexing system** that:
 | **Document ingestion** | Microsoft Graph API + Python | Pull docs/emails from M365 |
 | **PDF/DOCX parsing** | `unstructured` or `pymupdf` | Extract text from any file format |
 | **Embeddings** | `sentence-transformers` (local) or OpenAI `text-embedding-3-small` | Privacy: local. Speed: OpenAI. |
-| **Vector store** | LanceDB (from CodeSight) | Zero infra, file-based, per-project isolation |
-| **BM25 search** | SQLite FTS5 (from CodeSight) | Keyword search for exact terms (contract numbers, names) |
+| **Vector store** | LanceDB (from Holusight) | Zero infra, file-based, per-project isolation |
+| **BM25 search** | SQLite FTS5 (from Holusight) | Keyword search for exact terms (contract numbers, names) |
 | **Agent framework** | LangGraph or CrewAI | Multi-agent orchestration (project agents + mother agent) |
 | **UI** | Simple chat interface (Streamlit or Next.js) | Non-technical users need a web UI, not CLI |
 | **Sync/refresh** | Microsoft Graph webhooks or cron | Auto-reindex when documents change |
 
-**CodeSight's core (embeddings + LanceDB + FTS5 + hybrid search) IS the retrieval engine.** You're wrapping it with M365 connectors and a multi-agent layer.
+**Holusight's core (embeddings + LanceDB + FTS5 + hybrid search) IS the retrieval engine.** You're wrapping it with M365 connectors and a multi-agent layer.
 
 ---
 
@@ -125,7 +125,7 @@ Not coding tools. Not chatbots. A **knowledge indexing system** that:
 | **Microsoft Copilot** | Built-in M365 AI | $30/user/month, generic, no project isolation, no custom agents |
 | **Glean** | Enterprise search | $50K+/year, enterprise-only, overkill for SMBs |
 | **Guru / Notion AI** | Knowledge base search | Requires migrating docs to their platform |
-| **Custom RAG consultants** | What you're doing | You have a working tool (CodeSight), not starting from scratch |
+| **Custom RAG consultants** | What you're doing | You have a working tool (Holusight), not starting from scratch |
 
 **Your pitch:** "Copilot gives everyone the same generic AI. I give each project a specialized brain that actually understands YOUR workflows — and it costs a fraction of Glean."
 
@@ -136,7 +136,7 @@ Not coding tools. Not chatbots. A **knowledge indexing system** that:
 ### Must-have (this week):
 1. **M365 connector script** — Python script that pulls documents from a SharePoint folder via Graph API
 2. **Document parser** — Extract text from PDF/DOCX/PPTX (use `unstructured` library)
-3. **Extend CodeSight** to index non-code files (it currently filters by code extensions)
+3. **Extend Holusight** to index non-code files (it currently filters by code extensions)
 4. **Simple demo** — Index 20 docs, show search working via CLI or basic Streamlit chat
 
 ### Nice-to-have (after proposal is accepted):
@@ -162,7 +162,7 @@ Not coding tools. Not chatbots. A **knowledge indexing system** that:
 ## Next Steps for Juan
 
 - [ ] Build the M365 connector (Graph API + document pull)
-- [ ] Extend CodeSight to accept non-code files (PDF, DOCX, PPTX, emails)
+- [ ] Extend Holusight to accept non-code files (PDF, DOCX, PPTX, emails)
 - [ ] Create a 5-minute demo with sample documents
 - [ ] Draft the proposal deck (use slides above as skeleton)
 - [ ] Research the client's specific M365 setup (which apps, how many projects)

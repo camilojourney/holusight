@@ -1,4 +1,4 @@
-# Architecture -- CodeSight
+# Architecture -- Holusight
 
 > Guided tour of the codebase. WHY things are built, not just WHAT.
 > **Last Updated:** 2026-08-23
@@ -19,8 +19,8 @@ User (non-technical)
            |
            v
 +-----------------------------------------+
-|        CodeSight Python API             |
-|        (src/codesight/api.py)           |
+|        Holusight Python API             |
+|        (src/holusight/api.py)           |
 |                                         |
 |  index(folder)  search(query)           |
 |  ask(question)  status()                |
@@ -47,7 +47,7 @@ User (non-technical)
                             ├── OpenAI
                             └── Ollama (local)
 
-Storage: ~/.codesight/data/<folder_hash>/
+Storage: ~/.holusight/data/<folder_hash>/
          |- lance/       (vectors)
          |- metadata.db  (SQLite with FTS5)
 ```
@@ -73,11 +73,11 @@ EXTERNAL (only when ask() is called — client chooses provider):
 
 ---
 
-## Source Layout (`src/codesight/`)
+## Source Layout (`src/holusight/`)
 
 | File            | Purpose                                                                  |
 | --------------- | ------------------------------------------------------------------------ |
-| `api.py`        | Public Python API. `CodeSight` class — single entry point for all UIs.   |
+| `api.py`        | Public Python API. `Holusight` class — single entry point for all UIs.   |
 | `indexer.py`    | Orchestrates the index pipeline: walk -> parse -> chunk -> embed -> store.|
 | `search.py`     | Hybrid retrieval: BM25 + vector -> RRF merge -> [reranker] -> results.   |
 | `chunker.py`    | AST-based code chunking (tree-sitter) + document chunking (paragraphs).  |
@@ -107,7 +107,7 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `spec_duplication.py` | Advisory nearest-neighbor similarity report over `specs/NNN-*.md`, so a new spec can be checked against existing ones before it's created. Ranked, not pass/fail -- see the module docstring for why a hard similarity threshold isn't used. |
 | `control_storage.py` | Shared no-follow, restrictive, atomic durable writer for gitignored control-plane result/history state. It rejects canonical tracked destinations and symlink aliases. |
 | `types.py`      | Shared Pydantic models (SearchResult, Answer, IndexStats, RepoStatus).   |
-| `__main__.py`   | CLI entry point: `python -m codesight <command>`.                        |
+| `__main__.py`   | CLI entry point: `python -m holusight <command>`.                        |
 
 **Do not add modules at the top level** — new capabilities go inside existing modules or as new submodules.
 
@@ -116,16 +116,16 @@ EXTERNAL (only when ask() is called — client chooses provider):
 ## Public API
 
 ```python
-from codesight import CodeSight
+from holusight import Holusight
 
-engine = CodeSight("/path/to/documents")
+engine = Holusight("/path/to/documents")
 engine.index()                                    # Index all files
 results = engine.search("payment terms")          # Hybrid search (always local)
 answer = engine.ask("What are the payment terms?") # Search + LLM answer
 status = engine.status()                          # Index freshness check
 ```
 
-The package root exposes the stable public import surface: `CodeSight`, `ServerConfig`, `Answer`, `IndexStats`, `RepoStatus`, and `SearchResult`. The `CodeSight` class is the single entry point. Streamlit, Slack, CLI, and any future interface all call the same methods.
+The package root exposes the stable public import surface: `Holusight`, `ServerConfig`, `Answer`, `IndexStats`, `RepoStatus`, and `SearchResult`. The `Holusight` class is the single entry point. Streamlit, Slack, CLI, and any future interface all call the same methods.
 
 ### The `ask()` Pipeline
 
@@ -214,7 +214,7 @@ Primary embedder — every file, code and documents alike:
     retrieval score as of writing, at real per-embed latency cost.
     Applies the model's own asymmetric query prompt automatically
     (LocalEmbedder.embed_query) — meaningfully better retrieval than a
-    document-style query embedding. CODESIGHT_EMBEDDING_MODEL=Qwen/
+    document-style query embedding. HOLUSIGHT_EMBEDDING_MODEL=Qwen/
     Qwen3-Embedding-0.6B or -4B trade quality back for speed on more
     constrained hardware (1024-dim / 2560-dim; all three are in
     EMBEDDING_MODEL_REGISTRY).
@@ -226,10 +226,10 @@ Second, additional code embedder — only when VOYAGE_API_KEY is set:
   the reranker/search layer calls the "code vector" arm. With no
   VOYAGE_API_KEY there is only the one primary index, for every file.
 
-Configurable via CODESIGHT_EMBEDDING_MODEL + CODESIGHT_EMBEDDING_BACKEND.
+Configurable via HOLUSIGHT_EMBEDDING_MODEL + HOLUSIGHT_EMBEDDING_BACKEND.
 Do not assume document/text files stay on a fixed small local model
 regardless of config — they go through the same primary embedder as
-everything else, so switching CODESIGHT_EMBEDDING_MODEL/_BACKEND (or
+everything else, so switching HOLUSIGHT_EMBEDDING_MODEL/_BACKEND (or
 setting VOYAGE_API_KEY) changes prose embeddings too, not just code.
 ```
 
@@ -271,7 +271,7 @@ Paragraph-aware splitting respecting page boundaries. Each chunk gets metadata:
 ### Context Headers
 Every chunk gets a context header prepended before embedding:
 ```
-# File: src/codesight/search.py
+# File: src/holusight/search.py
 # Scope: function hybrid_search
 # Lines: 189-303
 ```
@@ -285,10 +285,10 @@ This implements Anthropic's contextual retrieval technique — prepending file/s
 The LLM is only used by `ask()` — search runs without it.
 
 ```
-CODESIGHT_LLM_BACKEND=claude    → Anthropic API (best quality)
-CODESIGHT_LLM_BACKEND=azure     → Azure OpenAI (data in client's tenant)
-CODESIGHT_LLM_BACKEND=openai    → OpenAI API
-CODESIGHT_LLM_BACKEND=ollama    → Local model, zero network (privacy-first)
+HOLUSIGHT_LLM_BACKEND=claude    → Anthropic API (best quality)
+HOLUSIGHT_LLM_BACKEND=azure     → Azure OpenAI (data in client's tenant)
+HOLUSIGHT_LLM_BACKEND=openai    → OpenAI API
+HOLUSIGHT_LLM_BACKEND=ollama    → Local model, zero network (privacy-first)
 ```
 
 Client chooses based on their security requirements. We are never in the middle.
@@ -297,10 +297,10 @@ Client chooses based on their security requirements. We are never in the middle.
 
 ## Storage Layout
 
-All indexes live in `~/.codesight/data/` (outside the indexed folder — never write inside it).
+All indexes live in `~/.holusight/data/` (outside the indexed folder — never write inside it).
 
 ```
-~/.codesight/data/
+~/.holusight/data/
 +-- <sha256(folder_path)[:12]>/
     |-- lance/            <- LanceDB vector tables
     |   +-- chunks.lance  <- chunk_id, embedding vector (all-MiniLM or voyage)
@@ -351,10 +351,10 @@ one-database storage decision is
 `docs/decisions/0011-single-sqlite-consistency-store.md`. Summary:
 
 ```
-python -m codesight consistency refresh .        (rebuild the cache)
-python -m codesight consistency evidence <id> .   (pre-change evidence packet)
-python -m codesight consistency check <id> .      (post-change consistency check)
-python -m codesight consistency status .          (concepts + open health flags)
+python -m holusight consistency refresh .        (rebuild the cache)
+python -m holusight consistency evidence <id> .   (pre-change evidence packet)
+python -m holusight consistency check <id> .      (post-change consistency check)
+python -m holusight consistency status .          (concepts + open health flags)
 ```
 
 - **Purpose-aware classification**: every tracked file is classified by
@@ -431,7 +431,7 @@ holus providers              provider availability/freshness/egress
 --explain-route
 ```
 
-- **Providers** (`src/codesight/axi_providers.py`): `exact` (literal/token
+- **Providers** (`src/holusight/axi_providers.py`): `exact` (literal/token
   scan), `structural` (reads `graphify-out/graph.json` via the same
   `consistency._load_structural_index`/`structural_graph_freshness` PR
   #17's `graphify` eval baseline reuses), `consistency` (the cache above),
@@ -445,10 +445,10 @@ holus providers              provider availability/freshness/egress
   local index's stored embedding model is Voyage and `--allow-egress`
   wasn't given.
 - **Output**: JSON is the lossless canonical contract; `--format toon`
-  (default) is a compact agent-facing projection (`src/codesight/
+  (default) is a compact agent-facing projection (`src/holusight/
   toon.py`) generated only at the output boundary; `--format text` is
   human-readable. `--fields a,b.c` projects any payload to dotted paths.
-- **Schema/skill drift**: `src/codesight/axi_schema.py` is the single
+- **Schema/skill drift**: `src/holusight/axi_schema.py` is the single
   source of truth for commands/flags; `axi_skill_gen.py` generates
   `.claude/skills/holus/SKILL.md` from it; `tests/test_axi_skill_drift.py`
   fails the normal `pytest` run if the two diverge.
@@ -473,7 +473,7 @@ agentic/manifest.yaml   fleet.repo_agent_manifest.v1.2 -- eval_entrypoint,
                         privacy boundary, provenance_policy
 agentic/memory.yaml     fleet.memory_policy.v1.1 -- fleet_visibility,
                         byte-identical to manifest.yaml's privacy boundary
-src/codesight/fleet_scorecard.py
+src/holusight/fleet_scorecard.py
   build_eval_scorecard()      ConsistencyReport -> fleet.eval_scorecard.v1.2
                                (Holusight's own honest local preview -- see
                                spec 016 §6 for why this is not yet what
@@ -518,7 +518,7 @@ admission: `docs/playbooks/eval-pilot-case-admission.md`.
 tests/fixtures/holusight_eval_pilot_cases.jsonl   frozen, human-admitted
                                                    case corpus (4 seed
                                                    cases)
-src/codesight/eval_pilot.py
+src/holusight/eval_pilot.py
   run_pilot()                       runs every frozen case, records
                                      CandidateLineage, catches grader
                                      errors as retained verdict="error"
@@ -730,24 +730,24 @@ boundary are unchanged. `AXI_SCHEMA_VERSION` moved `0.5.0` -> `0.6.0`
 
 ## Context Injection Integration (Added 2026-04-04)
 
-CodeSight is used as a runtime context provider inside the OpenClaw skill pipeline. When a developer runs `/code` on any repo, `codesight_context.py` searches that repo's index and injects the top-5 relevant chunks into the Codex prompt.
+Holusight is used as a runtime context provider inside the OpenClaw skill pipeline. When a developer runs `/code` on any repo, `holusight_context.py` searches that repo's index and injects the top-5 relevant chunks into the Codex prompt.
 
 ```
 /code skill invoked
   → fleet_brain_hook.py "$REPO" "code"     (~150 tokens, project state)
-  → codesight_context.py "$REPO_PATH" "$TASK"  (~1000-2000 tokens, code context)
+  → holusight_context.py "$REPO_PATH" "$TASK"  (~1000-2000 tokens, code context)
   → both injected into RICH_TASK for Codex
 ```
 
 **Key design decisions:**
-- Engine lives in `holusight/src/codesight/` — shared across all repos
-- Index is per-repo at `~/.codesight/data/<sha256(repo_path)[:12]>/` — isolated, no cross-repo bleed
-- VOYAGE_API_KEY loaded from `holusight/.env` explicitly in `codesight_context.py` (not from CWD)
+- Engine lives in `holusight/src/holusight/` — shared across all repos
+- Index is per-repo at `~/.holusight/data/<sha256(repo_path)[:12]>/` — isolated, no cross-repo bleed
+- VOYAGE_API_KEY loaded from `holusight/.env` explicitly in `holusight_context.py` (not from CWD)
 - Batch size capped at 8 chunks/request to stay under Voyage's 120K token/batch limit
 - Stale threshold: 5 min — auto-reindexes changed files on next `/code` invocation
 
 **Experiment results (3×3 eval, 2026-04-04):**
-- No context: avg 76.3 | Fleet Brain only: avg 93.0 | Fleet + CodeSight: avg 93.8
+- No context: avg 76.3 | Fleet Brain only: avg 93.0 | Fleet + Holusight: avg 93.8
 - Context helps most on architecturally complex tasks (+25 pts on task requiring dual-store knowledge)
 - Easy tasks already near-ceiling without context (99/99/99)
 
@@ -758,7 +758,7 @@ CodeSight is used as a runtime context provider inside the OpenClaw skill pipeli
 ## What NOT to Change Without Discussion
 
 1. **RRF k=60 constant** — changing this shifts recall/precision tradeoff. Benchmark before changing.
-2. **Data directory location** (`~/.codesight/data/`) — changing this invalidates all existing indexes.
+2. **Data directory location** (`~/.holusight/data/`) — changing this invalidates all existing indexes.
 3. **Content hash algorithm** — changing from `sha256[:16]` invalidates all deduplication state.
 4. **FTS5 trigger schema** — the SQLite triggers that sync FTS5 from the chunks table. Incorrect triggers cause silent search failures.
 5. **LLM system prompt** — the `SYSTEM_PROMPT` in `llm.py` controls answer quality across all backends. Test changes with real documents.

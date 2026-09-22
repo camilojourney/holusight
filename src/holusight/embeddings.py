@@ -1,9 +1,9 @@
 """Embedding model wrapper — local (sentence-transformers), or API (OpenAI
 or Voyage AI).
 
-Backend is selected via CODESIGHT_EMBEDDING_BACKEND env var:
+Backend is selected via HOLUSIGHT_EMBEDDING_BACKEND env var:
   - local  (default) — runs on CPU/GPU/MPS, no API key, no data leaves.
-             CODESIGHT_EMBEDDING_MODEL picks the model (default
+             HOLUSIGHT_EMBEDDING_MODEL picks the model (default
              Qwen/Qwen3-Embedding-8B; see config.EMBEDDING_MODEL_REGISTRY).
   - api    — OpenAI text-embedding-3-large
   - voyage — Voyage AI voyage-code-3 (also the automatic default whenever
@@ -195,7 +195,7 @@ class APIEmbedder:
         if not self._api_key:
             raise ValueError(
                 "OPENAI_API_KEY environment variable is required for API embedding backend. "
-                "Set it or switch to local: CODESIGHT_EMBEDDING_BACKEND=local"
+                "Set it or switch to local: HOLUSIGHT_EMBEDDING_BACKEND=local"
             )
         self.model_name = model_name
         self.expected_dim = expected_dim
@@ -385,7 +385,7 @@ def get_embedder(
         logger.info("Using Voyage embedding backend: %s", model_name)
         return VoyageEmbedder(model_name=model_name, expected_dim=dim)
 
-    if os.environ.get("CODESIGHT_DAEMON_DISABLED", "").lower() in ("1", "true"):
+    if os.environ.get("HOLUSIGHT_DAEMON_DISABLED", "").lower() in ("1", "true"):
         logger.info("Using local embedding backend (daemon disabled): %s", model_name)
         return LocalEmbedder(model_name=model_name, expected_dim=dim)
 

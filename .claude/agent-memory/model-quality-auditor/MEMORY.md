@@ -1,4 +1,4 @@
-# model-quality-auditor Memory — codesight
+# model-quality-auditor Memory — holusight
 
 ## Session Notes
 

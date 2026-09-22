@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest import mock
 
-from codesight import proper_eval
-from codesight.eval_pilot import (
+from holusight import proper_eval
+from holusight.eval_pilot import (
     CandidateLineage,
     CaseGrade,
     EvaluationSubject,

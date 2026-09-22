@@ -1,7 +1,7 @@
 # AGENTS.md
 
 
-# CodeSight
+# Holusight
 
 AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with pluggable LLM answer synthesis.
 
@@ -24,7 +24,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `vercel.json` | Vercel static deploy config; must point at a directory with `index.html`. |
 | `pyproject.toml` | Python package config and dependencies (uv). |
 | `.env.example` | Environment variable template. Never `.env` itself. |
-| `src/` | Core Python library (`src/codesight/`). |
+| `src/` | Core Python library (`src/holusight/`). |
 | `demo/` | Demo application (app.py + requirements.txt). |
 | `specs/` | Numbered feature specifications. |
 | `docs/` | Structured documentation (four categories only). |
@@ -38,51 +38,51 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 
 **Never create files at root** unless they are one of the above.
 
-### Source Code (`src/codesight/`)
+### Source Code (`src/holusight/`)
 
 | Module | Purpose |
 |--------|---------|
-| `src/codesight/__main__.py` | CLI entry point. |
-| `src/codesight/api.py` | API layer. |
-| `src/codesight/chunker.py` | Code chunking logic. |
-| `src/codesight/config.py` | Configuration loading. |
-| `src/codesight/embeddings.py` | Embedding model interface. |
-| `src/codesight/embedding_daemon.py` | Persistent local embedding daemon (`holusight-embedding-daemon`): keeps a large local model warm across stateless `holus` CLI invocations. |
-| `src/codesight/git_utils.py` | Git repository utilities. |
-| `src/codesight/indexer.py` | Code indexing engine. |
-| `src/codesight/llm.py` | LLM backend interface. |
-| `src/codesight/parsers.py` | Language parsers (tree-sitter). |
-| `src/codesight/search.py` | Search and retrieval. |
-| `src/codesight/store.py` | Vector store (LanceDB). |
-| `src/codesight/consistency.py` | Holusight-AXI documentation-code consistency engine (Phase 1). See spec 013. |
-| `src/codesight/consistency_store.py` | SQLite storage for `.holusight/consistency.db`. |
-| `src/codesight/axi_schema.py` | Versioned `holus` command/output schema - single source of truth for the CLI and the generated skill. See spec 015. |
-| `src/codesight/axi_providers.py` | `holus` evidence providers (exact/structural/consistency/semantic) - thin wrappers over `consistency.py` and `search.py`. |
-| `src/codesight/cli_axi.py` | `holus` CLI entry point (`[project.scripts] holus`). Also hosts the `improve-*` continuous-improvement loop and repository-placement guard. See spec 018. |
-| `src/codesight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`, plus the general, install-anywhere `/holusight` distribution skill variant. |
-| `src/codesight/skill_installer.py` | `holusight-install-skill` console script: writes the distribution skill to `~/.claude/skills/holusight/` and symlinks it into every other supported harness, mirroring how `graphify` is distributed. See README.md "Install anywhere". |
-| `src/codesight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
-| `src/codesight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
-| `src/codesight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |
-| `src/codesight/eval_suite.py` | Versioned local-evaluation suite, method/config, and hidden-holdout hash-manifest schemas. Dataset foundation only; no runner, no holdout access path. See spec 022. |
-| `src/codesight/proper_eval.py` | Advisory named-suite orchestration (ADR-0019). Loads suite identity, binds `EvaluationSubject`, runs fleet-smoke + eval-pilot. Hidden holdout not scored. Promotion always denied. |
-| `src/codesight/agent_focus.py` | Deterministic agent-focus harness: context pack + fixed alignment council (no LLM). Helps agents orient before changing Holusight. Promotion always denied. |
-| `src/codesight/improve_iterate.py` | Iterative measurement loop over `proper_eval.py`: compares each run to the previous local receipt and emits `progress` (baseline/improved/stagnated/regressed/blocked) + `next_action`. Promotion always denied (ADR-0019). |
-| `src/codesight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for the existing `holus improve-*` loop. It verifies tracked manifests, links, hashes, stages, promotion blockers, and (for pilot results) recomputed Git-subject applicability, without egress or canonical writes. See specs 019 and 021. |
-| `src/codesight/retrieval_variation.py` | Fixed, local evidence-display baseline/candidate evaluator. Content-addresses benchmark and lineage, separates hard constraints from reward, and only permits independent human review. See spec 020. |
-| `src/codesight/spec_duplication.py` | Advisory nearest-neighbor similarity report over `specs/NNN-*.md`, so a new spec can be checked against existing ones before it's created. Ranked, not pass/fail -- see the module docstring for why a hard similarity threshold isn't used. |
-| `src/codesight/types.py` | Shared type definitions. |
-| `src/codesight/web/server.py` | FastAPI server and authenticated browser API. |
-| `src/codesight/web/static/` | Browser UI assets for the FastAPI pilot server. |
+| `src/holusight/__main__.py` | CLI entry point. |
+| `src/holusight/api.py` | API layer. |
+| `src/holusight/chunker.py` | Code chunking logic. |
+| `src/holusight/config.py` | Configuration loading. |
+| `src/holusight/embeddings.py` | Embedding model interface. |
+| `src/holusight/embedding_daemon.py` | Persistent local embedding daemon (`holusight-embedding-daemon`): keeps a large local model warm across stateless `holus` CLI invocations. |
+| `src/holusight/git_utils.py` | Git repository utilities. |
+| `src/holusight/indexer.py` | Code indexing engine. |
+| `src/holusight/llm.py` | LLM backend interface. |
+| `src/holusight/parsers.py` | Language parsers (tree-sitter). |
+| `src/holusight/search.py` | Search and retrieval. |
+| `src/holusight/store.py` | Vector store (LanceDB). |
+| `src/holusight/consistency.py` | Holusight-AXI documentation-code consistency engine (Phase 1). See spec 013. |
+| `src/holusight/consistency_store.py` | SQLite storage for `.holusight/consistency.db`. |
+| `src/holusight/axi_schema.py` | Versioned `holus` command/output schema - single source of truth for the CLI and the generated skill. See spec 015. |
+| `src/holusight/axi_providers.py` | `holus` evidence providers (exact/structural/consistency/semantic) - thin wrappers over `consistency.py` and `search.py`. |
+| `src/holusight/cli_axi.py` | `holus` CLI entry point (`[project.scripts] holus`). Also hosts the `improve-*` continuous-improvement loop and repository-placement guard. See spec 018. |
+| `src/holusight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`, plus the general, install-anywhere `/holusight` distribution skill variant. |
+| `src/holusight/skill_installer.py` | `holusight-install-skill` console script: writes the distribution skill to `~/.claude/skills/holusight/` and symlinks it into every other supported harness, mirroring how `graphify` is distributed. See README.md "Install anywhere". |
+| `src/holusight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
+| `src/holusight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
+| `src/holusight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |
+| `src/holusight/eval_suite.py` | Versioned local-evaluation suite, method/config, and hidden-holdout hash-manifest schemas. Dataset foundation only; no runner, no holdout access path. See spec 022. |
+| `src/holusight/proper_eval.py` | Advisory named-suite orchestration (ADR-0019). Loads suite identity, binds `EvaluationSubject`, runs fleet-smoke + eval-pilot. Hidden holdout not scored. Promotion always denied. |
+| `src/holusight/agent_focus.py` | Deterministic agent-focus harness: context pack + fixed alignment council (no LLM). Helps agents orient before changing Holusight. Promotion always denied. |
+| `src/holusight/improve_iterate.py` | Iterative measurement loop over `proper_eval.py`: compares each run to the previous local receipt and emits `progress` (baseline/improved/stagnated/regressed/blocked) + `next_action`. Promotion always denied (ADR-0019). |
+| `src/holusight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for the existing `holus improve-*` loop. It verifies tracked manifests, links, hashes, stages, promotion blockers, and (for pilot results) recomputed Git-subject applicability, without egress or canonical writes. See specs 019 and 021. |
+| `src/holusight/retrieval_variation.py` | Fixed, local evidence-display baseline/candidate evaluator. Content-addresses benchmark and lineage, separates hard constraints from reward, and only permits independent human review. See spec 020. |
+| `src/holusight/spec_duplication.py` | Advisory nearest-neighbor similarity report over `specs/NNN-*.md`, so a new spec can be checked against existing ones before it's created. Ranked, not pass/fail -- see the module docstring for why a hard similarity threshold isn't used. |
+| `src/holusight/types.py` | Shared type definitions. |
+| `src/holusight/web/server.py` | FastAPI server and authenticated browser API. |
+| `src/holusight/web/static/` | Browser UI assets for the FastAPI pilot server. |
 
 ### Demo (`demo/`)
 
 | File | Purpose |
 |------|---------|
-| `demo/app.py` | Demo application showcasing codesight capabilities. |
+| `demo/app.py` | Demo application showcasing holusight capabilities. |
 | `demo/requirements.txt` | Demo-specific dependencies (separate from main pyproject.toml). |
 
-Demo is self-contained. It does not import from `src/codesight/` at runtime.
+Demo is self-contained. It does not import from `src/holusight/` at runtime.
 
 ### Docs (`docs/`)
 
@@ -122,7 +122,7 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 | `.claude/rules/*.md` | Behavioral rules (structure, workflow). |
 | `.claude/agents/*.md` | Agent definitions. |
 | `.claude/agent-memory/<agent>/` | Per-agent runtime memory (gitignored). |
-| `.claude/skills/holus/SKILL.md` | Generated `/holus` agent skill (see `src/codesight/axi_skill_gen.py`, spec 015). Do not hand-edit - regenerate via `python -m codesight.axi_skill_gen`. |
+| `.claude/skills/holus/SKILL.md` | Generated `/holus` agent skill (see `src/holusight/axi_skill_gen.py`, spec 015). Do not hand-edit - regenerate via `python -m holusight.axi_skill_gen`. |
 
 ### `.self-improvement/`
 
@@ -143,7 +143,7 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 | New feature spec | `specs/NNN-name.md` |
 | Architecture decision | `docs/decisions/NNNN-name.md` |
 | Operational guide | `docs/playbooks/name.md` |
-| New source module | `src/codesight/{name}.py` |
+| New source module | `src/holusight/{name}.py` |
 | Unit test | `tests/test_{module}.py` |
 | Demo code | `demo/` |
 | Dev session notes | `devlog/YYYY-MM-DD.md` |
@@ -168,8 +168,8 @@ Rules:
 
 ## Commands
 
-- Run demo: `uv run --extra demo python -m codesight demo`
-- CLI: `python -m codesight index /path/to/docs`
+- Run demo: `uv run --extra demo python -m holusight demo`
+- CLI: `python -m holusight index /path/to/docs`
 - Test: `uv run --extra dev pytest tests/ -x -v`
 - Lint: `uv run --extra dev ruff check src/ tests/`
 - Install: `pip install -e ".[dev]"`
@@ -220,7 +220,7 @@ Rules:
 
 ### Ask First — Propose, wait for approval
 - New dependencies in `pyproject.toml`
-- Changes to the `CodeSight` public API (`index`, `search`, `ask`, `status`)
+- Changes to the `Holusight` public API (`index`, `search`, `ask`, `status`)
 - Changes to the data directory path or index schema
 - New config environment variables
 - Changes to the Claude system prompt in `api.py`
@@ -244,7 +244,7 @@ Rules:
 
 ## Role
 
-codesight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
+holusight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
 
 **Primary concerns:** retrieval quality, document parsing accuracy, answer quality with source citations.
 
@@ -315,8 +315,8 @@ Rules:
 
 ## Commands
 
-- Run demo: `uv run --extra demo python -m codesight demo`
-- CLI: `python -m codesight index /path/to/docs`
+- Run demo: `uv run --extra demo python -m holusight demo`
+- CLI: `python -m holusight index /path/to/docs`
 - Test: `uv run --extra dev pytest tests/ -x -v`
 - Lint: `uv run --extra dev ruff check src/ tests/`
 - Install: `pip install -e ".[dev]"`
@@ -367,7 +367,7 @@ Rules:
 
 ### Ask First — Propose, wait for approval
 - New dependencies in `pyproject.toml`
-- Changes to the `CodeSight` public API (`index`, `search`, `ask`, `status`)
+- Changes to the `Holusight` public API (`index`, `search`, `ask`, `status`)
 - Changes to the data directory path or index schema
 - New config environment variables
 - Changes to the Claude system prompt in `api.py`
@@ -391,7 +391,7 @@ Rules:
 
 ## Role
 
-codesight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
+holusight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
 
 **Primary concerns:** retrieval quality, document parsing accuracy, answer quality with source citations.
 

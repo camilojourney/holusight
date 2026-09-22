@@ -22,7 +22,7 @@ Graphify builds a code knowledge graph (callers, imports, symbols) that could au
 
 ## Extension contract (future experiment)
 
-Optional enhancement behind `CODESIGHT_GRAPHIFY_PATH` (not implemented):
+Optional enhancement behind `HOLUSIGHT_GRAPHIFY_PATH` (not implemented):
 
 1. **Input:** read-only `graph.json` (or Graphify export) generated out-of-band via `graphify update .`
 2. **Use:** when a query returns code chunks, attach `related_symbols: [{file, symbol, relation}]` from the graph — display only, no ranking change in v1 experiment

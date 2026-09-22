@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from codesight import config as config_module
-from codesight.api import CodeSight
-from codesight.config import ServerConfig
-from codesight.embeddings import (
+from holusight import config as config_module
+from holusight.api import Holusight
+from holusight.config import ServerConfig
+from holusight.embeddings import (
     _MAX_EMBEDDING_BATCH_CHARS,
     _MAX_EMBEDDING_TEXT_CHARS,
     LocalEmbedder,
@@ -113,10 +113,10 @@ class TestQueryPrompting:
         assert len(model.batches[0][0]) == _MAX_EMBEDDING_TEXT_CHARS
 
 
-def test_codesight_index_routes_a_pathological_single_line_through_the_guard(
+def test_holusight_index_routes_a_pathological_single_line_through_the_guard(
     tmp_path, monkeypatch,
 ) -> None:
-    """Exercise CodeSight.index -> indexer -> LocalEmbedder for the prior trigger."""
+    """Exercise Holusight.index -> indexer -> LocalEmbedder for the prior trigger."""
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     pathological_text = "repository-owned material " * 1000
@@ -124,8 +124,8 @@ def test_codesight_index_routes_a_pathological_single_line_through_the_guard(
     monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
 
     embedder, model = _recording_embedder()
-    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *_args, **_kwargs: embedder)
-    engine = CodeSight(
+    monkeypatch.setattr("holusight.indexer.get_embedder", lambda *_args, **_kwargs: embedder)
+    engine = Holusight(
         corpus,
         config=ServerConfig(
             embedding_model="sentence-transformers/all-MiniLM-L6-v2",

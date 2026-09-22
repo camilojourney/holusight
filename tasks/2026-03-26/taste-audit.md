@@ -1,4 +1,4 @@
-# Taste Audit -- CodeSight v0.3
+# Taste Audit -- Holusight v0.3
 
 **Date:** 2026-03-26
 **Auditor:** Claude Opus 4.6 (automated)
@@ -8,7 +8,7 @@
 
 ## Overall Score: 6.5 / 10
 
-A solid engineering foundation with clean architecture and honest technical writing. Falls short on visual craft (the Streamlit UI is a prototype, not a product), brand inconsistency (name confusion between "CodeSight" and "codesight"), and test coverage (effectively zero real tests).
+A solid engineering foundation with clean architecture and honest technical writing. Falls short on visual craft (the Streamlit UI is a prototype, not a product), brand inconsistency (name confusion between "Holusight" and "holusight"), and test coverage (effectively zero real tests).
 
 ---
 
@@ -45,7 +45,7 @@ Minor nit: search results print "page X-Y" even for code files where they're lin
 The technical writing is the strongest asset. ARCHITECTURE.md, COMPARISON.md, and the business specs are genuinely excellent:
 
 - ARCHITECTURE.md is a model guided tour. ASCII diagrams, clear data flow, "What NOT to Change" section. This is better than most production repos at 100x the team size.
-- COMPARISON.md is ruthlessly honest. "CodeSight is ~40% of what Cursor does." "Embeddings for code search are real but overhyped." This kind of writing builds trust.
+- COMPARISON.md is ruthlessly honest. "Holusight is ~40% of what Cursor does." "Embeddings for code search are real but overhyped." This kind of writing builds trust.
 - Business specs (005-money-model.md, 006-go-to-market.md) are detailed and credible. The financial model with per-tier breakdowns by company size is investor-grade analysis.
 
 Issues:
@@ -57,7 +57,7 @@ Issues:
 ### Business Content
 
 - Proposal templates are solid, practical, and client-ready.
-- The one-pager template uses "Camilo Martinez" as the consultant name but the repo brand is "CodeSight." The personal name should match whatever brand identity is chosen.
+- The one-pager template uses "Camilo Martinez" as the consultant name but the repo brand is "Holusight." The personal name should match whatever brand identity is chosen.
 - Pricing pages use clear comparison tables with callout boxes (`> [!IMPORTANT]`, `> [!TIP]`). This is good GitHub-native formatting.
 
 ---
@@ -67,11 +67,11 @@ Issues:
 ### Name Confusion
 
 The project has an identity crisis across three names:
-1. **"codesight"** -- Python package name, CLI name, data directory (`~/.codesight/`)
-2. **"CodeSight"** -- Used in docs, README, ARCHITECTURE.md, demo UI title
+1. **"holusight"** -- Python package name, CLI name, data directory (`~/.holusight/`)
+2. **"Holusight"** -- Used in docs, README, ARCHITECTURE.md, demo UI title
 3. **"Holusight"** -- The repo name and (presumably) the intended product name
 
-The repo is called `holusight` but the package is `codesight`, the storage dir is `~/.codesight/`, and the UI says "CodeSight." If the product is being rebranded to Holusight, nothing in the code reflects this.
+The repo is called `holusight` but the package is `holusight`, the storage dir is `~/.holusight/`, and the UI says "Holusight." If the product is being rebranded to Holusight, nothing in the code reflects this.
 
 ### Positioning Mismatch
 
@@ -129,7 +129,7 @@ The repo is called `holusight` but the package is `codesight`, the storage dir i
 |-----------|-------|-----------|-----------------|
 | Visual Craft | 4/10 | Default Streamlit prototype with emoji favicon | Branded enterprise UI with custom theme, progress indicators, empty states |
 | Content Quality | 8/10 | Honest, detailed technical writing with some stale sections | Same quality, but purge stale references and fix ADR numbering |
-| Brand Alignment | 5/10 | Three names (codesight/CodeSight/holusight), mixed positioning | One name, one voice, consistent enterprise identity |
+| Brand Alignment | 5/10 | Three names (holusight/Holusight/holusight), mixed positioning | One name, one voice, consistent enterprise identity |
 | Code Aesthetics | 7/10 | Clean architecture with good separation; some injection risks | Fix SQL injection in store.py, add error handling for silent swallows |
 | Info Architecture | 7/10 | Good structure rules, partially enforced | Remove duplicates, enforce the four-category doc rule, clean tasks/ |
 
@@ -137,7 +137,7 @@ The repo is called `holusight` but the package is `codesight`, the storage dir i
 
 ## Top 5 Taste Fixes (If Only 5 Things Change)
 
-1. **Rename everything to one name.** Package, CLI, storage dir, UI title, repo -- all one name. Either "codesight" or "holusight," not both.
+1. **Rename everything to one name.** Package, CLI, storage dir, UI title, repo -- all one name. Either "holusight" or "holusight," not both.
 2. **Custom Streamlit theme.** Dark sidebar, brand color, logotype instead of emoji. 30 minutes of CSS via `st.markdown(unsafe_allow_html=True)` or a `.streamlit/config.toml`.
 3. **Fix the SQL interpolation in store.py.** This is a correctness bug, not just taste.
 4. **Delete stale content.** Remove `docs/MARKET.md`, `docs/RESEARCH.md`, `docs/STACK-VALIDATION.md`, `docs/research/`. Clean `tasks/` of old files. Fix README workflow section.

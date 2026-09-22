@@ -172,5 +172,5 @@ Approve to commit and push?
 - `results/phase-02-step-03-eval.json` — eval results
 - `results/phase-02-step-03-eval.md` — eval summary with delta
 - `results/phase-02-step-05-sync.md` — docs sync summary
-- Updated source files in `src/codesight/`
+- Updated source files in `src/holusight/`
 - Updated docs: ARCHITECTURE.md, docs/roadmap.md

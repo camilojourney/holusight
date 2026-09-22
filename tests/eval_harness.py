@@ -1,4 +1,4 @@
-"""Eval harness for CodeSight search quality and token efficiency.
+"""Eval harness for Holusight search quality and token efficiency.
 
 Metrics (all deterministic — computed from exact string/rank matches
 against hand-verified gold `expected_file`/`expected_evidence` fields,
@@ -41,10 +41,10 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from codesight.config import ServerConfig
-    from codesight.embeddings import Embedder
-    from codesight.store import ChunkStore
-    from codesight.types import SearchResult
+    from holusight.config import ServerConfig
+    from holusight.embeddings import Embedder
+    from holusight.store import ChunkStore
+    from holusight.types import SearchResult
 
 # Sentinel expected_file value marking a "should not confidently match a real
 # file" diagnostic probe (contradiction/no-answer family). Never a real path.
@@ -117,8 +117,8 @@ class EvalResult:
 
 def _default_search_fn(store, embedder, query, top_k, config=None):
     """Default retriever: production hybrid_search. Imported lazily so tests
-    can patch `codesight.search.hybrid_search` and have it take effect."""
-    from codesight.search import hybrid_search
+    can patch `holusight.search.hybrid_search` and have it take effect."""
+    from holusight.search import hybrid_search
 
     return hybrid_search(store, embedder, query, top_k=top_k, config=config)
 

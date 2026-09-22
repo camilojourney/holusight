@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from codesight import eval_pilot
+from holusight import eval_pilot
 
 
 def _run(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -52,8 +52,8 @@ def _repo(tmp_path: Path) -> Path:
     structure = tmp_path / ".claude/rules/structure.md"
     structure.parent.mkdir(parents=True)
     structure.write_text("tests/fixtures/\n", encoding="utf-8")
-    (tmp_path / "src/codesight").mkdir(parents=True)
-    (tmp_path / "src/codesight/eval_pilot.py").write_text("protected evaluator\n", encoding="utf-8")
+    (tmp_path / "src/holusight").mkdir(parents=True)
+    (tmp_path / "src/holusight/eval_pilot.py").write_text("protected evaluator\n", encoding="utf-8")
     cases = tmp_path / "tests/fixtures/holusight_eval_pilot_cases.jsonl"
     cases.parent.mkdir(parents=True)
     cases.write_text(json.dumps(_case()) + "\n", encoding="utf-8")
@@ -62,11 +62,11 @@ def _repo(tmp_path: Path) -> Path:
 
 def test_e2e_output_cannot_overwrite_evaluator_corpus_or_symlink_alias(tmp_path):
     repo = _repo(tmp_path)
-    evaluator = repo / "src/codesight/eval_pilot.py"
+    evaluator = repo / "src/holusight/eval_pilot.py"
     corpus = repo / "tests/fixtures/holusight_eval_pilot_cases.jsonl"
     before_evaluator, before_corpus = evaluator.read_bytes(), corpus.read_bytes()
     for target in (
-        "src/codesight/eval_pilot.py",
+        "src/holusight/eval_pilot.py",
         "tests/fixtures/holusight_eval_pilot_cases.jsonl",
     ):
         result = _run(
@@ -164,7 +164,7 @@ def _trusted_baseline(repo: Path) -> str:
     _git(repo, "init")
     _git(repo, "config", "user.email", "e2e@example.test")
     _git(repo, "config", "user.name", "E2E")
-    (repo / "src/codesight/implementation.py").write_text("implementation\n", encoding="utf-8")
+    (repo / "src/holusight/implementation.py").write_text("implementation\n", encoding="utf-8")
     (repo / "tests/test_implementation.py").write_text("# test artifact\n", encoding="utf-8")
     (repo / "docs").mkdir()
     (repo / "docs/README.md").write_text("documentation\n", encoding="utf-8")
@@ -189,7 +189,7 @@ def _trusted_baseline(repo: Path) -> str:
     assert first.returncode == 0, first.stdout
     links = {
         "governing": ["specs/governing.md"],
-        "implementation": ["src/codesight/implementation.py"],
+        "implementation": ["src/holusight/implementation.py"],
         "tests": ["tests/test_implementation.py"],
         "documentation": ["docs/README.md"],
         "evaluation_case": ["tests/fixtures/holusight_eval_pilot_cases.jsonl"],
@@ -280,8 +280,8 @@ def test_e2e_baseline_integrity_requires_digest_and_trusted_manifest(tmp_path):
     assert identity.returncode == 0
     assert json.loads(identity.stdout)["progress"]["outcome"] == "invalid_comparison"
 
-    (repo / "src/codesight/eval_pilot.py").write_text("changed evaluator\n", encoding="utf-8")
-    _git(repo, "add", "src/codesight/eval_pilot.py")
+    (repo / "src/holusight/eval_pilot.py").write_text("changed evaluator\n", encoding="utf-8")
+    _git(repo, "add", "src/holusight/eval_pilot.py")
     _git(repo, "commit", "-m", "change evaluator")
     evaluator = compare()
     assert evaluator.returncode == 0

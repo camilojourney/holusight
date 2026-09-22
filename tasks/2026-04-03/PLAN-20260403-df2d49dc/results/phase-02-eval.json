@@ -1,6 +1,6 @@
 {
   "timestamp": "20260404T040739Z",
-  "backend": "codesight",
+  "backend": "holusight",
   "queries_file": "/Users/mini/.openclaw/workspace/github/~Projects/system/skills/fleet-brain/data/eval_queries.json",
   "top_k": 10,
   "overall": {
@@ -98,7 +98,7 @@
       "rr": 0.0,
       "latency_ms": 3094.9,
       "top5_paths": [
-        "src/codesight/chunker.py",
+        "src/holusight/chunker.py",
         "api/services/pipeline_service.py",
         "src/lib/video/renderer.ts",
         "src/holus/agents/marketing/video_workflow.py",
@@ -141,8 +141,8 @@
         "fleet_brain_hook.py",
         "scripts/pipeline_eval.py",
         "tests/unit/core/test_watchdog.py",
-        "src/codesight/search.py",
-        "src/codesight/embeddings.py"
+        "src/holusight/search.py",
+        "src/holusight/embeddings.py"
       ],
       "hit_rank": 9
     },
@@ -214,7 +214,7 @@
       "rr": 0.0,
       "latency_ms": 3094.9,
       "top5_paths": [
-        "src/codesight/chunker.py",
+        "src/holusight/chunker.py",
         "api/services/pipeline_service.py",
         "src/lib/video/renderer.ts",
         "src/holus/agents/marketing/video_workflow.py",
@@ -292,7 +292,7 @@
       "top5_paths": [
         "fleet_search_daemon.py",
         "tests/unit/agents/test_quality_score.py",
-        "src/codesight/search.py",
+        "src/holusight/search.py",
         "fleet_search.py",
         "src/lib/memory/strategies/prompt.ts"
       ],
@@ -319,11 +319,11 @@
     },
     {
       "id": "TC-011",
-      "query": "holusight CodeSight index function what does it build",
+      "query": "holusight Holusight index function what does it build",
       "category": "TASK_CONTEXT",
       "expected_paths": [
-        "holusight/src/codesight/api.py",
-        "holusight/src/codesight/indexer.py"
+        "holusight/src/holusight/api.py",
+        "holusight/src/holusight/indexer.py"
       ],
       "p_at_5": 0.0,
       "rr": 0.0,
@@ -408,7 +408,7 @@
         "fleet_search.py",
         "docs/research/raw/research-caption-engine.md",
         "fleet_search_daemon.py",
-        "src/codesight/llm.py",
+        "src/holusight/llm.py",
         "rollout_gate.py"
       ],
       "hit_rank": null
@@ -427,7 +427,7 @@
         "fleet_brain_hook.py",
         "fleet_health_sweep.py",
         "backend/tests/test_intelligence_upgrade.py",
-        "src/codesight/llm.py",
+        "src/holusight/llm.py",
         "tests/unit/core/test_health_preflight.py"
       ],
       "hit_rank": 1
@@ -445,7 +445,7 @@
       "top5_paths": [
         "fleet_search_daemon.py",
         "fleet_search_client.py",
-        "src/codesight/search.py",
+        "src/holusight/search.py",
         "src/data/market_collector.py",
         "register_search_daemon.sh"
       ],
@@ -453,16 +453,16 @@
     },
     {
       "id": "FL-003",
-      "query": "BM25_CANDIDATE_MULTIPLIER holusight codesight",
+      "query": "BM25_CANDIDATE_MULTIPLIER holusight holusight",
       "category": "FAST_LOOKUP",
       "expected_paths": [
-        "holusight/src/codesight/config.py"
+        "holusight/src/holusight/config.py"
       ],
       "p_at_5": 0.0,
       "rr": 0.0,
       "latency_ms": 3028.3,
       "top5_paths": [
-        "src/codesight/search.py",
+        "src/holusight/search.py",
         "fleet_search_daemon.py",
         "specs/README.md",
         "query_router.py",
@@ -482,7 +482,7 @@
       "latency_ms": 2798.8,
       "top5_paths": [
         "fleet_search.py",
-        "src/codesight/search.py",
+        "src/holusight/search.py",
         "fleet_search_client.py",
         "evals/run_eval.py",
         "fleet_search_daemon.py"
@@ -521,7 +521,7 @@
       "top5_paths": [
         "fleet_search_daemon.py",
         "fleet_search.py",
-        "src/codesight/search.py",
+        "src/holusight/search.py",
         "tests/test_build_scout_context.py",
         "ARCHITECTURE.md"
       ],
@@ -532,7 +532,7 @@
       "query": "SearchResult file_path start_line end_line fields",
       "category": "FAST_LOOKUP",
       "expected_paths": [
-        "holusight/src/codesight/types.py"
+        "holusight/src/holusight/types.py"
       ],
       "p_at_5": 0.0,
       "rr": 0.1111,
@@ -579,7 +579,7 @@
         "CLAUDE.md",
         "api/telegram_bot.py",
         "fleet_brain_hook.py",
-        "src/codesight/types.py",
+        "src/holusight/types.py",
         "api/tests/test_telegram_bot.py"
       ],
       "hit_rank": null
@@ -665,13 +665,13 @@
       "query": "holusight embedding model all-MiniLM-L6-v2",
       "category": "FAST_LOOKUP",
       "expected_paths": [
-        "holusight/src/codesight/config.py"
+        "holusight/src/holusight/config.py"
       ],
       "p_at_5": 0.0,
       "rr": 0.0,
       "latency_ms": 3083.6,
       "top5_paths": [
-        "src/codesight/embeddings.py",
+        "src/holusight/embeddings.py",
         "eval_search.py",
         "fleet_search_daemon.py",
         "tests/test_regime_detector.py",
@@ -700,11 +700,11 @@
     },
     {
       "id": "CR-001",
-      "query": "how does holusight CodeSight search return results",
+      "query": "how does holusight Holusight search return results",
       "category": "CROSS_REPO",
       "expected_paths": [
-        "holusight/src/codesight/api.py",
-        "holusight/src/codesight/search.py"
+        "holusight/src/holusight/api.py",
+        "holusight/src/holusight/search.py"
       ],
       "p_at_5": 0.0,
       "rr": 0.0,
@@ -764,15 +764,15 @@
       "query": "holusight hybrid search RRF merge algorithm",
       "category": "CROSS_REPO",
       "expected_paths": [
-        "holusight/src/codesight/search.py",
-        "holusight/src/codesight/config.py"
+        "holusight/src/holusight/search.py",
+        "holusight/src/holusight/config.py"
       ],
       "p_at_5": 0.2,
       "rr": 0.5,
       "latency_ms": 3057.3,
       "top5_paths": [
         "eval_search.py",
-        "src/codesight/search.py",
+        "src/holusight/search.py",
         "search_types.py",
         "scripts/consolidate_evolve_memory.py",
         "src/lib/memory/strategies/comfyui.ts"
@@ -853,18 +853,18 @@
         "src/holus/agents/marketing/video_workflow.py",
         "tests/test_video_workflow.py",
         "scripts/write_evolve_memory.py",
-        "src/codesight/parsers.py",
-        "src/codesight/chunker.py"
+        "src/holusight/parsers.py",
+        "src/holusight/chunker.py"
       ],
       "hit_rank": null
     },
     {
       "id": "CR-009",
-      "query": "fleet indexer codesight flag holusight venv subprocess",
+      "query": "fleet indexer holusight flag holusight venv subprocess",
       "category": "CROSS_REPO",
       "expected_paths": [
         "~Projects/system/skills/fleet-brain/scripts/fleet_indexer.py",
-        "holusight/src/codesight/api.py"
+        "holusight/src/holusight/api.py"
       ],
       "p_at_5": 0.2,
       "rr": 1.0,

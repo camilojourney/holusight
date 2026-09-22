@@ -22,8 +22,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from codesight import embedding_daemon
-from codesight.embeddings import DaemonEmbedder
+from holusight import embedding_daemon
+from holusight.embeddings import DaemonEmbedder
 
 
 class _FakeLocalEmbedder:
@@ -57,7 +57,7 @@ def daemon_dir(monkeypatch):
 def running_server(daemon_dir, monkeypatch):
     """A real daemon server, running in a background thread, using the fake
     embedder so no real model load happens."""
-    monkeypatch.setattr("codesight.embeddings.LocalEmbedder", _FakeLocalEmbedder)
+    monkeypatch.setattr("holusight.embeddings.LocalEmbedder", _FakeLocalEmbedder)
 
     watchdog = embedding_daemon._IdleWatchdog(timeout_seconds=999)
     server = embedding_daemon._DaemonServer(embedding_daemon.SOCKET_PATH, watchdog)
@@ -198,7 +198,7 @@ class TestEnsureDaemonSpawned:
         embedding_daemon.ensure_daemon_spawned()
         assert len(spawned) == 1
         argv = spawned[0][0][0]
-        assert argv[1:] == ["-m", "codesight.embedding_daemon", "serve"]
+        assert argv[1:] == ["-m", "holusight.embedding_daemon", "serve"]
 
     def test_a_failed_spawn_never_raises(self, daemon_dir, monkeypatch):
         monkeypatch.setattr(embedding_daemon, "is_daemon_running", lambda: False)
@@ -219,7 +219,7 @@ class TestDaemonEmbedder:
         assert embedder._fallback is None
 
     def test_falls_back_when_daemon_unreachable(self, daemon_dir, monkeypatch):
-        monkeypatch.setattr("codesight.embeddings.LocalEmbedder", _FakeLocalEmbedder)
+        monkeypatch.setattr("holusight.embeddings.LocalEmbedder", _FakeLocalEmbedder)
         monkeypatch.setattr(embedding_daemon, "ensure_daemon_spawned", lambda: None)
 
         embedder = DaemonEmbedder(model_name="fake-model", expected_dim=3)
@@ -228,7 +228,7 @@ class TestDaemonEmbedder:
         assert embedder._fallback is not None
 
     def test_falls_back_for_embed_too(self, daemon_dir, monkeypatch):
-        monkeypatch.setattr("codesight.embeddings.LocalEmbedder", _FakeLocalEmbedder)
+        monkeypatch.setattr("holusight.embeddings.LocalEmbedder", _FakeLocalEmbedder)
         monkeypatch.setattr(embedding_daemon, "ensure_daemon_spawned", lambda: None)
 
         embedder = DaemonEmbedder(model_name="fake-model", expected_dim=2)

@@ -1,4 +1,4 @@
-# code-improver Memory — codesight
+# code-improver Memory — holusight
 
 ## Session Notes
 

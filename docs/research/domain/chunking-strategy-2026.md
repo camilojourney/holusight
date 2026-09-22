@@ -104,7 +104,7 @@ We upgrade chunking but keep all-MiniLM as the local embedding default. Users wi
 
 - MRR@10 (not nDCG@10) is almost absent from 2025-2026 code search papers. Our primary metric is MRR, but the literature benchmarks nDCG. The correspondence is strong (rank-1 emphasis) but not exact.
 - Anthropic contextual retrieval appendix (code-specific breakdown) was binary-encoded and inaccessible. The domain-averaged 35–67% numbers include code but code-isolated figures unknown.
-- No paper tests scope-based chunking (function/class level) with 50-line overlap — the exact configuration CodeSight uses. Closest is cAST which does function-level without overlap.
+- No paper tests scope-based chunking (function/class level) with 50-line overlap — the exact configuration Holusight uses. Closest is cAST which does function-level without overlap.
 
 ---
 

@@ -20,8 +20,8 @@ With the v0.2 pivot away from MCP to a Python API + web chat UI, the original de
 
 ## Why Deprecated
 
-1. **Auto-refresh on search** already handles staleness — when `search()` detects the index is older than `CODESIGHT_STALE_MINUTES`, it triggers a re-index automatically
-2. **Scheduled re-indexing** via cron covers the gap: `*/60 * * * * python -m codesight index /path/to/docs`
+1. **Auto-refresh on search** already handles staleness — when `search()` detects the index is older than `HOLUSIGHT_STALE_MINUTES`, it triggers a re-index automatically
+2. **Scheduled re-indexing** via cron covers the gap: `*/60 * * * * python -m holusight index /path/to/docs`
 3. **Filesystem watchers** add platform-specific complexity (inotify on Linux, FSEvents on macOS, ReadDirectoryChangesW on Windows) with limited benefit for the consulting use case
 4. **Higher priority items**: pluggable LLM (006), reranking (007), Docker deployment (008)
 
@@ -31,13 +31,13 @@ The implementation would likely be:
 
 ```bash
 # CLI command that runs a background daemon
-python -m codesight watch /path/to/docs --interval 300
+python -m holusight watch /path/to/docs --interval 300
 ```
 
 - Uses `watchdog` library for cross-platform filesystem events
 - Debounces changes (wait 5s after last change before re-indexing)
 - Alternatively: simple polling loop checking mtimes every N minutes
-- Logs re-index events to `~/.codesight/data/<hash>/watch.log`
+- Logs re-index events to `~/.holusight/data/<hash>/watch.log`
 
 ## Acceptance Criteria (Original — Not Implemented)
 

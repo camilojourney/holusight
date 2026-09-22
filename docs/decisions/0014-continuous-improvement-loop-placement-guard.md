@@ -58,7 +58,7 @@ Three design questions needed a decision before implementation:
    (not `tests/fixtures/`, which is its own `case`/`fixture` type). No
    other artifact type gets an invented rule beyond canonical-location
    membership and duplicate-name detection — `.claude/skills/`,
-   `.claude/agents/`, and `src/codesight/` all have real, legitimate
+   `.claude/agents/`, and `src/holusight/` all have real, legitimate
    nested-file conventions (`.claude/skills/holus/SKILL.md`,
    `tests/fixtures/pilot_docs/...`) that a blanket flat-only rule would
    have wrongly rejected.

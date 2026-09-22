@@ -35,10 +35,10 @@
         <h2>Quick start (local)</h2>
         <p>Install the Python package, index a folder, and search — no LLM required.</p>
         <pre>pip install -e ".[dev]"
-python -m codesight index ./your-documents
-python -m codesight search "payment terms" ./your-documents
-python -m codesight status ./your-documents</pre>
-        <p>Optional Streamlit demo: <code>pip install -e ".[demo]" &amp;&amp; python -m codesight demo</code></p>
+python -m holusight index ./your-documents
+python -m holusight search "payment terms" ./your-documents
+python -m holusight status ./your-documents</pre>
+        <p>Optional Streamlit demo: <code>pip install -e ".[demo]" &amp;&amp; python -m holusight demo</code></p>
         <p>Production browser UI: <code>pip install -e ".[server]"</code> then see Docker below.</p>
       </section>
 
@@ -61,11 +61,11 @@ python -m codesight status ./your-documents</pre>
       <section id="docker">
         <h2>Docker deployment</h2>
         <p>Single-team pilot: FastAPI on port 8000, read-only <code>/data</code>, persistent <code>/index</code> volume, API key required.</p>
-        <pre>export CODESIGHT_API_KEY=$(openssl rand -hex 24)
-export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/customer/docs
+        <pre>export HOLUSIGHT_API_KEY=$(openssl rand -hex 24)
+export HOLUSIGHT_DOCUMENTS_HOST_DIR=/path/to/customer/docs
 docker compose up --build -d
 # Open http://localhost:8000 — enter API key, Re-index, then search</pre>
-        <p>The compose file mounts <code>CODESIGHT_DOCUMENTS_HOST_DIR</code> at <code>/data:ro</code>; replace the example path with the customer document folder.</p>
+        <p>The compose file mounts <code>HOLUSIGHT_DOCUMENTS_HOST_DIR</code> at <code>/data:ro</code>; replace the example path with the customer document folder.</p>
         <div class="callout">Search works offline. Configure <code>ANTHROPIC_API_KEY</code> (or Azure/OpenAI/Ollama) only if you need Ask mode.</div>
       </section>
 

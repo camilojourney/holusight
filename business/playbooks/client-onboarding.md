@@ -25,4 +25,4 @@
 
 ## Delivery Depends On
 
-All technical delivery uses the **codesight** repo. Live M365 sync, per-document ACLs, SSO, and broad connectors are outside this pilot and require separate future scoping.
+All technical delivery uses the **holusight** repo. Live M365 sync, per-document ACLs, SSO, and broad connectors are outside this pilot and require separate future scoping.

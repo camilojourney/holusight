@@ -54,7 +54,7 @@ explicit-metadata, and confidence-bounded inference.
 |---|---|---|---|
 | `exact` | Deterministic, reproducible from repository structure or byte-identical text matching. No model call. | Path-pattern artifact classification (`.claude/rules/structure.md`'s own directory contract); regex extraction of file-path tokens from spec/ADR/architecture prose, resolved against the filesystem. | 1.0 always. |
 | `structural` | Derived from the tracked Graphify code graph (`graphify-out/graph.json`), which itself mixes AST-extracted and inferred edges. | Graph node/edge lookups keyed by `source_file`, carrying the graph's own `confidence_score` and an explicit staleness flag (graph `built_at_commit` vs. current `HEAD`). | Graph-reported (0.0–1.0); always paired with a staleness flag. |
-| `semantic` | Model-inferred similarity between two artifacts' text. Local embeddings only (`sentence-transformers`, the same model CodeSight already uses for document search — see `src/codesight/embeddings.py`). No network call, no external transmission. | Cosine similarity between a concept's canonical text and other documentation/spec text. **Off by default**; only emitted when a caller explicitly opts in and supplies an embedding function. | Similarity score (0.0–1.0), thresholded at 0.55; never treated as canonical, only as a "possibly relates to" hint surfaced alongside its score. |
+| `semantic` | Model-inferred similarity between two artifacts' text. Local embeddings only (`sentence-transformers`, the same model Holusight already uses for document search — see `src/holusight/embeddings.py`). No network call, no external transmission. | Cosine similarity between a concept's canonical text and other documentation/spec text. **Off by default**; only emitted when a caller explicitly opts in and supplies an embedding function. | Similarity score (0.0–1.0), thresholded at 0.55; never treated as canonical, only as a "possibly relates to" hint surfaced alongside its score. |
 
 Every stored edge/claim carries: `provider`, `confidence`, and an `evidence`
 payload (JSON) recording exactly how it was derived (e.g. which regex
@@ -72,7 +72,7 @@ result, and never determines canonical authority (below) on its own.
   classified artifacts, the concept registry, edges/claims with provenance,
   and health flags — all reconstructible from the canonical inputs above
   plus the tracked `graphify-out/graph.json`. Deleting `.holusight/` and
-  re-running `python -m codesight consistency refresh` reproduces equivalent
+  re-running `python -m holusight consistency refresh` reproduces equivalent
   content (module confidence scores may shift slightly only if the local
   embedding model version changes, which is the only non-deterministic
   input, and semantic edges are opt-in and off by default).
@@ -83,7 +83,7 @@ result, and never determines canonical authority (below) on its own.
   entry alongside `.claude/` and `.self-improvement/` — added to the
   root-level table in `AGENTS.md` and to `.gitignore` in this change.
 - **Rebuild cost is bounded**: Phase 1 discovery walks the same
-  gitignore-aware file set CodeSight's indexer already walks
+  gitignore-aware file set Holusight's indexer already walks
   (`indexer.walk_repo_files`), which is small for this repository (~127
   files per the last Graphify corpus check). A full rebuild is expected to
   take well under a second for classification and exact-reference
@@ -94,7 +94,7 @@ result, and never determines canonical authority (below) on its own.
 
 **In scope (implemented in this PR):**
 
-1. Purpose-aware artifact classification (`src/codesight/consistency.py:classify_artifact`) —
+1. Purpose-aware artifact classification (`src/holusight/consistency.py:classify_artifact`) —
    deterministic, derived directly from this repository's own documented
    structure contract (`.claude/rules/structure.md`), not from a document's
    words. Answers "why does this file exist," not "what's inside it," per
@@ -232,7 +232,7 @@ file gives atomic multi-table writes (a `refresh()` either fully commits or
 fully rolls back — no risk of `concepts.sqlite` updating while
 `edges.sqlite` fails), avoids cross-database transaction coordination the
 PDF's sketch never actually needed, and matches this repository's existing
-storage convention (`src/codesight/store.py`'s `FTSSidecar` already uses one
+storage convention (`src/holusight/store.py`'s `FTSSidecar` already uses one
 SQLite file for chunks + FTS5 + metadata). The PDF's proposed
 `embeddings/`, `graph-cache/`, and `health/` directories are not created:
 Phase 1 does not persist embedding vectors (semantic edges are recomputed
@@ -245,11 +245,11 @@ placeholder directories are created anywhere in this change.
 
 | Module | Role |
 |---|---|
-| `src/codesight/consistency.py` | Engine: classification, concept-registry construction, exact/structural/semantic edge extraction, known-claim evaluation, health-flag computation, evidence-packet assembly, and consistency checking. Pydantic models for all returned types. |
-| `src/codesight/consistency_store.py` | Storage: dict-in/dict-out CRUD over `.holusight/consistency.db` (mirrors the existing `store.py` / `FTSSidecar` separation of "engine logic" from "storage"). |
+| `src/holusight/consistency.py` | Engine: classification, concept-registry construction, exact/structural/semantic edge extraction, known-claim evaluation, health-flag computation, evidence-packet assembly, and consistency checking. Pydantic models for all returned types. |
+| `src/holusight/consistency_store.py` | Storage: dict-in/dict-out CRUD over `.holusight/consistency.db` (mirrors the existing `store.py` / `FTSSidecar` separation of "engine logic" from "storage"). |
 | `tests/test_consistency.py` | Focused tests for classification, concept registry, exact-reference resolution (including the two real dangling references), claim evaluation against this repository's real `ARCHITECTURE.md`/`search.py`/`chunker.py`/`config.py`, incremental re-classification, evidence packets, and consistency-check status transitions. |
 
-CLI surface (`python -m codesight consistency ...`) is documented in
+CLI surface (`python -m holusight consistency ...`) is documented in
 `ARCHITECTURE.md` and `AGENTS.md`.
 
 ## 8. Relationship to existing specs and code
@@ -259,7 +259,7 @@ CLI surface (`python -m codesight consistency ...`) is documented in
   declined to authorize. It implements the narrow, reversible slice the
   prior audit's section 7 already described as safe process recommendations
   independent of specs 011/012's unresolved product questions.
-- **`src/codesight/holus.py`** (the Holus v1 lineage adapter) is unrelated
+- **`src/holusight/holus.py`** (the Holus v1 lineage adapter) is unrelated
   read-only import machinery for a different producer's export format; this
   system does not read, write, or depend on it, and does not duplicate its
   validation logic.

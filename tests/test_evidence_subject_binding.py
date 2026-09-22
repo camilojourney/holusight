@@ -8,8 +8,8 @@ path is a locator, never identity. See:
 
 - specs/021-holusight-evidence-subject-binding.md (governing design record)
 - docs/decisions/0017-immutable-evaluation-subject-binding.md (decision record)
-- src/codesight/eval_pilot.py (``EvaluationSubject``, ``_current_subject``)
-- src/codesight/improvement_control.py (``_subject_applicability_blockers``)
+- src/holusight/eval_pilot.py (``EvaluationSubject``, ``_current_subject``)
+- src/holusight/improvement_control.py (``_subject_applicability_blockers``)
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from codesight import eval_pilot, improvement_control
+from holusight import eval_pilot, improvement_control
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -465,13 +465,13 @@ def test_run_pilot_grades_and_hashes_one_immutable_corpus_snapshot(tmp_path, mon
 
 
 def _build_evaluated_repo(
-    tmp_path: Path, implementation_relative: str = "src/codesight/implementation.py"
+    tmp_path: Path, implementation_relative: str = "src/holusight/implementation.py"
 ) -> tuple[Path, dict]:
     """A committed repo with a genuinely evaluated, pre-promotion-ready manifest."""
     repo = tmp_path
     (repo / ".gitignore").write_text(".holusight/\n", encoding="utf-8")
-    (repo / "src/codesight").mkdir(parents=True)
-    (repo / "src/codesight/eval_pilot.py").write_text("protected evaluator\n", encoding="utf-8")
+    (repo / "src/holusight").mkdir(parents=True)
+    (repo / "src/holusight/eval_pilot.py").write_text("protected evaluator\n", encoding="utf-8")
     (repo / implementation_relative).write_text("VALUE = 1\n", encoding="utf-8")
     (repo / "tests").mkdir()
     (repo / "tests/test_implementation.py").write_text(
@@ -605,10 +605,10 @@ def test_changed_implementation_after_result_is_indeterminate_never_ready(tmp_pa
     without rerunning -- pre-promotion review must return a subject mismatch
     and never become ready. Also covers "equal path, differing blob"."""
     repo, ctx = _build_evaluated_repo(tmp_path)
-    impl = repo / "src/codesight/implementation.py"
+    impl = repo / "src/holusight/implementation.py"
     impl.write_text("VALUE = 2  # changed after evaluation\n", encoding="utf-8")
     manifest = json.loads(ctx["manifest_path"].read_text(encoding="utf-8"))
-    manifest["link_hashes"]["src/codesight/implementation.py"] = _sha256(impl)
+    manifest["link_hashes"]["src/holusight/implementation.py"] = _sha256(impl)
     ctx["manifest_path"].write_text(json.dumps(manifest), encoding="utf-8")
 
     review = _review(repo)
@@ -621,14 +621,14 @@ def test_changed_implementation_after_result_is_indeterminate_never_ready(tmp_pa
 
 def test_changed_committed_implementation_restored_only_in_worktree_is_indeterminate(tmp_path):
     repo, ctx = _build_evaluated_repo(tmp_path)
-    impl = repo / "src/codesight/implementation.py"
+    impl = repo / "src/holusight/implementation.py"
     evaluated_bytes = impl.read_bytes()
     impl.write_text("VALUE = 2\n", encoding="utf-8")
-    _git(repo, "add", "src/codesight/implementation.py")
+    _git(repo, "add", "src/holusight/implementation.py")
     _git(repo, "commit", "-q", "-m", "change implementation")
     impl.write_bytes(evaluated_bytes)
     manifest = json.loads(ctx["manifest_path"].read_text(encoding="utf-8"))
-    manifest["link_hashes"]["src/codesight/implementation.py"] = _sha256(impl)
+    manifest["link_hashes"]["src/holusight/implementation.py"] = _sha256(impl)
     ctx["manifest_path"].write_text(json.dumps(manifest), encoding="utf-8")
 
     review = _review(repo)
@@ -639,7 +639,7 @@ def test_changed_committed_implementation_restored_only_in_worktree_is_indetermi
 
 
 def test_staged_literal_metacharacter_path_is_indeterminate(tmp_path):
-    implementation_relative = "src/codesight/code[1].py"
+    implementation_relative = "src/holusight/code[1].py"
     repo, _ctx = _build_evaluated_repo(tmp_path, implementation_relative)
     implementation = repo / implementation_relative
     evaluated_bytes = implementation.read_bytes()
@@ -762,16 +762,16 @@ def test_renamed_implementation_path_after_result_is_indeterminate(tmp_path):
     locator, not identity. A rename with a matching current-bytes hash must
     still be blocked, because it never existed at the evaluated commit."""
     repo, ctx = _build_evaluated_repo(tmp_path)
-    old_path = repo / "src/codesight/implementation.py"
-    new_path = repo / "src/codesight/renamed_implementation.py"
+    old_path = repo / "src/holusight/implementation.py"
+    new_path = repo / "src/holusight/renamed_implementation.py"
     old_path.rename(new_path)
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "rename implementation")
 
     manifest = json.loads(ctx["manifest_path"].read_text(encoding="utf-8"))
-    manifest["links"]["implementation"] = ["src/codesight/renamed_implementation.py"]
-    manifest["link_hashes"].pop("src/codesight/implementation.py")
-    manifest["link_hashes"]["src/codesight/renamed_implementation.py"] = _sha256(new_path)
+    manifest["links"]["implementation"] = ["src/holusight/renamed_implementation.py"]
+    manifest["link_hashes"].pop("src/holusight/implementation.py")
+    manifest["link_hashes"]["src/holusight/renamed_implementation.py"] = _sha256(new_path)
     ctx["manifest_path"].write_text(json.dumps(manifest), encoding="utf-8")
 
     review = _review(repo)
@@ -822,9 +822,9 @@ def test_subject_applicability_blocks_head_change_during_review(tmp_path, monkey
         blobs = original(git, paths)
         if not changed:
             changed = True
-            implementation = repo / "src/codesight/implementation.py"
+            implementation = repo / "src/holusight/implementation.py"
             implementation.write_text("VALUE = 2\n", encoding="utf-8")
-            _git(repo, "add", "src/codesight/implementation.py")
+            _git(repo, "add", "src/holusight/implementation.py")
             _git(repo, "commit", "-q", "-m", "concurrent implementation change")
         return blobs
 

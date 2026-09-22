@@ -9,8 +9,8 @@ import fnmatch
 import numpy as np
 import pytest
 
-import codesight.config as config_module
-from codesight.store import CODE_EMBEDDING_DIM, ChunkStore, FTSSidecar
+import holusight.config as config_module
+from holusight.store import CODE_EMBEDDING_DIM, ChunkStore, FTSSidecar
 
 GLOB_PATHS = [
     "file_a.py", "fileXa.py", "rate%.md", "rateX.md", "filea.py", "fileb.py",
@@ -121,7 +121,7 @@ def test_bm25_glob_is_parameterized_and_available_after_reopen(tmp_path):
 
 @pytest.fixture(params=["general", "code"])
 def vector_store(request, tmp_path, monkeypatch):
-    monkeypatch.setattr("codesight.config.DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr("holusight.config.DATA_DIR", tmp_path / "data")
     dimension = CODE_EMBEDDING_DIM if request.param == "code" else 2
     with ChunkStore(tmp_path / "corpus", embedding_dim=dimension) as store:
         upsert = store.upsert_code_chunks if request.param == "code" else store.upsert_chunks
@@ -227,7 +227,7 @@ def test_vector_glob_skips_missing_metadata(vector_store):
 
 
 def test_vector_glob_preserves_source_filter(tmp_path, monkeypatch):
-    monkeypatch.setattr("codesight.config.DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr("holusight.config.DATA_DIR", tmp_path / "data")
     with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
         ids = ["ordinary", "holus:decoy", "holus:target"]
         paths = ["ordinary.py", "decoy.txt", "target.py"]
@@ -321,7 +321,7 @@ class TestClear:
             assert store.lance_table is None
 
             # A different dimension -- the exact scenario a changed
-            # CODESIGHT_EMBEDDING_MODEL produces -- must not raise.
+            # HOLUSIGHT_EMBEDDING_MODEL produces -- must not raise.
             store.upsert_chunks(
                 ["a"], np.array([[1.0, 0.0, 0.0, 0.0]], dtype=np.float32), metadata,
             )
@@ -351,10 +351,10 @@ class TestClear:
         self, tmp_path, monkeypatch,
     ):
         """The exact bug: index once at dim=2, then force_rebuild at a
-        different dimension (simulating a CODESIGHT_EMBEDDING_MODEL change)
+        different dimension (simulating a HOLUSIGHT_EMBEDDING_MODEL change)
         must rebuild cleanly instead of raising a LanceDB Arrow cast error."""
-        from codesight.api import CodeSight
-        from codesight.config import ServerConfig
+        from holusight.api import Holusight
+        from holusight.config import ServerConfig
 
         monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
         corpus = tmp_path / "corpus"
@@ -372,15 +372,15 @@ class TestClear:
             def embed_query(self, query):
                 return self.embed([query])[0]
 
-        engine = CodeSight(corpus, config=ServerConfig(embedding_dim=2, reranker=False))
+        engine = Holusight(corpus, config=ServerConfig(embedding_dim=2, reranker=False))
         monkeypatch.setattr(
-            "codesight.indexer.get_embedder", lambda *a, **k: FixedDimEmbedder(2)
+            "holusight.indexer.get_embedder", lambda *a, **k: FixedDimEmbedder(2)
         )
         engine.index()
 
-        engine2 = CodeSight(corpus, config=ServerConfig(embedding_dim=5, reranker=False))
+        engine2 = Holusight(corpus, config=ServerConfig(embedding_dim=5, reranker=False))
         monkeypatch.setattr(
-            "codesight.indexer.get_embedder", lambda *a, **k: FixedDimEmbedder(5)
+            "holusight.indexer.get_embedder", lambda *a, **k: FixedDimEmbedder(5)
         )
         stats = engine2.index(force_rebuild=True)  # must not raise
 

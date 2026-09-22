@@ -5,13 +5,13 @@
 
 ## Context
 
-codesight is a search tool. It has no business writing to the repositories it indexes. If it did write, it could corrupt user code — catastrophic for a developer tool.
+holusight is a search tool. It has no business writing to the repositories it indexes. If it did write, it could corrupt user code — catastrophic for a developer tool.
 
 Additionally, Claude Code agents can call MCP tools. An agent that modifies files through a search MCP could cause unintended side effects that are hard to audit.
 
 ## Decision
 
-**codesight never writes to `repo_path`.** The only writes are to `SEMANTIC_SEARCH_DATA_DIR` (default: `~/.semantic-search/data`), which is explicitly separate from any indexed repository.
+**holusight never writes to `repo_path`.** The only writes are to `SEMANTIC_SEARCH_DATA_DIR` (default: `~/.semantic-search/data`), which is explicitly separate from any indexed repository.
 
 Enforcement:
 1. All file I/O uses `open(..., 'r')` exclusively for repo files
@@ -20,7 +20,7 @@ Enforcement:
 
 ## Consequences
 
-- Users can trust codesight will never corrupt their code
+- Users can trust holusight will never corrupt their code
 - Simplifies the security model significantly
 - Makes the tool auditable: any write to repo_path is a bug, not a feature
 

@@ -1076,10 +1076,10 @@ def run_pilot(
     )
     lineage.repo_dirty = not subject.clean
     lineage.evaluator_digest = _tree_digest(
-        repo_root, ("src/codesight/eval_pilot.py", "src/codesight/cli_axi.py")
+        repo_root, ("src/holusight/eval_pilot.py", "src/holusight/cli_axi.py")
     )
-    lineage.candidate_digest = _tree_digest(repo_root, ("src/codesight",))
-    lineage.comparator_digest = _tree_digest(repo_root, ("src/codesight/eval_pilot.py",))
+    lineage.candidate_digest = _tree_digest(repo_root, ("src/holusight",))
+    lineage.comparator_digest = _tree_digest(repo_root, ("src/holusight/eval_pilot.py",))
 
     ctx = RunContext(
         repo_root=str(repo_root), allow_egress=allow_egress, allow_semantic=allow_semantic
@@ -1215,7 +1215,7 @@ def build_pilot_aggregate_scorecard(
         "input_hash": input_hash,
         "fixture_set_hash": result.cases_file_hash,
         "result_hash": result_hash,
-        "evaluator_version": "codesight-eval-pilot/1",
+        "evaluator_version": "holusight-eval-pilot/1",
         "repo_commit": subject_commit,
         "environment": {
             "egress_allowed": result.egress_allowed,
@@ -1278,13 +1278,13 @@ def pilot_domain_result_summary(result: PilotRunResult) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# CLI: `python -m codesight.eval_pilot run`
+# CLI: `python -m holusight.eval_pilot run`
 # ---------------------------------------------------------------------------
 
 
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
-    parser = argparse.ArgumentParser(prog="python -m codesight.eval_pilot")
+    parser = argparse.ArgumentParser(prog="python -m holusight.eval_pilot")
     sub = parser.add_subparsers(dest="command", required=True)
 
     run_p = sub.add_parser("run", help="Run the frozen eval-pilot case corpus")

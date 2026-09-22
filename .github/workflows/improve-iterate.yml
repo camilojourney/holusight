@@ -50,7 +50,7 @@ jobs:
       # sitting next to it -- would make that check see the tree as dirty.
       - name: Run improve-iterate
         run: |
-          uv run --extra dev python -m codesight.improve_iterate \
+          uv run --extra dev python -m holusight.improve_iterate \
             | tee "$RUNNER_TEMP/improve-iterate-receipt.json"
 
       - name: Save iteration receipts for the next run

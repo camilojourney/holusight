@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from codesight.chunker import _detect_language, _detect_scope, chunk_file, chunk_file_ast
+from holusight.chunker import _detect_language, _detect_scope, chunk_file, chunk_file_ast
 
 
 class TestDetectLanguage:
@@ -299,7 +299,7 @@ class TestChunkFileAST:
         """chunk_file() falls back to regex when tree-sitter raises ImportError."""
         content = "def foo():\n    return 1\n\ndef bar():\n    return 2\n"
 
-        with patch("codesight.chunker.chunk_file_ast", side_effect=ImportError("no tree-sitter")):
+        with patch("holusight.chunker.chunk_file_ast", side_effect=ImportError("no tree-sitter")):
             chunks = chunk_file(content, "test.py")
 
         # Regex fallback should still produce chunks

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from codesight.types import SearchResult
+from holusight.types import SearchResult
 from tests.eval_harness import EvalQuery, _count_tokens, run_eval
 
 
@@ -75,11 +75,11 @@ class TestRunEval:
         """All queries hit → hit_rate=1.0, mrr=1.0."""
         store, embedder = self._make_store_embedder()
         results = [
-            _make_result("src/codesight/search.py", start_line=10),
+            _make_result("src/holusight/search.py", start_line=10),
             _make_result("src/other.py", start_line=50),
         ]
 
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery(query="how does rrf work", expected_file="search.py")
             out = run_eval([eq], store, embedder, top_k=5)
 
@@ -92,7 +92,7 @@ class TestRunEval:
         store, embedder = self._make_store_embedder()
         results = [_make_result("src/other.py", start_line=5)]
 
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery(query="embedding model", expected_file="embeddings.py")
             out = run_eval([eq], store, embedder, top_k=5)
 
@@ -108,7 +108,7 @@ class TestRunEval:
             _make_result("src/chunker.py"),  # rank 2 — matches
         ]
 
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery(query="chunking", expected_file="chunker.py")
             out = run_eval([eq], store, embedder, top_k=5)
 
@@ -127,7 +127,7 @@ class TestRunEval:
             call_count[0] += 1
             return hit_results if call_count[0] == 1 else miss_results
 
-        with patch("codesight.search.hybrid_search", side_effect=fake_search):
+        with patch("holusight.search.hybrid_search", side_effect=fake_search):
             queries = [
                 EvalQuery("rrf merge", expected_file="search.py"),
                 EvalQuery("not found query", expected_file="missing.py"),
@@ -144,7 +144,7 @@ class TestRunEval:
         snippet = "a" * 100  # 100 chars → 25 tokens via fallback
         results = [_make_result("src/x.py", snippet=snippet)]
 
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery("query", expected_file="x.py")
             out = run_eval([eq], store, embedder, top_k=5)
 
@@ -165,7 +165,7 @@ class TestRunEval:
         store, embedder = self._make_store_embedder()
         results = [_make_result("src/other.py")]
 
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery("query", expected_file="nonexistent.py")
             out = run_eval([eq], store, embedder, top_k=5)
 
@@ -176,7 +176,7 @@ class TestRunEval:
         store, embedder = self._make_store_embedder()
         results = [_make_result("src/store.py")]
 
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery("lancedb storage", expected_file="store.py")
             out = run_eval([eq], store, embedder, top_k=5)
 
@@ -202,7 +202,7 @@ class TestRecallNdcgEvidenceLatency:
             _make_result("src/other2.py"),
             _make_result("src/search.py"),  # rank 3
         ]
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery("rrf", expected_file="search.py")
             out = run_eval([eq], store, embedder, top_k=5, k_values=(1, 5, 10))
 
@@ -213,7 +213,7 @@ class TestRecallNdcgEvidenceLatency:
     def test_ndcg_rank_1_is_perfect(self):
         store, embedder = self._make_store_embedder()
         results = [_make_result("src/search.py")]
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery("rrf", expected_file="search.py")
             out = run_eval([eq], store, embedder, top_k=5)
         assert out.ndcg_at_10 == 1.0
@@ -221,7 +221,7 @@ class TestRecallNdcgEvidenceLatency:
     def test_ndcg_zero_on_miss(self):
         store, embedder = self._make_store_embedder()
         results = [_make_result("src/other.py")]
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery("rrf", expected_file="missing.py")
             out = run_eval([eq], store, embedder, top_k=5)
         assert out.ndcg_at_10 == 0.0
@@ -230,7 +230,7 @@ class TestRecallNdcgEvidenceLatency:
         """Partial evidence coverage yields a fractional completeness score."""
         store, embedder = self._make_store_embedder()
         results = [_make_result("src/a.py"), _make_result("src/c.py")]
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery(
                 "impact of X", expected_file="a.py",
                 expected_evidence=["a.py", "b.py", "c.py"],
@@ -241,7 +241,7 @@ class TestRecallNdcgEvidenceLatency:
     def test_evidence_completeness_defaults_to_expected_file(self):
         store, embedder = self._make_store_embedder()
         results = [_make_result("src/search.py")]
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery("rrf", expected_file="search.py")
             out = run_eval([eq], store, embedder, top_k=5)
         assert out.evidence_completeness == 1.0
@@ -249,7 +249,7 @@ class TestRecallNdcgEvidenceLatency:
     def test_latency_recorded_per_query(self):
         store, embedder = self._make_store_embedder()
         results = [_make_result("src/search.py")]
-        with patch("codesight.search.hybrid_search", return_value=results):
+        with patch("holusight.search.hybrid_search", return_value=results):
             eq = EvalQuery("rrf", expected_file="search.py")
             out = run_eval([eq], store, embedder, top_k=5)
         assert out.avg_latency_ms >= 0.0
@@ -270,7 +270,7 @@ class TestRecallNdcgEvidenceLatency:
             call_count[0] += 1
             return graded_hit if call_count[0] == 1 else probe_results
 
-        with patch("codesight.search.hybrid_search", side_effect=fake_search):
+        with patch("holusight.search.hybrid_search", side_effect=fake_search):
             queries = [
                 EvalQuery("rrf", expected_file="search.py"),
                 EvalQuery("kubernetes helm chart", expected_file=NO_MATCH_SENTINEL),
@@ -299,7 +299,7 @@ class TestPluggableSearchFn:
         def fake_baseline(store_, embedder_, query, top_k, config):
             return custom_results
 
-        with patch("codesight.search.hybrid_search") as mock_hybrid:
+        with patch("holusight.search.hybrid_search") as mock_hybrid:
             eq = EvalQuery("anything", expected_file="custom.py")
             out = run_eval([eq], store, embedder, top_k=5, search_fn=fake_baseline)
 

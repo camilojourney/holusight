@@ -1,7 +1,7 @@
 """Tests for the Holusight safe continuous-evaluation pilot (spec 017).
 
 See specs/017-holusight-safe-continuous-evaluation-pilot.md for the design
-record and src/codesight/eval_pilot.py for the module these tests exercise.
+record and src/holusight/eval_pilot.py for the module these tests exercise.
 Covers, per the launch checklist: frozen-case provenance, evaluator
 isolation, status-quo comparison, no-egress/no-key defaults, aggregate-only
 Fleet export, candidate lineage with no raw content, failed-candidate
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from codesight import eval_pilot
+from holusight import eval_pilot
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CASES_PATH = eval_pilot.DEFAULT_CASES_PATH
@@ -165,7 +165,7 @@ def test_cases_file_hash_recorded_and_detects_edits(tmp_path):
 def test_naive_status_quo_comparator_is_not_imported_by_production_cli():
     """The frozen pre-fix comparator must stay a pilot-only fixture --
     production cli_axi must never call it."""
-    import codesight.cli_axi as cli_axi_module
+    import holusight.cli_axi as cli_axi_module
 
     source = Path(cli_axi_module.__file__).read_text(encoding="utf-8")
     assert "_naive_concatenate_then_slice" not in source
@@ -374,7 +374,7 @@ def test_aggregate_scorecard_contains_no_raw_case_content():
 
 
 def test_pilot_domain_result_summary_matches_fleet_smoke_precedent_shape():
-    from codesight.fleet_scorecard import domain_result_summary
+    from holusight.fleet_scorecard import domain_result_summary
 
     result = eval_pilot.run_pilot(REPO_ROOT, cases_path=CASES_PATH, lineage=_lineage())
     summary = eval_pilot.pilot_domain_result_summary(result)
@@ -557,7 +557,7 @@ def test_repeated_runs_over_the_same_content_are_equivalent():
 def test_consistency_case_survives_holusight_dir_delete_and_rebuild(tmp_path, monkeypatch):
     """Mirrors tests/test_fleet_smoke.py task 18: deleting derived state
     and rebuilding must reproduce the same verdict for unchanged content."""
-    from codesight import consistency
+    from holusight import consistency
 
     spec_path = tmp_path / "specs" / "001-alpha.md"
     spec_path.parent.mkdir(parents=True)

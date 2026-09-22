@@ -116,14 +116,14 @@ def walk_repo_files(repo_path: str | Path) -> list[Path]:
                 raise IndexBudgetExceeded(
                     f"{repo_path} exceeds the {MAX_INDEXED_FILES}-file indexing "
                     "budget; index a narrower folder or raise "
-                    "codesight.config.MAX_INDEXED_FILES."
+                    "holusight.config.MAX_INDEXED_FILES."
                 )
             total_bytes += file_size
             if total_bytes > MAX_TOTAL_INDEXED_BYTES:
                 raise IndexBudgetExceeded(
                     f"{repo_path} exceeds the {MAX_TOTAL_INDEXED_BYTES}-byte "
                     "aggregate indexing budget; index a narrower folder or "
-                    "raise codesight.config.MAX_TOTAL_INDEXED_BYTES."
+                    "raise holusight.config.MAX_TOTAL_INDEXED_BYTES."
                 )
 
             files.append(fpath)

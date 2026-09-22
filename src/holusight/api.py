@@ -1,4 +1,4 @@
-"""Public Python API for CodeSight.
+"""Public Python API for Holusight.
 
 This is the single entry point for Streamlit, Slack, CLI, and any future interface.
 """
@@ -22,11 +22,11 @@ from .types import Answer, IndexStats, RepoStatus, SearchResult
 logger = logging.getLogger(__name__)
 
 
-class CodeSight:
+class Holusight:
     """AI-powered document search engine.
 
     Usage:
-        engine = CodeSight("/path/to/documents")
+        engine = Holusight("/path/to/documents")
         engine.index()
         results = engine.search("payment terms")
         answer = engine.ask("What are the payment terms in the contract?")
@@ -177,7 +177,7 @@ class CodeSight:
         configured LLM backend, and returns a natural language answer
         with source citations.
 
-        Backend is selected via CODESIGHT_LLM_BACKEND env var (default: claude).
+        Backend is selected via HOLUSIGHT_LLM_BACKEND env var (default: claude).
         """
         results = self.search(question, top_k=top_k, file_glob=file_glob, source=source)
 

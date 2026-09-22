@@ -1,4 +1,4 @@
-"""Configuration for the CodeSight search engine."""
+"""Configuration for the Holusight search engine."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 DATA_DIR = Path(
-    os.environ.get("CODESIGHT_DATA_DIR", Path.home() / ".codesight" / "data")
+    os.environ.get("HOLUSIGHT_DATA_DIR", Path.home() / ".holusight" / "data")
 )
 
 
@@ -35,16 +35,16 @@ def repo_data_dir(repo_path: str | Path) -> Path:
     to, or (via a symlink on either side) redirected into the indexed
     folder itself -- the engine must never write where it reads.
 
-    Re-reads the CODESIGHT_DATA_DIR env var on every call rather than
+    Re-reads the HOLUSIGHT_DATA_DIR env var on every call rather than
     trusting only the module-level DATA_DIR constant, which is computed
-    once at import time: a later `os.environ["CODESIGHT_DATA_DIR"] = ...`
+    once at import time: a later `os.environ["HOLUSIGHT_DATA_DIR"] = ...`
     (or test monkeypatch.setenv) in the same process would otherwise be
     silently ignored, and every caller would keep writing to whatever
     directory was current at first import. Code that instead monkeypatches
     the module attribute directly (`monkeypatch.setattr(config, "DATA_DIR",
     ...)`) still works when no env var is set.
     """
-    env_override = os.environ.get("CODESIGHT_DATA_DIR")
+    env_override = os.environ.get("HOLUSIGHT_DATA_DIR")
     data_root = Path(env_override) if env_override else DATA_DIR
     canonical = os.path.realpath(str(repo_path))
     resolved_data_root = os.path.realpath(str(data_root))
@@ -52,9 +52,9 @@ def repo_data_dir(repo_path: str | Path) -> Path:
         canonical + os.sep
     ):
         raise ValueError(
-            f"CODESIGHT_DATA_DIR ({data_root}) resolves inside the indexed "
+            f"HOLUSIGHT_DATA_DIR ({data_root}) resolves inside the indexed "
             f"folder ({repo_path}); the engine must never write inside a "
-            "folder it indexes. Point CODESIGHT_DATA_DIR somewhere outside "
+            "folder it indexes. Point HOLUSIGHT_DATA_DIR somewhere outside "
             "every folder you index."
         )
     short_hash = hashlib.sha256(canonical.encode()).hexdigest()[:12]
@@ -95,14 +95,14 @@ def resolve_embedding_dim(model_name: str) -> int:
 
 
 # When VOYAGE_API_KEY is set, default to voyage-code-3 for everything (single model, no dual-index).
-# Override via CODESIGHT_EMBEDDING_MODEL / CODESIGHT_EMBEDDING_BACKEND env vars.
+# Override via HOLUSIGHT_EMBEDDING_MODEL / HOLUSIGHT_EMBEDDING_BACKEND env vars.
 #
 # Local default is Qwen3-Embedding-8B, not all-MiniLM-L6-v2: it's the top
 # open-weight embedding model on MTEB retrieval as of writing (~70 vs
 # MiniLM's ~56), and LocalEmbedder applies its query/document asymmetric
 # prompting automatically. It's a real cost: an 8B-parameter model is slow
 # per embed relative to MiniLM, so this default assumes the operator has
-# the CPU/GPU/MPS to spare. CODESIGHT_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
+# the CPU/GPU/MPS to spare. HOLUSIGHT_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
 # or -4B trade quality back for speed on more constrained hardware -- see
 # all three registry entries below.
 def _resolve_default_embedding_model() -> str:
@@ -112,9 +112,9 @@ def _resolve_default_embedding_model() -> str:
     default_factory so a later os.environ mutation -- a test's
     monkeypatch.setenv, or any code setting the var after config.py was
     first imported -- actually takes effect, the same class of bug
-    repo_data_dir() had for CODESIGHT_DATA_DIR."""
+    repo_data_dir() had for HOLUSIGHT_DATA_DIR."""
     return os.environ.get(
-        "CODESIGHT_EMBEDDING_MODEL",
+        "HOLUSIGHT_EMBEDDING_MODEL",
         "voyage-code-3" if os.environ.get("VOYAGE_API_KEY") else "Qwen/Qwen3-Embedding-8B",
     )
 
@@ -122,7 +122,7 @@ def _resolve_default_embedding_model() -> str:
 def _resolve_default_embedding_backend() -> str:
     """See _resolve_default_embedding_model -- same fresh-read rationale."""
     return os.environ.get(
-        "CODESIGHT_EMBEDDING_BACKEND",
+        "HOLUSIGHT_EMBEDDING_BACKEND",
         "voyage" if os.environ.get("VOYAGE_API_KEY") else "local",
     )
 
@@ -139,7 +139,7 @@ DEFAULT_CHUNK_MAX_LINES = 200
 DEFAULT_CHUNK_OVERLAP_LINES = 50
 DEFAULT_DOC_CHUNK_MAX_CHARS = 1500
 DEFAULT_DOC_CHUNK_OVERLAP_CHARS = 200
-STALE_THRESHOLD_SECONDS = int(os.environ.get("CODESIGHT_STALE_SECONDS", "300"))  # 5 minutes
+STALE_THRESHOLD_SECONDS = int(os.environ.get("HOLUSIGHT_STALE_SECONDS", "300"))  # 5 minutes
 BM25_CANDIDATE_MULTIPLIER = 3  # fetch 3x top_k from each retriever before RRF
 
 DEFAULT_LLM_MODEL = "claude-sonnet-4-20250514"
@@ -148,24 +148,24 @@ DEFAULT_LLM_MODEL = "claude-sonnet-4-20250514"
 # Default to enabled only when Voyage API key is set (voyage rerank-2 helps code retrieval;
 # local ms-marco cross-encoder is trained on MS-MARCO QA and can hurt code search ranking).
 # Users with VOYAGE_API_KEY get always-on reranking. Local users can opt in
-# via CODESIGHT_RERANKER=true.
+# via HOLUSIGHT_RERANKER=true.
 _default_reranker_on = "true" if os.environ.get("VOYAGE_API_KEY") else "false"
 DEFAULT_RERANKER_ENABLED = (
-    os.environ.get("CODESIGHT_RERANKER", _default_reranker_on).lower() == "true"
+    os.environ.get("HOLUSIGHT_RERANKER", _default_reranker_on).lower() == "true"
 )
 # Auto-select backend: voyage when VOYAGE_API_KEY is set, local cross-encoder otherwise
 DEFAULT_RERANKER_BACKEND = os.environ.get(
-    "CODESIGHT_RERANKER_BACKEND",
+    "HOLUSIGHT_RERANKER_BACKEND",
     "voyage" if os.environ.get("VOYAGE_API_KEY") else "local"
 )
 DEFAULT_RERANKER_MODEL = os.environ.get(
-    "CODESIGHT_RERANKER_MODEL",
+    "HOLUSIGHT_RERANKER_MODEL",
     "rerank-2" if os.environ.get("VOYAGE_API_KEY") else "cross-encoder/ms-marco-MiniLM-L-6-v2",
 )
-DEFAULT_RERANKER_TOP_N = int(os.environ.get("CODESIGHT_RERANKER_TOP_N", "20"))
-DEFAULT_QUERY_ENHANCEMENT = os.environ.get("CODESIGHT_QUERY_ENHANCEMENT", "false").lower() == "true"
-DEFAULT_LLM_BACKEND = os.environ.get("CODESIGHT_LLM_BACKEND", "claude")
-DEFAULT_CNFB_ALPHA = float(os.environ.get("CODESIGHT_CNFB_ALPHA", "0.0"))
+DEFAULT_RERANKER_TOP_N = int(os.environ.get("HOLUSIGHT_RERANKER_TOP_N", "20"))
+DEFAULT_QUERY_ENHANCEMENT = os.environ.get("HOLUSIGHT_QUERY_ENHANCEMENT", "false").lower() == "true"
+DEFAULT_LLM_BACKEND = os.environ.get("HOLUSIGHT_LLM_BACKEND", "claude")
+DEFAULT_CNFB_ALPHA = float(os.environ.get("HOLUSIGHT_CNFB_ALPHA", "0.0"))
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +245,7 @@ class ServerConfig(BaseModel):
 
     # default_factory, not default=DEFAULT_EMBEDDING_MODEL: a bare default
     # value is bound once at class-definition time, so ServerConfig()
-    # would keep resolving to whatever CODESIGHT_EMBEDDING_MODEL was set
+    # would keep resolving to whatever HOLUSIGHT_EMBEDDING_MODEL was set
     # to (or absent) the first time this module was imported, ignoring any
     # later os.environ change in the same process.
     embedding_model: str = Field(default_factory=_resolve_default_embedding_model)
@@ -275,6 +275,6 @@ class ServerConfig(BaseModel):
         clamped = max(0.0, min(2.0, v))
         if clamped != v:
             logging.getLogger(__name__).warning(
-                "CODESIGHT_CNFB_ALPHA=%s is outside [0.0, 2.0]; clamped to %s", v, clamped
+                "HOLUSIGHT_CNFB_ALPHA=%s is outside [0.0, 2.0]; clamped to %s", v, clamped
             )
         return clamped

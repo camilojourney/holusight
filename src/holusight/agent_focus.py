@@ -109,8 +109,8 @@ def _lens_structure(repo_root: Path) -> LensResult:
 
 def _lens_promotion(repo_root: Path) -> LensResult:
     adr = _read(repo_root / "docs/decisions/0019-local-advisory-evaluator-promotion-denied.md")
-    pe = _read(repo_root / "src/codesight/proper_eval.py") or ""
-    ii = _read(repo_root / "src/codesight/improve_iterate.py") or ""
+    pe = _read(repo_root / "src/holusight/proper_eval.py") or ""
+    ii = _read(repo_root / "src/holusight/improve_iterate.py") or ""
     evidence: list[str] = []
     if not adr:
         return LensResult(
@@ -163,10 +163,10 @@ def _lens_eval_loop(repo_root: Path) -> LensResult:
     needed = ("proper-eval:", "improve-iterate:", "eval-pilot:", "fleet-smoke:")
     missing = [n for n in needed if n not in just]
     mods = [
-        "src/codesight/proper_eval.py",
-        "src/codesight/improve_iterate.py",
-        "src/codesight/eval_pilot.py",
-        "src/codesight/eval_suite.py",
+        "src/holusight/proper_eval.py",
+        "src/holusight/improve_iterate.py",
+        "src/holusight/eval_pilot.py",
+        "src/holusight/eval_suite.py",
     ]
     missing_mods = [m for m in mods if not (repo_root / m).is_file()]
     if missing or missing_mods:

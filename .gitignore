@@ -24,7 +24,7 @@ env/
 data/
 
 # Holusight-AXI consistency cache — gitignored derived state, never canonical
-# truth. Safe to delete; rebuilt via `python -m codesight consistency refresh`.
+# truth. Safe to delete; rebuilt via `python -m holusight consistency refresh`.
 # See specs/013-holusight-axi-consistency-architecture.md.
 .holusight/
 
