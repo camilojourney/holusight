@@ -298,6 +298,64 @@ class VoyageEmbedder:
 
 
 # ---------------------------------------------------------------------------
+# Daemon-backed local backend
+# ---------------------------------------------------------------------------
+
+
+class DaemonEmbedder:
+    """Local Embedder that proxies to a persistent background daemon
+    (embedding_daemon.py) instead of loading the model in this process.
+
+    `holus` is a stateless CLI -- without this, every invocation would
+    pay the full model-load cost (seconds for a small model, ~12s+ for
+    Qwen3-Embedding-8B measured on real hardware) on every single query,
+    with no way for in-process caching to help since the process exits
+    after each command.
+
+    Transparently falls back to an in-process LocalEmbedder, lazily
+    constructed only if actually needed, whenever the daemon is
+    unreachable or errors -- a query never fails or blocks because of
+    this class, it just runs at in-process (cold-load) speed instead of
+    daemon (warm) speed, exactly as if this class didn't exist.
+    """
+
+    def __init__(self, model_name: str, expected_dim: int) -> None:
+        self.model_name = model_name
+        self.expected_dim = expected_dim
+        self._fallback: LocalEmbedder | None = None
+
+    def _fallback_embedder(self) -> LocalEmbedder:
+        if self._fallback is None:
+            self._fallback = LocalEmbedder(
+                model_name=self.model_name, expected_dim=self.expected_dim,
+            )
+        return self._fallback
+
+    def embed(self, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.empty((0, self.expected_dim), dtype=np.float32)
+
+        from . import embedding_daemon
+
+        vectors = embedding_daemon.call_daemon(self.model_name, self.expected_dim, "embed", texts)
+        if vectors is not None:
+            return np.array(vectors, dtype=np.float32)
+        embedding_daemon.ensure_daemon_spawned()
+        return self._fallback_embedder().embed(texts)
+
+    def embed_query(self, query: str) -> np.ndarray:
+        from . import embedding_daemon
+
+        vectors = embedding_daemon.call_daemon(
+            self.model_name, self.expected_dim, "embed_query", [query],
+        )
+        if vectors is not None:
+            return np.array(vectors[0], dtype=np.float32)
+        embedding_daemon.ensure_daemon_spawned()
+        return self._fallback_embedder().embed_query(query)
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -327,5 +385,9 @@ def get_embedder(
         logger.info("Using Voyage embedding backend: %s", model_name)
         return VoyageEmbedder(model_name=model_name, expected_dim=dim)
 
-    logger.info("Using local embedding backend: %s", model_name)
-    return LocalEmbedder(model_name=model_name, expected_dim=dim)
+    if os.environ.get("CODESIGHT_DAEMON_DISABLED", "").lower() in ("1", "true"):
+        logger.info("Using local embedding backend (daemon disabled): %s", model_name)
+        return LocalEmbedder(model_name=model_name, expected_dim=dim)
+
+    logger.info("Using local embedding backend (daemon-backed): %s", model_name)
+    return DaemonEmbedder(model_name=model_name, expected_dim=dim)

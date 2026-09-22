@@ -83,7 +83,8 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `chunker.py`    | AST-based code chunking (tree-sitter) + document chunking (paragraphs).  |
 | `parsers.py`    | Document text extraction: PDF (pymupdf), DOCX (python-docx), PPTX.      |
 | `llm.py`        | Pluggable LLM backend: Claude, Azure OpenAI, OpenAI, Ollama adapters.   |
-| `embeddings.py` | Embedding wrapper: local (sentence-transformers) or API (Voyage/OpenAI). |
+| `embeddings.py` | Embedding wrapper: local (sentence-transformers, via a persistent daemon by default) or API (Voyage/OpenAI). |
+| `embedding_daemon.py` | Persistent local embedding daemon (`holusight-embedding-daemon` console script): keeps a large local embedding model warm across invocations of the stateless `holus` CLI. `get_embedder()` tries it first, falls back transparently to in-process loading. |
 | `store.py`      | LanceDB + SQLite FTS5 dual-write. Content hash deduplication.            |
 | `config.py`     | Pydantic settings from env vars. Auto-detects Voyage API capabilities.   |
 | `git_utils.py`  | .gitignore-aware file walking via `pathspec`.                            |

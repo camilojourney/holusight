@@ -47,6 +47,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `src/codesight/chunker.py` | Code chunking logic. |
 | `src/codesight/config.py` | Configuration loading. |
 | `src/codesight/embeddings.py` | Embedding model interface. |
+| `src/codesight/embedding_daemon.py` | Persistent local embedding daemon (`holusight-embedding-daemon`): keeps a large local model warm across stateless `holus` CLI invocations. |
 | `src/codesight/git_utils.py` | Git repository utilities. |
 | `src/codesight/indexer.py` | Code indexing engine. |
 | `src/codesight/llm.py` | LLM backend interface. |

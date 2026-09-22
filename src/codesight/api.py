@@ -144,9 +144,20 @@ class CodeSight:
         top_k: int = 8,
         file_glob: str | None = None,
         source: str | None = None,
+        *,
+        auto_index: bool = True,
     ) -> list[SearchResult]:
-        """Hybrid BM25 + vector search. Auto-indexes if needed."""
-        self._ensure_indexed()
+        """Hybrid BM25 + vector search. Auto-indexes if needed.
+
+        auto_index=False skips _ensure_indexed() entirely -- for a caller
+        (holus's AXI semantic provider) that has already decided, on its
+        own terms, whether the current index is usable, and must never
+        have a read-only call silently trigger a synchronous rebuild
+        (a full reindex at a large local model's embed cost, unbounded
+        and with no confirmation) as an invisible side effect.
+        """
+        if auto_index:
+            self._ensure_indexed()
         return hybrid_search(
             self.store, self.embedder, query,
             top_k=top_k, file_glob=file_glob, source=source,
