@@ -11,10 +11,10 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.util import Inches
 
-from codesight import config as config_module
-from codesight.api import CodeSight
-from codesight.config import ServerConfig
-from codesight.search import rrf_merge
+from holusight import config as config_module
+from holusight.api import Holusight
+from holusight.config import ServerConfig
+from holusight.search import rrf_merge
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "pilot_docs"
 
@@ -23,7 +23,7 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures" / "pilot_docs"
 def indexed_engine(tmp_path, monkeypatch):
     """Index pilot fixtures into an isolated data directory."""
     monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
-    engine = CodeSight(FIXTURES, config=ServerConfig())
+    engine = Holusight(FIXTURES, config=ServerConfig())
     stats = engine.index(force_rebuild=True)
     assert stats.files_indexed >= 2
     assert stats.total_chunks >= 2
@@ -46,13 +46,13 @@ def pptx_engine(tmp_path, monkeypatch):
     for key in ("VOYAGE_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
-    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
-    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
-    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
-    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.search.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.indexer.get_embedder", lambda *a, **kw: embedder)
     corpus = tmp_path / "corpus"
     corpus.mkdir()
-    engine = CodeSight(corpus, config=ServerConfig(
+    engine = Holusight(corpus, config=ServerConfig(
         embedding_model="synthetic-pptx", embedding_backend="local", embedding_dim=2,
         reranker=False, query_enhancement=False, metadata_boost=False, cnfb_alpha=0.0,
     ))
@@ -141,10 +141,10 @@ def test_incremental_partial_file_matches_fresh_index(tmp_path, monkeypatch, edi
             return np.array([1.0, 0.0], dtype=np.float32)
 
     embedder = SyntheticEmbedder()
-    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: embedder)
-    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
-    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
-    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.indexer.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.search.VOYAGE_API_KEY", None)
     monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
     config = ServerConfig(
         embedding_model="synthetic", embedding_dim=2,
@@ -156,7 +156,7 @@ def test_incremental_partial_file_matches_fresh_index(tmp_path, monkeypatch, edi
     source = corpus / "sample.txt"
     original = "alpha\none\nbeta\ntwo"
     source.write_text(original)
-    engine = CodeSight(corpus, config=config)
+    engine = Holusight(corpus, config=config)
     initial = engine.index()
     assert initial.total_chunks == initial.chunks_created == 2
     before = engine.search("alpha", top_k=10)
@@ -178,7 +178,7 @@ def test_incremental_partial_file_matches_fresh_index(tmp_path, monkeypatch, edi
     fresh_corpus = tmp_path / "fresh-corpus"
     fresh_corpus.mkdir()
     (fresh_corpus / "sample.txt").write_text(edited)
-    fresh_engine = CodeSight(fresh_corpus, config=config)
+    fresh_engine = Holusight(fresh_corpus, config=config)
     try:
         fresh = fresh_engine.index()
         expected = fresh_engine.search("alpha", top_k=10)
@@ -262,13 +262,13 @@ class TestE2ERetrieval:
         empty = tmp_path / "empty"
         empty.mkdir()
         monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
-        engine = CodeSight(empty, config=ServerConfig())
+        engine = Holusight(empty, config=ServerConfig())
         engine.index()
         results = engine.search("anything")
         assert results == []
 
     def test_ask_without_llm_returns_graceful_or_mocked(self, indexed_engine):
-        with patch("codesight.api.get_backend") as mock_get:
+        with patch("holusight.api.get_backend") as mock_get:
             backend = MagicMock()
             backend.model_id = "test:mock"
             backend.generate.return_value = "Net 30 applies. [Source 1]"
@@ -281,10 +281,10 @@ class TestE2ERetrieval:
     def test_index_persists_across_engine_restart(self, tmp_path, monkeypatch):
         data_dir = tmp_path / "data"
         monkeypatch.setattr(config_module, "DATA_DIR", data_dir)
-        e1 = CodeSight(FIXTURES, config=ServerConfig())
+        e1 = Holusight(FIXTURES, config=ServerConfig())
         e1.index(force_rebuild=True)
         count = e1.store.chunk_count
-        e2 = CodeSight(FIXTURES, config=ServerConfig())
+        e2 = Holusight(FIXTURES, config=ServerConfig())
         assert e2.store.is_indexed
         assert e2.store.chunk_count == count
 
@@ -299,7 +299,7 @@ def test_index_search_emits_each_python_chunk_once(tmp_path, monkeypatch, mode):
         def unavailable_parser(_language):
             raise ImportError("synthetic unavailable tree-sitter")
 
-        monkeypatch.setattr("codesight.chunker._get_ts_parser", unavailable_parser)
+        monkeypatch.setattr("holusight.chunker._get_ts_parser", unavailable_parser)
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -321,11 +321,11 @@ def test_index_search_emits_each_python_chunk_once(tmp_path, monkeypatch, mode):
             return np.array([1.0, 0.0], dtype=np.float32)
 
     embedder = RecordingEmbedder()
-    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: embedder)
-    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
-    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
-    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
-    engine = CodeSight(
+    monkeypatch.setattr("holusight.indexer.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.search.VOYAGE_API_KEY", None)
+    engine = Holusight(
         corpus,
         config=ServerConfig(
             embedding_model="synthetic",

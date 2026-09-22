@@ -178,8 +178,8 @@ def test_compose_resolves_customer_mount_and_production_environment(tmp_path):
 
     env = {
         **os.environ,
-        "CODESIGHT_API_KEY": "test-key",
-        "CODESIGHT_DOCUMENTS_HOST_DIR": str(tmp_path),
+        "HOLUSIGHT_API_KEY": "test-key",
+        "HOLUSIGHT_DOCUMENTS_HOST_DIR": str(tmp_path),
     }
     result = subprocess.run(
         [
@@ -199,8 +199,8 @@ def test_compose_resolves_customer_mount_and_production_environment(tmp_path):
     )
     model = json.loads(result.stdout)
     service = model["services"]["holusight"]
-    assert service["environment"]["CODESIGHT_PRODUCTION"] == "1"
-    assert service["environment"]["CODESIGHT_DOCUMENTS_DIR"] == "/data"
+    assert service["environment"]["HOLUSIGHT_PRODUCTION"] == "1"
+    assert service["environment"]["HOLUSIGHT_DOCUMENTS_DIR"] == "/data"
     mount = next(volume for volume in service["volumes"] if volume["target"] == "/data")
     assert mount["source"] == str(tmp_path)
     assert mount["read_only"] is True

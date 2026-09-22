@@ -1,7 +1,7 @@
 # NEXT — Holusight
 
 _Reconciled 2026-09-18 — previous version described the stale 2026-03-01
-"codesight" v0.3 backlog. See `.self-improvement/MEMORY.md` for what changed._
+"holusight" v0.3 backlog. See `.self-improvement/MEMORY.md` for what changed._
 
 ## Status
 

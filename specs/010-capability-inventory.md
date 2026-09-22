@@ -21,15 +21,15 @@
 
 | Capability | Status | Evidence |
 |------------|--------|----------|
-| Hybrid BM25 + dense vector search | **Shipped** | `src/codesight/search.py`, `tests/test_search.py` |
+| Hybrid BM25 + dense vector search | **Shipped** | `src/holusight/search.py`, `tests/test_search.py` |
 | Reciprocal Rank Fusion (RRF) merge | **Shipped** | `rrf_merge()` in `search.py`, `TestRRFMerge` |
 | Local embeddings (no network) | **Shipped** | `all-MiniLM-L6-v2` default, `tests/test_e2e.py` |
 | Voyage code embeddings | **Optional** | `VOYAGE_API_KEY`, `embeddings.py` |
-| Cross-encoder reranking | **Optional** | `CODESIGHT_RERANKER`, voyage or local backend |
-| VPRF query enhancement | **Optional** | `CODESIGHT_QUERY_ENHANCEMENT=true` |
-| CNFB filename boost | **Optional** | `CODESIGHT_CNFB_ALPHA` (default 0) |
+| Cross-encoder reranking | **Optional** | `HOLUSIGHT_RERANKER`, voyage or local backend |
+| VPRF query enhancement | **Optional** | `HOLUSIGHT_QUERY_ENHANCEMENT=true` |
+| CNFB filename boost | **Optional** | `HOLUSIGHT_CNFB_ALPHA` (default 0) |
 | Incremental re-index (content hash) | **Shipped** | `indexer.py`, `test_security.py` read-only |
-| Auto-index on first search | **Shipped** | `CodeSight._ensure_indexed()` |
+| Auto-index on first search | **Shipped** | `Holusight._ensure_indexed()` |
 
 ## Document parsing & chunking
 
@@ -48,10 +48,10 @@
 
 | Surface | Status | Evidence |
 |---------|--------|----------|
-| Python API (`CodeSight`) | **Shipped** | `api.py`, CLI, tests |
+| Python API (`Holusight`) | **Shipped** | `api.py`, CLI, tests |
 | CLI (`index`, `search`, `ask`, `status`, `demo`) | **Shipped** | `__main__.py` |
 | Streamlit demo UI | **Shipped** | `demo/app.py`, optional `[demo]` extra |
-| FastAPI + browser UI (`serve`) | **Shipped** | `src/codesight/web/`, `tests/test_server.py` |
+| FastAPI + browser UI (`serve`) | **Shipped** | `src/holusight/web/`, `tests/test_server.py` |
 | Docker single-team deployment | **Shipped** | `Dockerfile`, `docker-compose.yml` |
 | Public marketing site (holusight.com) | **Shipped** | `landing/`, `tests/test_deployment.py` — static only, no customer data |
 
@@ -59,7 +59,7 @@
 
 | Capability | Status | Evidence |
 |------------|--------|----------|
-| Holus v1 lineage export import (validated, idempotent, read-only) | **Shipped** | `src/codesight/holus.py`, `tests/test_holus_lineage.py` |
+| Holus v1 lineage export import (validated, idempotent, read-only) | **Shipped** | `src/holusight/holus.py`, `tests/test_holus_lineage.py` |
 | Source filtering (`source=holus` on search/ask, API, browser UI) | **Shipped** | `search.py`, `web/server.py`, `web/static/index.html` |
 | Provenance attribution in results + UI | **Shipped** | `types.py` SearchResult, `web/static/app.js` |
 
@@ -69,10 +69,10 @@
 
 | Capability | Status | Notes |
 |------------|--------|-------|
-| API key auth (`X-API-Key` / Bearer) | **Shipped** | Required when `CODESIGHT_PRODUCTION=1` or key set |
-| Dev unauthenticated mode | **Constrained** | `CODESIGHT_ALLOW_UNAUTHENTICATED=true` only |
+| API key auth (`X-API-Key` / Bearer) | **Shipped** | Required when `HOLUSIGHT_PRODUCTION=1` or key set |
+| Dev unauthenticated mode | **Constrained** | `HOLUSIGHT_ALLOW_UNAUTHENTICATED=true` only |
 | Read-only document mount | **Shipped** | Engine never writes to source folder — `test_security.py` |
-| Path traversal prevention | **Shipped** | `CodeSight` validates directory |
+| Path traversal prevention | **Shipped** | `Holusight` validates directory |
 | FTS query sanitization | **Shipped** | `test_security.py` |
 | SSO / OAuth / SAML | **Planned** | Spec 008 non-goal |
 | Per-document ACL enforcement | **Planned** | `business/specs/001-acl-enforcement.md` |
@@ -83,9 +83,9 @@
 |------------|--------|-------|
 | `search` without LLM | **Shipped** | Fully local |
 | `ask` with Claude | **Optional** | `ANTHROPIC_API_KEY` |
-| `ask` with Azure OpenAI | **Optional** | `CODESIGHT_LLM_BACKEND=azure` |
-| `ask` with OpenAI | **Optional** | `CODESIGHT_LLM_BACKEND=openai` |
-| `ask` with Ollama (local) | **Optional** | `CODESIGHT_LLM_BACKEND=ollama` |
+| `ask` with Azure OpenAI | **Optional** | `HOLUSIGHT_LLM_BACKEND=azure` |
+| `ask` with OpenAI | **Optional** | `HOLUSIGHT_LLM_BACKEND=openai` |
+| `ask` with Ollama (local) | **Optional** | `HOLUSIGHT_LLM_BACKEND=ollama` |
 | Fully local answers without any LLM runtime | **Not supported** | Search-only is the local path |
 
 ## Explicitly planned / not in v1

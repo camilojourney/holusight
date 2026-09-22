@@ -50,7 +50,7 @@ Re-index flow:
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| Stale threshold | 60 minutes (default) | Configurable via `CODESIGHT_STALE_MINUTES` |
+| Stale threshold | 60 minutes (default) | Configurable via `HOLUSIGHT_STALE_MINUTES` |
 | Large diff threshold | 1000 files | If >1000 files changed, full rebuild is cheaper |
 | mtime precision | 1 second | Filesystem-dependent, 1s is safe across platforms |
 

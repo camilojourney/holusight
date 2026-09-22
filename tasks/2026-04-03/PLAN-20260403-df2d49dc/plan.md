@@ -1,11 +1,11 @@
-# Plan: CodeSight → 95% Hit Rate
+# Plan: Holusight → 95% Hit Rate
 
 **CID:** PLAN-20260403-df2d49dc | **Repo:** holusight | **Created:** 2026-04-03
 **Status:** PENDING
 
 ## Goal
 
-Push CodeSight retrieval from **52.5% hit rate / MRR 0.352** to **95% hit rate**
+Push Holusight retrieval from **52.5% hit rate / MRR 0.352** to **95% hit rate**
 with minimum tokens-per-correct-answer as a co-metric. Support both local models
 (sentence-transformers) and API models (voyage, openai) so users can choose cost vs
 quality trade-off.
@@ -59,7 +59,7 @@ quality trade-off.
 0. **assumption-check** — /research adversary: "We plan to implement tree-sitter semantic chunking. Challenge this. In 2026, is scope-based chunking still the best approach? Is late-chunking (embed full file, slice post-hoc) better? Has contextual retrieval from Anthropic made chunk boundaries less important? What does the latest research say specifically about code chunking?" → Output: validated approach or pivot recommendation
 1. **consult-chunking-design** — /consult-experiments: given research findings, design the optimal chunking strategy → Output: architecture decision
 2. **implement-chunking** — /code: implement the research-validated chunking strategy → Output: updated chunker.py
-3. **re-index-fleet** — Re-index all 6 codesight_indexed repos → Output: index rebuild log
+3. **re-index-fleet** — Re-index all 6 holusight_indexed repos → Output: index rebuild log
 4. **eval-phase2** — Run full eval, compare to Phase 1 → Output: results/phase-02-eval.json
 
 ---

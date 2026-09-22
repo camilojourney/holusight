@@ -17,7 +17,7 @@ Additionally, some clients may want the absolute best embedding quality and are 
 ## Goals
 
 - Upgrade default embedding model to `nomic-embed-text-v1.5` (768 dims, 8K context)
-- Allow model selection via `CODESIGHT_EMBEDDING_MODEL` env var with allowlist validation
+- Allow model selection via `HOLUSIGHT_EMBEDDING_MODEL` env var with allowlist validation
 - Support optional API embedding backend for clients who want maximum quality
 - Safe model switching: detect dimension mismatch, force index rebuild automatically
 - Measurable: Precision@5 improvement of at least 10% on a test query set vs current default
@@ -32,17 +32,17 @@ Additionally, some clients may want the absolute best embedding quality and are 
 
 Two layers of configuration:
 
-1. **Embedding model** (`CODESIGHT_EMBEDDING_MODEL`): which model to use
-2. **Embedding backend** (`CODESIGHT_EMBEDDING_BACKEND`): local (sentence-transformers) or API (OpenAI)
+1. **Embedding model** (`HOLUSIGHT_EMBEDDING_MODEL`): which model to use
+2. **Embedding backend** (`HOLUSIGHT_EMBEDDING_BACKEND`): local (sentence-transformers) or API (OpenAI)
 
 ```
-CODESIGHT_EMBEDDING_BACKEND=local (default)
+HOLUSIGHT_EMBEDDING_BACKEND=local (default)
 ├── Model runs on CPU/GPU via sentence-transformers
 ├── Downloaded once (~80-670MB depending on model)
 ├── No API key, no internet, no cost, no data leaves
-└── CODESIGHT_EMBEDDING_MODEL selects which model
+└── HOLUSIGHT_EMBEDDING_MODEL selects which model
 
-CODESIGHT_EMBEDDING_BACKEND=api
+HOLUSIGHT_EMBEDDING_BACKEND=api
 ├── Calls OpenAI text-embedding-3-large API
 ├── Requires OPENAI_API_KEY
 ├── Best quality (3072 dims), but data goes to OpenAI
@@ -84,7 +84,7 @@ CODESIGHT_EMBEDDING_BACKEND=api
 3. Store model name + dims in index metadata (`repo_meta` table)
 4. On load, compare stored model vs configured model → force rebuild on mismatch
 5. Add `EmbeddingBackend` protocol with `LocalBackend` and `APIBackend` implementations
-6. Add `openai` to optional dependencies: `pip install codesight[openai]`
+6. Add `openai` to optional dependencies: `pip install holusight[openai]`
 
 ## Alternatives Considered
 
@@ -120,12 +120,12 @@ Rejected because: sentence-transformers is battle-tested, has better model selec
 `specs/017-holusight-safe-continuous-evaluation-pilot.md` §10. The "Key
 Parameters" table above states the default model is
 `nomic-embed-text-v1.5`. The actually shipped default
-(`src/codesight/config.py::DEFAULT_EMBEDDING_MODEL`, unchanged by this
+(`src/holusight/config.py::DEFAULT_EMBEDDING_MODEL`, unchanged by this
 note) is:
 
 ```python
 DEFAULT_EMBEDDING_MODEL = os.environ.get(
-    "CODESIGHT_EMBEDDING_MODEL",
+    "HOLUSIGHT_EMBEDDING_MODEL",
     "voyage-code-3" if VOYAGE_API_KEY else "sentence-transformers/all-MiniLM-L6-v2",
 )
 ```
@@ -134,18 +134,18 @@ i.e. `all-MiniLM-L6-v2` with no `VOYAGE_API_KEY` set (the common case),
 or `voyage-code-3` when one is present — **never** `nomic-embed-text-v1.5`
 in current shipped behavior. `nomic-embed-text-v1.5` remains a supported,
 allowlisted model (`EMBEDDING_MODEL_REGISTRY`) selectable via
-`CODESIGHT_EMBEDDING_MODEL=nomic-ai/nomic-embed-text-v1.5`; it is simply
+`HOLUSIGHT_EMBEDDING_MODEL=nomic-ai/nomic-embed-text-v1.5`; it is simply
 not the default. This note documents the drift rather than changing the
 production default, per the delegated pilot's explicit boundary — a
 default change is a separate product decision this note does not make.
 
 ## Acceptance Criteria
 
-- [ ] `CODESIGHT_EMBEDDING_MODEL=nomic-embed-text-v1.5` produces 768-dim vectors
-- [ ] `CODESIGHT_EMBEDDING_MODEL=all-MiniLM-L6-v2` still works (backward compat)
+- [ ] `HOLUSIGHT_EMBEDDING_MODEL=nomic-embed-text-v1.5` produces 768-dim vectors
+- [ ] `HOLUSIGHT_EMBEDDING_MODEL=all-MiniLM-L6-v2` still works (backward compat)
 - [ ] Invalid model name raises `ValueError` listing valid options
 - [ ] Index metadata stores model name; changing model triggers auto-rebuild with warning
-- [ ] `CODESIGHT_EMBEDDING_BACKEND=api` uses OpenAI API, requires `OPENAI_API_KEY`
+- [ ] `HOLUSIGHT_EMBEDDING_BACKEND=api` uses OpenAI API, requires `OPENAI_API_KEY`
 - [ ] API embedding missing key → clear error naming the required env var
 - [ ] File preamble (first 3 lines of imports/docstring) prepended to chunk context before embedding
 - [ ] `uv run --extra dev pytest tests/ -x -v` passes with both local and API backends (API tests mocked)

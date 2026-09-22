@@ -8,7 +8,7 @@
       "Bash(ruff check *)",
       "Bash(ruff format *)",
       "Bash(pip install *)",
-      "Bash(python -m codesight *)"
+      "Bash(python -m holusight *)"
     ],
     "deny": [
       "Bash(git push --force*)",
@@ -19,7 +19,7 @@
     "TaskCompleted": [
       {
         "type": "command",
-        "command": "cd /Users/mini/.openclaw/workspace/github/codesight && pytest tests/ -q --tb=no 2>/dev/null || true",
+        "command": "cd /Users/mini/.openclaw/workspace/github/holusight && pytest tests/ -q --tb=no 2>/dev/null || true",
         "description": "Run tests before marking task complete"
       }
     ]

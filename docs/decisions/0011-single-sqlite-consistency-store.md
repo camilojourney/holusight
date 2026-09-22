@@ -47,7 +47,7 @@ tables: `repo_state`, `artifacts`, `concepts`, `edges`, `claims`,
   `edges.sqlite` not, after a partial failure).
 - One file to gitignore, one file to delete when a human wants to force a
   full rebuild, one file to inspect with `sqlite3 .holusight/consistency.db`.
-- Matches this repository's existing convention: `src/codesight/store.py`'s
+- Matches this repository's existing convention: `src/holusight/store.py`'s
   `FTSSidecar` already keeps chunks + FTS5 index + repo metadata in one
   SQLite file (`metadata.db`) per indexed folder, rather than splitting by
   concern.

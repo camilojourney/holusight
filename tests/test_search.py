@@ -7,36 +7,36 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from codesight.search import (
+from holusight.search import (
     _cnfb_boost,
     _reorder_by_filename_match,
     _rerank,
     rrf_merge,
     vprf_enhance_query,
 )
-from codesight.types import SearchResult
+from holusight.types import SearchResult
 
 
 @pytest.mark.parametrize("arm", ["general", "code"])
 def test_search_glob_reaches_semantic_target_beyond_decoys(tmp_path, monkeypatch, arm):
     """A small corpus masks starvation; lexical retrieval cannot rescue this target."""
-    from codesight.api import CodeSight
-    from codesight.config import BM25_CANDIDATE_MULTIPLIER, ServerConfig
-    from codesight.store import CODE_EMBEDDING_DIM
+    from holusight.api import Holusight
+    from holusight.config import BM25_CANDIDATE_MULTIPLIER, ServerConfig
+    from holusight.store import CODE_EMBEDDING_DIM
 
-    monkeypatch.setattr("codesight.config.DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr("holusight.config.DATA_DIR", tmp_path / "data")
     dimension = CODE_EMBEDDING_DIM if arm == "code" else 2
     query_vector = np.zeros(dimension, dtype=np.float32)
     query_vector[0] = 1.0
     embedder = MagicMock()
     embedder.embed_query.return_value = query_vector
-    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
-    monkeypatch.setattr("codesight.search.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.search.get_embedder", lambda *a, **kw: embedder)
     # Exercise automatic code-arm routing without a real provider or credential.
-    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", arm == "code")
+    monkeypatch.setattr("holusight.search.VOYAGE_API_KEY", arm == "code")
     folder = tmp_path / "corpus"
     folder.mkdir()
-    engine = CodeSight(folder, config=ServerConfig(
+    engine = Holusight(folder, config=ServerConfig(
         embedding_model="synthetic", embedding_dim=dimension, reranker=False,
         metadata_boost=False, query_enhancement=False,
     ))
@@ -144,7 +144,7 @@ class TestVoyageReranker:
         mock_client = MagicMock()
         mock_client.rerank.return_value = mock_response
 
-        with patch("codesight.search._get_voyage_client", return_value=mock_client):
+        with patch("holusight.search._get_voyage_client", return_value=mock_client):
             reranked = _rerank("foo bar", results, top_k=2, model_name="rerank-2", backend="voyage")
 
         mock_client.rerank.assert_called_once_with(
@@ -163,7 +163,7 @@ class TestVoyageReranker:
         """_rerank() calls local cross-encoder when backend='local'."""
         results = [_make_result("def alpha(): pass"), _make_result("def beta(): pass")]
 
-        with patch("codesight.search._rerank_local") as mock_local:
+        with patch("holusight.search._rerank_local") as mock_local:
             mock_local.return_value = results[:1]
             out = _rerank(
                 "alpha",
@@ -178,13 +178,13 @@ class TestVoyageReranker:
 
     def test_voyage_reranker_falls_back_on_api_error(self):
         """_rerank_voyage falls back to RRF order when API throws."""
-        from codesight.search import _rerank_voyage
+        from holusight.search import _rerank_voyage
 
         results = [_make_result("snippet_a"), _make_result("snippet_b")]
         mock_client = MagicMock()
         mock_client.rerank.side_effect = RuntimeError("API timeout")
 
-        with patch("codesight.search._get_voyage_client", return_value=mock_client):
+        with patch("holusight.search._get_voyage_client", return_value=mock_client):
             out = _rerank_voyage("query", results, top_k=2, model_name="rerank-2")
 
         # Falls back to original RRF order, truncated to top_k
@@ -193,7 +193,7 @@ class TestVoyageReranker:
 
     def test_voyage_reranker_empty_results(self):
         """_rerank_voyage returns empty list when no results provided."""
-        from codesight.search import _rerank_voyage
+        from holusight.search import _rerank_voyage
 
         out = _rerank_voyage("query", [], top_k=5, model_name="rerank-2")
         assert out == []
@@ -255,9 +255,9 @@ class TestMetadataBoost:
         """Chunk from a file whose name matches a query token is promoted."""
         metadatas = self._make_metadatas(
             {
-                "chunk_a": "src/codesight/embeddings.py",
-                "chunk_b": "src/codesight/store.py",
-                "chunk_c": "src/codesight/search.py",
+                "chunk_a": "src/holusight/embeddings.py",
+                "chunk_b": "src/holusight/store.py",
+                "chunk_c": "src/holusight/search.py",
             }
         )
         # "embeddings" matches embeddings.py stem
@@ -273,8 +273,8 @@ class TestMetadataBoost:
         """When no token matches any filename, original order is unchanged."""
         metadatas = self._make_metadatas(
             {
-                "chunk_a": "src/codesight/store.py",
-                "chunk_b": "src/codesight/search.py",
+                "chunk_a": "src/holusight/store.py",
+                "chunk_b": "src/holusight/search.py",
             }
         )
         result = _reorder_by_filename_match(
@@ -288,8 +288,8 @@ class TestMetadataBoost:
         """Stopwords like 'how', 'does', 'the', 'is' are filtered out."""
         metadatas = self._make_metadatas(
             {
-                "chunk_a": "src/codesight/how.py",  # filename matches stopword "how"
-                "chunk_b": "src/codesight/store.py",
+                "chunk_a": "src/holusight/how.py",  # filename matches stopword "how"
+                "chunk_b": "src/holusight/store.py",
             }
         )
         # "how" and "does" are stopwords — should NOT trigger boost
@@ -306,8 +306,8 @@ class TestMetadataBoost:
         """Token that is a substring of the filename stem triggers boost."""
         metadatas = self._make_metadatas(
             {
-                "chunk_a": "src/codesight/chunk_manager.py",
-                "chunk_b": "src/codesight/store.py",
+                "chunk_a": "src/holusight/chunk_manager.py",
+                "chunk_b": "src/holusight/store.py",
             }
         )
         # "chunk" is a substring of "chunk_manager"
@@ -322,8 +322,8 @@ class TestMetadataBoost:
         """If all tokens are stopwords, original order is preserved."""
         metadatas = self._make_metadatas(
             {
-                "chunk_a": "src/codesight/store.py",
-                "chunk_b": "src/codesight/search.py",
+                "chunk_a": "src/holusight/store.py",
+                "chunk_b": "src/holusight/search.py",
             }
         )
         result = _reorder_by_filename_match(
@@ -337,7 +337,7 @@ class TestMetadataBoost:
         """Chunks with missing metadata are placed after matched chunks."""
         metadatas = self._make_metadatas(
             {
-                "chunk_a": "src/codesight/embeddings.py",
+                "chunk_a": "src/holusight/embeddings.py",
                 # chunk_b has no metadata entry
             }
         )
@@ -372,15 +372,15 @@ class TestCNFBBoost:
     def test_SPEC009_AC001_alpha_zero_is_noop(self):
         """AC-001: alpha=0.0 returns results unchanged (identity)."""
         results = [
-            _make_cnfb_result("src/codesight/chunker.py", score=0.9),
-            _make_cnfb_result("src/codesight/store.py", score=0.8),
+            _make_cnfb_result("src/holusight/chunker.py", score=0.9),
+            _make_cnfb_result("src/holusight/store.py", score=0.8),
         ]
         boosted = _cnfb_boost(results, "chunker logic", cnfb_alpha=0.0)
         assert boosted is results  # exact same object returned
 
     def test_SPEC009_AC002_full_match_boosts_score(self):
         """AC-002: full filename token match → score * (1 + alpha * 1.0)."""
-        result = _make_cnfb_result("src/codesight/chunker.py", score=1.0)
+        result = _make_cnfb_result("src/holusight/chunker.py", score=1.0)
         boosted = _cnfb_boost([result], "chunker", cnfb_alpha=0.5)
         # filename_tokens = {"chunker"}, query_tokens = {"chunker"}, overlap = 1.0
         # new_score = 1.0 * (1 + 0.5 * 1.0) = 1.5
@@ -388,7 +388,7 @@ class TestCNFBBoost:
 
     def test_SPEC009_AC003_no_match_score_unchanged(self):
         """AC-003: no filename overlap → score unchanged (overlap=0)."""
-        result = _make_cnfb_result("src/codesight/store.py", score=1.0)
+        result = _make_cnfb_result("src/holusight/store.py", score=1.0)
         boosted = _cnfb_boost([result], "chunker", cnfb_alpha=0.5)
         # filename_tokens = {"store"}, query_tokens = {"chunker"} → overlap = 0
         assert abs(boosted[0].score - 1.0) < 1e-5
@@ -398,7 +398,7 @@ class TestCNFBBoost:
         # filename = "vector_store_impl" → tokens = {"vector", "store", "impl"}
         # query = "vector search store" → query_tokens = {"vector", "search", "store"}
         # overlap = |{vector, store} ∩ {vector, store, impl}| / 3 = 2/3
-        result = _make_cnfb_result("src/codesight/vector_store_impl.py", score=1.0)
+        result = _make_cnfb_result("src/holusight/vector_store_impl.py", score=1.0)
         boosted = _cnfb_boost([result], "vector search store", cnfb_alpha=0.5)
         expected = 1.0 * (1.0 + 0.5 * (2 / 3))
         assert abs(boosted[0].score - expected) < 1e-4
@@ -407,26 +407,26 @@ class TestCNFBBoost:
         """Higher overlap result should rank above lower overlap after boost."""
         # chunker.py matches "chunker" query → boosted
         # store.py does not match → unboosted
-        chunker = _make_cnfb_result("src/codesight/chunker.py", score=0.8)
-        store = _make_cnfb_result("src/codesight/store.py", score=0.9)
+        chunker = _make_cnfb_result("src/holusight/chunker.py", score=0.8)
+        store = _make_cnfb_result("src/holusight/store.py", score=0.9)
         # Without CNFB: store ranks first (0.9 > 0.8)
         # With CNFB alpha=1.0: chunker score = 0.8 * 2.0 = 1.6 > 0.9
         boosted = _cnfb_boost([store, chunker], "chunker", cnfb_alpha=1.0)
-        assert boosted[0].file_path == "src/codesight/chunker.py"
+        assert boosted[0].file_path == "src/holusight/chunker.py"
 
     def test_SPEC009_AC006_query_tokens_not_recomputed_per_chunk(self):
         """AC-006: function processes multiple results correctly (shared tokenization)."""
         results = [
-            _make_cnfb_result("src/codesight/chunker.py", score=1.0),
-            _make_cnfb_result("src/codesight/embeddings.py", score=1.0),
-            _make_cnfb_result("src/codesight/store.py", score=1.0),
+            _make_cnfb_result("src/holusight/chunker.py", score=1.0),
+            _make_cnfb_result("src/holusight/embeddings.py", score=1.0),
+            _make_cnfb_result("src/holusight/store.py", score=1.0),
         ]
         boosted = _cnfb_boost(results, "chunker", cnfb_alpha=0.5)
         # Only chunker.py matches — verify others are 1.0
         by_path = {r.file_path: r.score for r in boosted}
-        assert abs(by_path["src/codesight/chunker.py"] - 1.5) < 1e-5
-        assert abs(by_path["src/codesight/embeddings.py"] - 1.0) < 1e-5
-        assert abs(by_path["src/codesight/store.py"] - 1.0) < 1e-5
+        assert abs(by_path["src/holusight/chunker.py"] - 1.5) < 1e-5
+        assert abs(by_path["src/holusight/embeddings.py"] - 1.0) < 1e-5
+        assert abs(by_path["src/holusight/store.py"] - 1.0) < 1e-5
 
     def test_SPEC009_AC007_empty_results_returns_empty(self):
         """Empty input → empty output, no crash."""
@@ -442,7 +442,7 @@ class TestCNFBBoost:
 
     def test_SPEC009_EDGE003_stopword_only_query_no_boost(self):
         """EDGE-003: query with only stopwords → no query_tokens → results unchanged."""
-        result = _make_cnfb_result("src/codesight/chunker.py", score=1.0)
+        result = _make_cnfb_result("src/holusight/chunker.py", score=1.0)
         # "how does the" are all stopwords (len>=3 but in stopword list)
         boosted = _cnfb_boost([result], "how does the", cnfb_alpha=0.5)
         assert abs(boosted[0].score - 1.0) < 1e-5

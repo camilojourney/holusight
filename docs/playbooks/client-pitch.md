@@ -14,7 +14,7 @@
 
 ### "What exactly does this do?"
 
-You have documents — PDFs, Word docs, presentations, code files. Right now, finding information means opening files, Ctrl+F, reading pages. With CodeSight, your team opens a web chat, types a question like "What are the payment terms in the Acme contract?", and gets a direct answer with the exact source (file name, page number).
+You have documents — PDFs, Word docs, presentations, code files. Right now, finding information means opening files, Ctrl+F, reading pages. With Holusight, your team opens a web chat, types a question like "What are the payment terms in the Acme contract?", and gets a direct answer with the exact source (file name, page number).
 
 Under the hood: we index every document using two search methods — keyword matching (finds exact terms like contract numbers, dates, names) and semantic search (understands meaning, so "payment terms" also finds "billing schedule"). This hybrid approach catches what either method alone would miss.
 
@@ -23,26 +23,26 @@ Under the hood: we index every document using two search methods — keyword mat
 Three problems with uploading documents to ChatGPT or Claude:
 
 1. **File limits.** You can upload a few files. We index entire folders — hundreds or thousands of documents.
-2. **No persistence.** Each chat session starts fresh. CodeSight maintains a permanent searchable index that updates as documents change.
+2. **No persistence.** Each chat session starts fresh. Holusight maintains a permanent searchable index that updates as documents change.
 3. **Retrieval quality.** ChatGPT uses basic RAG. We use hybrid BM25 + vector search with Reciprocal Rank Fusion — the same approach used by enterprise search engines, but running locally.
 
 ### "How is this different from Microsoft Copilot?"
 
-Copilot may already fit teams invested in M365. CodeSight is not an M365 replacement: it searches a focused customer-mounted folder or repository export.
+Copilot may already fit teams invested in M365. Holusight is not an M365 replacement: it searches a focused customer-mounted folder or repository export.
 
-CodeSight is different:
+Holusight is different:
 - **Scoped search.** You point it at a specific folder of documents. "Search only these 200 contracts." Copilot searches everything.
 - **Cost.** The recommended starting offer is a $1,000-$2,000 two-week pilot, with optional $500-$1,000/month support. Customer infrastructure and LLM usage are separate.
 - **No M365 dependency.** The pilot uses a customer-mounted folder or repository export, not a live connector.
 - **Privacy.** Search and indexing run on the customer deployment. Cloud answer providers receive context only when the customer configures them.
 
-If you already have Copilot and it's working for you, you don't need this. If you don't have Copilot, or you need scoped project search, or you can't send data to Microsoft — that's where CodeSight fits.
+If you already have Copilot and it's working for you, you don't need this. If you don't have Copilot, or you need scoped project search, or you can't send data to Microsoft — that's where Holusight fits.
 
 ### "We already use SharePoint / Google Drive. Why do we need this?"
 
 SharePoint and Google Drive are storage. They can find files by name. They can't answer "What are the payment terms across all vendor contracts?" or "Which policies mention data retention?"
 
-CodeSight doesn't replace your storage. It sits alongside it. Mount or export the documents you need searched, and CodeSight makes them answerable.
+Holusight doesn't replace your storage. It sits alongside it. Mount or export the documents you need searched, and Holusight makes them answerable.
 
 ---
 
@@ -85,7 +85,7 @@ Yes, after the image, embedding model, and Ollama model have been prepared while
 
 Currently, everyone with access to the web UI can search everything in the indexed folder. For most consulting engagements (one team, one project), this is fine.
 
-For larger deployments where different teams need different access, this is on the roadmap (v0.7). In the meantime, you can run separate CodeSight instances per team/project.
+For larger deployments where different teams need different access, this is on the roadmap (v0.7). In the meantime, you can run separate Holusight instances per team/project.
 
 ---
 
@@ -95,7 +95,7 @@ For larger deployments where different teams need different access, this is on t
 
 | Component | Recommended framing |
 |-----------|---------------------|
-| CodeSight software | Open source engine |
+| Holusight software | Open source engine |
 | Search & indexing | Runs locally; no Holusight usage fee |
 | Ask / LLM answers | Customer’s Claude / Azure / OpenAI / Ollama account |
 | 2-week pilot | **$1,000–$2,000** starting range |
@@ -114,7 +114,7 @@ The software is the engine. The value is:
 
 ### "What's cheaper — this or Azure AI Search?"
 
-| | CodeSight | Azure AI Search + Azure OpenAI |
+| | Holusight | Azure AI Search + Azure OpenAI |
 |--|-----------|-------------------------------|
 | Monthly infrastructure | Typically $50-200 for a small customer VM + disk | Separate Azure estimate |
 | Setup time | Hours | Weeks |
@@ -187,17 +187,17 @@ No concurrent-user or uptime target is claimed. Larger deployments require separ
 
 ### "We'll just build this ourselves with LangChain."
 
-You could. It'll take your developer 2-4 weeks to build what CodeSight does out of the box, plus ongoing maintenance. And they'll likely build vector-only search (no hybrid BM25+RRF), which means worse results for keyword queries.
+You could. It'll take your developer 2-4 weeks to build what Holusight does out of the box, plus ongoing maintenance. And they'll likely build vector-only search (no hybrid BM25+RRF), which means worse results for keyword queries.
 
 The consulting engagement gets you a working system in hours and lets your developers focus on your core product.
 
 ### "Isn't this just RAG? Everyone has RAG now."
 
-RAG is the category. The quality difference is in the retrieval. Most RAG implementations use basic vector search (embed, store, retrieve). CodeSight uses hybrid BM25 + vector + RRF fusion, which is what production search engines use. The "R" in RAG is the hard part — and that's what we've optimized.
+RAG is the category. The quality difference is in the retrieval. Most RAG implementations use basic vector search (embed, store, retrieve). Holusight uses hybrid BM25 + vector + RRF fusion, which is what production search engines use. The "R" in RAG is the hard part — and that's what we've optimized.
 
 ### "What if we outgrow this?"
 
-CodeSight is designed for scoped document collections (hundreds to thousands of documents). If you grow to millions of documents across your entire organization, you'll want an enterprise solution like Glean or Azure AI Search.
+Holusight is designed for scoped document collections (hundreds to thousands of documents). If you grow to millions of documents across your entire organization, you'll want an enterprise solution like Glean or Azure AI Search.
 
 But most companies don't need that. They need specific project folders searchable. And if you do outgrow it, the consulting engagement gives you a clear picture of what you need next.
 
@@ -210,7 +210,7 @@ Claude Projects lets you upload files and chat with them. It works for small col
 - $20/user/month per Pro seat
 - Data goes to Anthropic
 
-CodeSight handles hundreds to thousands of documents, maintains a persistent index, and search runs locally.
+Holusight handles hundreds to thousands of documents, maintains a persistent index, and search runs locally.
 
 ---
 
@@ -220,10 +220,10 @@ CodeSight handles hundreds to thousands of documents, maintains a persistent ind
 
 ```bash
 # Get their sample documents beforehand (even 10-20 is enough for demo)
-pip install codesight
-python -m codesight index /path/to/their-sample-docs
+pip install holusight
+python -m holusight index /path/to/their-sample-docs
 pip install streamlit
-python -m codesight demo
+python -m holusight demo
 ```
 
 ### During the meeting

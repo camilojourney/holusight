@@ -1,8 +1,8 @@
 """Versioned command/output schema for the ``holus`` AXI command surface.
 
 This module is the single source of truth for the ``holus`` CLI's job
-surface (:mod:`codesight.cli_axi`) and its generated agent skill
-(:mod:`codesight.axi_skill_gen` -> ``.claude/skills/holus/SKILL.md``).
+surface (:mod:`holusight.cli_axi`) and its generated agent skill
+(:mod:`holusight.axi_skill_gen` -> ``.claude/skills/holus/SKILL.md``).
 Both read ``AXI_COMMANDS`` from here instead of hard-coding flags or
 examples a second time, so the executable, this schema, and the skill
 cannot silently diverge - ``tests/test_axi_skill_drift.py`` regenerates the
@@ -263,7 +263,7 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
         examples=(
             'holus improve-intake "holus evidence can starve structural evidence" '
             "--origin reproduced_usage_gap --kind comparative --admitted-by team-x",
-            'python -m codesight.cli_axi improve-intake "structural graph stale case" '
+            'python -m holusight.cli_axi improve-intake "structural graph stale case" '
             "--origin spec_documented_finding --admitted-by team-x",
         ),
     ),

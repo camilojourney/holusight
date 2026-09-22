@@ -51,7 +51,7 @@ INVOKE: Skill(skill="research", args="holusight What are the best code retrieval
 ## Step 2: Consult on chunking architecture
 
 ```
-INVOKE: Skill(skill="consult-experiments", args="holusight Given research findings (read results/phase-02-step-01-research.md), design the optimal chunking strategy for CodeSight. Our current stack: tree-sitter already imported in parsers.py, LanceDB for vectors, SQLite FTS5 for BM25, voyage-code-3 embeddings (1024-dim). Key question: should we do (A) tree-sitter scope chunking — chunk at function/class/block boundaries, (B) contextual retrieval — prepend file path + parent scope to each chunk before embedding, (C) both A+B together, or (D) something else? Evaluate: expected hit rate lift, re-indexing cost, implementation risk. We need to get from ~65% to 78% hit rate in this phase.")
+INVOKE: Skill(skill="consult-experiments", args="holusight Given research findings (read results/phase-02-step-01-research.md), design the optimal chunking strategy for Holusight. Our current stack: tree-sitter already imported in parsers.py, LanceDB for vectors, SQLite FTS5 for BM25, voyage-code-3 embeddings (1024-dim). Key question: should we do (A) tree-sitter scope chunking — chunk at function/class/block boundaries, (B) contextual retrieval — prepend file path + parent scope to each chunk before embedding, (C) both A+B together, or (D) something else? Evaluate: expected hit rate lift, re-indexing cost, implementation risk. We need to get from ~65% to 78% hit rate in this phase.")
 ```
 
 **Done when:** architecture decision written to results/phase-02-step-02-design.md
@@ -61,7 +61,7 @@ INVOKE: Skill(skill="consult-experiments", args="holusight Given research findin
 ## Step 3: Implement semantic chunking
 
 ```
-INVOKE: Skill(skill="code", args="holusight Implement tree-sitter semantic chunking in src/codesight/chunker.py based on the design decision in tasks/2026-04-03/PLAN-20260403-df2d49dc/results/phase-02-step-02-design.md. The key change: instead of fixed-line sliding windows, chunk at scope boundaries (function definitions, class definitions, method boundaries). Implementation requirements: (1) Use tree-sitter (already in pyproject.toml as tree-sitter-languages) to parse supported languages, identify scope nodes (function_definition, class_definition, method_definition), chunk at those boundaries with up to DEFAULT_CHUNK_MAX_LINES lines. (2) If a scope exceeds max lines, split within the scope with overlap. (3) For unsupported languages (no tree-sitter parser), fall back to existing fixed-line chunker. (4) If the design decision includes contextual retrieval (prepend context), also prepend parent scope path (e.g. 'File: embeddings.py > Class: VoyageEmbedder > Method: embed') to the chunk text before embedding — but store the original text for display. (5) Add CODESIGHT_CHUNKING=semantic|fixed env var, default semantic.")
+INVOKE: Skill(skill="code", args="holusight Implement tree-sitter semantic chunking in src/holusight/chunker.py based on the design decision in tasks/2026-04-03/PLAN-20260403-df2d49dc/results/phase-02-step-02-design.md. The key change: instead of fixed-line sliding windows, chunk at scope boundaries (function definitions, class definitions, method boundaries). Implementation requirements: (1) Use tree-sitter (already in pyproject.toml as tree-sitter-languages) to parse supported languages, identify scope nodes (function_definition, class_definition, method_definition), chunk at those boundaries with up to DEFAULT_CHUNK_MAX_LINES lines. (2) If a scope exceeds max lines, split within the scope with overlap. (3) For unsupported languages (no tree-sitter parser), fall back to existing fixed-line chunker. (4) If the design decision includes contextual retrieval (prepend context), also prepend parent scope path (e.g. 'File: embeddings.py > Class: VoyageEmbedder > Method: embed') to the chunk text before embedding — but store the original text for display. (5) Add HOLUSIGHT_CHUNKING=semantic|fixed env var, default semantic.")
 ```
 
 **Done when:** `pytest tests/ -x -v` passes, chunker produces scope-aligned chunks for .py files
@@ -73,7 +73,7 @@ INVOKE: Skill(skill="code", args="holusight Implement tree-sitter semantic chunk
 ```bash
 cd /Users/mini/.openclaw/workspace/github/~Projects/system/skills/fleet-brain/scripts
 # Clear existing index to force full re-embed
-python3 fleet_indexer.py --codesight --force-reindex
+python3 fleet_indexer.py --holusight --force-reindex
 ```
 
 Monitor output. Expected cost: ~$0.50-2.00 for voyage-code-3 re-embedding.
@@ -84,7 +84,7 @@ Write re-index log to results/phase-02-step-04-reindex.md:
 - Estimated cost
 - Any errors
 
-**Done when:** all 6 codesight_indexed repos show successful index in fleet_indexer output
+**Done when:** all 6 holusight_indexed repos show successful index in fleet_indexer output
 
 ---
 
@@ -92,8 +92,8 @@ Write re-index log to results/phase-02-step-04-reindex.md:
 
 ```bash
 cd /Users/mini/.openclaw/workspace/github/~Projects/system/skills/fleet-brain/scripts
-CODESIGHT_RERANKER=true CODESIGHT_QUERY_EXPANSION=true \
-  python3 eval_search.py --backend codesight --output ../data/eval_phase2_results.json
+HOLUSIGHT_RERANKER=true HOLUSIGHT_QUERY_EXPANSION=true \
+  python3 eval_search.py --backend holusight --output ../data/eval_phase2_results.json
 ```
 
 Write results to `results/phase-02-eval.json`. Record:

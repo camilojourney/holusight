@@ -1,5 +1,5 @@
 (function () {
-  const STORAGE_KEY = "codesight_api_key";
+  const STORAGE_KEY = "holusight_api_key";
   const messagesEl = document.getElementById("messages");
   const queryForm = document.getElementById("query-form");
   const queryInput = document.getElementById("query-input");

@@ -1,10 +1,10 @@
-"""Tests for codesight.skill_installer's canonical-copy + symlink fan-out
+"""Tests for holusight.skill_installer's canonical-copy + symlink fan-out
 (mirrors ~/.claude/skills/graphify/ being the one real copy with
 ~/.codex, ~/.cursor, ~/.gemini, ~/.agents each symlinked to it)."""
 
 from __future__ import annotations
 
-from codesight import skill_installer
+from holusight import skill_installer
 
 
 def test_install_writes_one_real_copy_and_symlinks_the_rest(tmp_path, monkeypatch):

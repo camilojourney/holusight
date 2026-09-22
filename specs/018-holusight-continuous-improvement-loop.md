@@ -15,21 +15,21 @@ This spec adds no new provider, no new retrieval mechanism, and does not
 duplicate any Fleet contract. It is the smallest coherent lifecycle wrapper
 around already-shipped Holusight-AXI work:
 
-- **`src/codesight/eval_pilot.py`** (spec 017, PR #21) — the frozen case
+- **`src/holusight/eval_pilot.py`** (spec 017, PR #21) — the frozen case
   corpus, deterministic runner (`run_pilot`), candidate lineage, status-quo
   comparator pattern, and Fleet v1.2-shaped aggregate export. This spec
   extends that module with two additive functions
   (`build_intake_proposal`, `evaluate_progress`) and does not change any
   existing function's behavior or signature.
-- **`src/codesight/cli_axi.py` / `src/codesight/axi_schema.py`**
+- **`src/holusight/cli_axi.py` / `src/holusight/axi_schema.py`**
   (spec 015, PR #18) — the schema-generated `holus` command surface. This
   spec adds four commands to the same `AXI_COMMANDS` tuple rather than
   creating a second CLI.
-- **`src/codesight/consistency.py`** (spec 013, PR #16) and
+- **`src/holusight/consistency.py`** (spec 013, PR #16) and
   **`.claude/rules/structure.md`** — the structural placement guard reads
   the same structure contract `consistency.py`'s classifier already relies
   on; it adds no new classification logic of its own.
-- **`src/codesight/fleet_scorecard.py`** (spec 016, PR #19) — unchanged.
+- **`src/holusight/fleet_scorecard.py`** (spec 016, PR #19) — unchanged.
   `agentic/manifest.yaml`'s `eval_entrypoint` stays `just fleet-smoke`.
 
 The full lifecycle this spec ships:
@@ -244,16 +244,16 @@ Verbatim from the launch brief, unchanged by this implementation:
 
 ## 9. Files changed
 
-- `src/codesight/axi_schema.py` — four new `AxiCommand` entries,
+- `src/holusight/axi_schema.py` — four new `AxiCommand` entries,
   `AXI_SCHEMA_VERSION` `0.1.0` -> `0.2.0`.
-- `src/codesight/cli_axi.py` — four new handlers, the placement-guard
+- `src/holusight/cli_axi.py` — four new handlers, the placement-guard
   helpers (`_placement_recommendation`, `_safe_repo_relative_path`,
   `_recommended_new_path`, `_find_duplicate_artifacts`).
-- `src/codesight/eval_pilot.py` — `build_intake_proposal`,
+- `src/holusight/eval_pilot.py` — `build_intake_proposal`,
   `load_prior_run`, `evaluate_progress` (additive; no changes to any
   spec-017 function's behavior).
 - `.claude/skills/holus/SKILL.md` — regenerated via
-  `python -m codesight.axi_skill_gen`.
+  `python -m holusight.axi_skill_gen`.
 - `.claude/rules/structure.md`, `AGENTS.md` — documented
   `tests/fixtures/*.jsonl` as the canonical case-corpus location.
 - `ARCHITECTURE.md` — new "Continuous-Improvement Loop v1" section.

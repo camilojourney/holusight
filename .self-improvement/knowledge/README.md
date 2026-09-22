@@ -1,4 +1,4 @@
-# Knowledge Base — codesight
+# Knowledge Base — holusight
 
 This directory stores structured research findings that inform the self-improvement pipeline.
 

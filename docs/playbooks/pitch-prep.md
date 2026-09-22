@@ -14,9 +14,9 @@
 ## Before the Meeting Checklist
 
 - [ ] Get 10-20 sample documents from the client (or prepare realistic examples)
-- [ ] Index them: `python -m codesight index /path/to/docs`
+- [ ] Index them: `python -m holusight index /path/to/docs`
 - [ ] Test 5+ questions to make sure answers are good
-- [ ] Launch demo: `python -m codesight demo`
+- [ ] Launch demo: `python -m holusight demo`
 - [ ] Prepare ROI numbers: team size × searches/day × 15 min × hourly rate
 - [ ] Have one-pager printed or PDF ready
 - [ ] Know their stack (M365? Google? Confluence?)
@@ -29,7 +29,7 @@
 |--------|--------|
 | Time workers spend searching | 20%+ of work week (McKinsey) |
 | Average search time per query | 15-30 minutes |
-| CodeSight search time | < 5 seconds |
+| Holusight search time | < 5 seconds |
 | Customer infrastructure | Typically $50-200/month for a small VM + disk |
 | Copilot monthly cost (50 users) | $1,500 |
 | Glean monthly cost (50 users) | $2,250+ |
@@ -47,13 +47,13 @@
 Your team opens a web chat, types a question, gets a direct answer with the source file and page number. Under the hood, we use two search methods — keyword (finds exact terms) and semantic (understands meaning). This hybrid catches what either alone would miss.
 
 **"How is this different from Copilot?"**
-CodeSight is not an M365 replacement. It searches a focused customer-mounted folder or repository export. The recommended starting offer is a $1,000-$2,000 two-week pilot, with optional $500-$1,000/month support; customer infrastructure and LLM usage are separate.
+Holusight is not an M365 replacement. It searches a focused customer-mounted folder or repository export. The recommended starting offer is a $1,000-$2,000 two-week pilot, with optional $500-$1,000/month support; customer infrastructure and LLM usage are separate.
 
 **"Can't we just upload to ChatGPT?"**
-File limits (20-30 docs max). No persistent index. No hybrid search. $20/user/month. Data goes to OpenAI/Anthropic. CodeSight handles thousands of documents, persistent index, local search.
+File limits (20-30 docs max). No persistent index. No hybrid search. $20/user/month. Data goes to OpenAI/Anthropic. Holusight handles thousands of documents, persistent index, local search.
 
 **"We already have SharePoint search."**
-SharePoint finds files by name. It can't answer "What are the payment terms across all vendor contracts?" CodeSight answers questions, not just finds files.
+SharePoint finds files by name. It can't answer "What are the payment terms across all vendor contracts?" Holusight answers questions, not just finds files.
 
 ### About privacy
 

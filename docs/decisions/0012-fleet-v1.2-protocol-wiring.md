@@ -54,7 +54,7 @@ requires, and nowhere else:
    (`just fleet-smoke`) and a matching privacy boundary, per
    `run_repo_eval.py`'s own `validate_agentic_privacy_config` (which
    requires both files to exist and their boundaries to agree exactly).
-2. `src/codesight/fleet_scorecard.py` — a pure-function bridge from
+2. `src/holusight/fleet_scorecard.py` — a pure-function bridge from
    `consistency.check_consistency()`'s existing `ConsistencyReport` (the
    Phase 1 evaluator, unmodified) to Fleet-shaped documents. It reads the
    evaluator's output; it does not re-derive or override the evaluator's
@@ -104,5 +104,5 @@ reusing what already exists.
 | Option | Why not chosen |
 |---|---|
 | Build a new `repository-manifest.schema.json` / `evaluation-protocol.schema.json` pair local to Holusight | This is the exact parallel-contract-tree shape Fleet's own ADR-001 rejected for the same reason: it would duplicate semantics `repo-agent-manifest.schema.json` + `eval-scorecard.schema.json` already cover. |
-| Add a new `python -m codesight consistency scorecard` CLI subcommand | Would create a second CLI surface answering a question the already-landed `holus check "<concept>"` (PR #18) already answers (the `ConsistencyReport` for one concept). `fleet_scorecard.py` is a library the smoke suite calls directly instead. |
+| Add a new `python -m holusight consistency scorecard` CLI subcommand | Would create a second CLI surface answering a question the already-landed `holus check "<concept>"` (PR #18) already answers (the `ConsistencyReport` for one concept). `fleet_scorecard.py` is a library the smoke suite calls directly instead. |
 | Have Holusight's evaluator call Fleet's `run_repo_eval.py` directly (cross-repo invocation) | Out of scope for a direct-PR pilot with no telemetry/deploy mandate, and would require this repo to depend on another repo's script path at runtime — exactly the kind of coupling the ADR's ownership table assigns to Fleet, not to a project repo. |

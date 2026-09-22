@@ -6,7 +6,7 @@ default:
 
 # Run the demo app
 dev:
-    uv run --extra demo python -m codesight demo
+    uv run --extra demo python -m holusight demo
 
 # Install dependencies (dev)
 install:
@@ -14,7 +14,7 @@ install:
 
 # Inspect CLI commands
 inspect:
-    uv run python -m codesight --help
+    uv run python -m holusight --help
 
 # ─── Quality ──────────────────────────────────────
 
@@ -41,9 +41,9 @@ eval-taxonomy:
 
 # ─── Holusight-AXI (holus) ────────────────────────
 
-# Regenerate .claude/skills/holus/SKILL.md from src/codesight/axi_schema.py
+# Regenerate .claude/skills/holus/SKILL.md from src/holusight/axi_schema.py
 holus-skill:
-    uv run --extra dev python -m codesight.axi_skill_gen
+    uv run --extra dev python -m holusight.axi_skill_gen
 
 # Check that the committed /holus skill matches the schema (CI drift gate)
 holus-skill-check:
@@ -55,7 +55,7 @@ holus-skill-check:
 # local, no-spend smoke suite (exact + structural providers only) and
 # prints Fleet's expected domain-result JSON object as the last stdout line.
 fleet-smoke:
-    uv run --extra dev python -m codesight.fleet_scorecard smoke
+    uv run --extra dev python -m holusight.fleet_scorecard smoke
 
 # ─── Safe continuous-evaluation pilot ─────────────
 
@@ -63,41 +63,41 @@ fleet-smoke:
 # Not agentic/manifest.yaml's declared eval_entrypoint -- that stays
 # `just fleet-smoke`, unchanged. See specs/017-holusight-safe-continuous-evaluation-pilot.md.
 eval-pilot:
-    uv run --extra dev python -m codesight.eval_pilot run --scorecard
+    uv run --extra dev python -m holusight.eval_pilot run --scorecard
 
 # Run the named visible-development retrieval suite. Local, no-spend, and
 # advisory only; `pass` does not authorize promotion, merge, or deployment.
 eval-suite:
-    uv run --extra dev python -m codesight.eval_suite run
+    uv run --extra dev python -m holusight.eval_suite run
 
 # Advisory named-suite orchestration (ADR-0019). Loads suite identity, binds
 # EvaluationSubject, runs fleet-smoke + eval-pilot. Hidden holdout not scored.
 # Promotion always denied. Not the G2 trusted-sandbox runner.
 proper-eval:
-    uv run --extra dev python -m codesight.proper_eval
+    uv run --extra dev python -m holusight.proper_eval
 
 # Iterative advisory loop: proper-eval + compare to prior local receipt.
 # Writes under .holusight/improvement-runs/proper-eval-iterations/. Promotion denied.
 improve-iterate:
-    uv run --extra dev python -m codesight.improve_iterate
+    uv run --extra dev python -m holusight.improve_iterate
 
 # Deterministic agent-focus harness: context pack + fixed alignment council.
 # No LLM. Helps agents orient before changing Holusight. Promotion denied.
 agent-focus:
-    uv run --extra dev python -m codesight.agent_focus
+    uv run --extra dev python -m holusight.agent_focus
 
 # Advisory improve council: read focus and the latest improve receipt,
 # emit Eval/Fix/Chair seed takes, persist under .holusight/. No evaluator
 # run, no source edits, no /tmp copy. Promotion denied.
 council:
-    uv run --extra dev python -m codesight.council --board
+    uv run --extra dev python -m holusight.council --board
 
 # Advisory: which other specs does each spec read most similarly to, and is
 # that relationship already declared in prose? Ranked, not pass/fail --
 # never blocks. Pass --changed <files...> to scope to specs touched in a
 # diff (the CI usage); omit it to report on every spec.
 specs-check-neighbors *args:
-    uv run --extra dev python -m codesight.spec_duplication {{args}}
+    uv run --extra dev python -m holusight.spec_duplication {{args}}
 
 # ─── Autonomous Workers ──────────────────────────
 

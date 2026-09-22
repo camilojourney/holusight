@@ -9,7 +9,7 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
-from codesight.web import server as web_server
+from holusight.web import server as web_server
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "pilot_docs"
 TEST_API_KEY = "test-secret-key-12345"
@@ -18,18 +18,18 @@ TEST_API_KEY = "test-secret-key-12345"
 @pytest.fixture
 def server_env(tmp_path, monkeypatch):
     """Configure isolated server environment."""
-    monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
-    monkeypatch.setenv("CODESIGHT_DATA_DIR", str(tmp_path / "index"))
-    monkeypatch.setenv("CODESIGHT_API_KEY", TEST_API_KEY)
-    monkeypatch.setenv("CODESIGHT_PRODUCTION", "1")
-    monkeypatch.delenv("CODESIGHT_ALLOW_UNAUTHENTICATED", raising=False)
+    monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(FIXTURES))
+    monkeypatch.setenv("HOLUSIGHT_DATA_DIR", str(tmp_path / "index"))
+    monkeypatch.setenv("HOLUSIGHT_API_KEY", TEST_API_KEY)
+    monkeypatch.setenv("HOLUSIGHT_PRODUCTION", "1")
+    monkeypatch.delenv("HOLUSIGHT_ALLOW_UNAUTHENTICATED", raising=False)
     # Pin to the small, already-cached local model regardless of the
     # production default -- these tests exercise server/auth/index-status
     # contracts, not embedding quality, and should never pay for
     # downloading or running a multi-GB model just because the default
     # embedding model changed.
-    monkeypatch.setenv("CODESIGHT_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    monkeypatch.setenv("CODESIGHT_EMBEDDING_BACKEND", "local")
+    monkeypatch.setenv("HOLUSIGHT_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    monkeypatch.setenv("HOLUSIGHT_EMBEDDING_BACKEND", "local")
     # Reset module-level engine between tests
     web_server._engine = None
     web_server._index_in_progress = False
@@ -130,7 +130,7 @@ class TestServerAPI:
 
     def test_ask_without_llm_returns_503(self, client, monkeypatch):
         client.post("/api/index", json={"force_rebuild": True}, headers=_auth_headers())
-        monkeypatch.setenv("CODESIGHT_LLM_BACKEND", "claude")
+        monkeypatch.setenv("HOLUSIGHT_LLM_BACKEND", "claude")
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         web_server._engine = None
         r = client.post(
@@ -164,75 +164,75 @@ class TestServerAPI:
 
 class TestProductionAuthRequired:
     def test_production_without_api_key_fails_startup(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
-        monkeypatch.setenv("CODESIGHT_PRODUCTION", "1")
-        monkeypatch.delenv("CODESIGHT_API_KEY", raising=False)
-        monkeypatch.delenv("CODESIGHT_ALLOW_UNAUTHENTICATED", raising=False)
-        with pytest.raises(RuntimeError, match="CODESIGHT_API_KEY"):
+        monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("HOLUSIGHT_PRODUCTION", "1")
+        monkeypatch.delenv("HOLUSIGHT_API_KEY", raising=False)
+        monkeypatch.delenv("HOLUSIGHT_ALLOW_UNAUTHENTICATED", raising=False)
+        with pytest.raises(RuntimeError, match="HOLUSIGHT_API_KEY"):
             web_server.validate_startup()
 
     def test_dev_allow_unauthenticated(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
-        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
-        monkeypatch.delenv("CODESIGHT_API_KEY", raising=False)
+        monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("HOLUSIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.delenv("HOLUSIGHT_API_KEY", raising=False)
         assert web_server.require_auth() is False
 
     def test_missing_documents_dir_fails_startup(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(tmp_path / "missing"))
-        monkeypatch.setenv("CODESIGHT_API_KEY", TEST_API_KEY)
-        monkeypatch.setenv("CODESIGHT_PRODUCTION", "1")
+        monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(tmp_path / "missing"))
+        monkeypatch.setenv("HOLUSIGHT_API_KEY", TEST_API_KEY)
+        monkeypatch.setenv("HOLUSIGHT_PRODUCTION", "1")
         with pytest.raises(RuntimeError, match="Documents directory not found"):
             web_server.validate_startup()
 
 
 class TestUnauthenticatedModeCannotReachTheNetwork:
-    """SEC-005: CODESIGHT_ALLOW_UNAUTHENTICATED must never combine with
+    """SEC-005: HOLUSIGHT_ALLOW_UNAUTHENTICATED must never combine with
     production mode or a non-loopback bind. Reproduces the exact finding
     the security-sentinel audit found and confirmed on 2026-09-19."""
 
     def test_rejects_unauthenticated_combined_with_production(self, monkeypatch):
-        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
-        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
-        monkeypatch.setenv("CODESIGHT_PRODUCTION", "1")
-        monkeypatch.setenv("CODESIGHT_BIND_HOST", "127.0.0.1")
+        monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("HOLUSIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.setenv("HOLUSIGHT_PRODUCTION", "1")
+        monkeypatch.setenv("HOLUSIGHT_BIND_HOST", "127.0.0.1")
         with pytest.raises(RuntimeError, match="cannot be combined"):
             web_server.validate_startup()
 
     def test_rejects_unauthenticated_on_default_all_interfaces_bind(self, monkeypatch):
-        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
-        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
-        monkeypatch.delenv("CODESIGHT_PRODUCTION", raising=False)
-        monkeypatch.setenv("CODESIGHT_BIND_HOST", "0.0.0.0")
+        monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("HOLUSIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.delenv("HOLUSIGHT_PRODUCTION", raising=False)
+        monkeypatch.setenv("HOLUSIGHT_BIND_HOST", "0.0.0.0")
         with pytest.raises(RuntimeError, match="loopback"):
             web_server.validate_startup()
 
     def test_rejects_unauthenticated_with_unknown_bind_host(self, monkeypatch):
         """A direct uvicorn.run() that bypassed the CLI never set
-        CODESIGHT_BIND_HOST -- must fail closed, not assume loopback."""
-        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
-        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
-        monkeypatch.delenv("CODESIGHT_PRODUCTION", raising=False)
-        monkeypatch.delenv("CODESIGHT_BIND_HOST", raising=False)
+        HOLUSIGHT_BIND_HOST -- must fail closed, not assume loopback."""
+        monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("HOLUSIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.delenv("HOLUSIGHT_PRODUCTION", raising=False)
+        monkeypatch.delenv("HOLUSIGHT_BIND_HOST", raising=False)
         with pytest.raises(RuntimeError, match="loopback"):
             web_server.validate_startup()
 
     def test_allows_unauthenticated_on_genuine_loopback_bind(self, monkeypatch):
-        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(FIXTURES))
-        monkeypatch.setenv("CODESIGHT_ALLOW_UNAUTHENTICATED", "true")
-        monkeypatch.delenv("CODESIGHT_PRODUCTION", raising=False)
-        monkeypatch.setenv("CODESIGHT_BIND_HOST", "127.0.0.1")
+        monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(FIXTURES))
+        monkeypatch.setenv("HOLUSIGHT_ALLOW_UNAUTHENTICATED", "true")
+        monkeypatch.delenv("HOLUSIGHT_PRODUCTION", raising=False)
+        monkeypatch.setenv("HOLUSIGHT_BIND_HOST", "127.0.0.1")
         web_server.validate_startup()  # must not raise
 
     def test_cli_serve_sets_bind_host_env_var(self, monkeypatch, tmp_path):
         """The CLI entrypoint is the thing validate_startup()'s host check
-        actually relies on -- confirm it wires CODESIGHT_BIND_HOST through
+        actually relies on -- confirm it wires HOLUSIGHT_BIND_HOST through
         rather than leaving it to be set by hand."""
         import argparse
         import os
 
-        from codesight.__main__ import _launch_serve
+        from holusight.__main__ import _launch_serve
 
-        monkeypatch.delenv("CODESIGHT_BIND_HOST", raising=False)
+        monkeypatch.delenv("HOLUSIGHT_BIND_HOST", raising=False)
         called = {}
 
         def fake_uvicorn_run(app, host, port, reload):
@@ -243,5 +243,5 @@ class TestUnauthenticatedModeCannotReachTheNetwork:
 
         _launch_serve(args)
 
-        assert os.environ.get("CODESIGHT_BIND_HOST") == "127.0.0.1"
+        assert os.environ.get("HOLUSIGHT_BIND_HOST") == "127.0.0.1"
         assert called["host"] == "127.0.0.1"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from codesight.spec_duplication import declared_spec_numbers, nearest_neighbor_specs, run
+from holusight.spec_duplication import declared_spec_numbers, nearest_neighbor_specs, run
 
 
 def test_declared_spec_numbers_single_mention():

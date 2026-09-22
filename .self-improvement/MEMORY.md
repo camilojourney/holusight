@@ -1,12 +1,12 @@
 # Self-Improvement Memory — Holusight
 
 _Last reconciled: 2026-09-18. Previous version described the pre-rename
-"codesight" v0.3 state (2026-03-01) and was stale — retained history below._
+"holusight" v0.3 state (2026-03-01) and was stale — retained history below._
 
 ## Current Reality
 
 - The actual working self-improvement harness is the `holus improve-*`
-  control plane: `src/codesight/eval_suite.py`, `proper_eval.py`,
+  control plane: `src/holusight/eval_suite.py`, `proper_eval.py`,
   `improve_iterate.py`, `improvement_control.py`, `retrieval_variation.py`.
   See ADR-0019 (`docs/decisions/0019-local-advisory-evaluator-promotion-denied.md`)
   and `docs/playbooks/run-improve-iterate.md`.
@@ -40,7 +40,7 @@ self-improvement heartbeat.
 
 ## Project State (as of 2026-09-18)
 
-- Package: `src/codesight/` (project renamed codesight -> Holusight; package
+- Package: `src/holusight/` (project renamed holusight -> Holusight; package
   name unchanged for import stability)
 - Test suite: 716 passing, 1 skipped, ruff clean (verified 2026-09-18, now
   enforced by CI on every push)

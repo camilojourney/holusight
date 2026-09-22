@@ -12,8 +12,8 @@ Implements the smallest stable command surface from
 
 Provider selection (``--mode``, ``--provider``, ``--explain-route``) is a
 diagnostic flag *beneath* these five jobs, not a parallel API - see
-:mod:`codesight.axi_providers`. Every job wraps already-landed production
-code (:mod:`codesight.consistency`, :mod:`codesight.search`); this module
+:mod:`holusight.axi_providers`. Every job wraps already-landed production
+code (:mod:`holusight.consistency`, :mod:`holusight.search`); this module
 adds routing, argument parsing, and output projection only.
 
 Follows the installed AXI skill (``~/.claude/skills/axi/SKILL.md``):
@@ -469,7 +469,7 @@ def _artifact_type_roots(artifact_type: str) -> tuple[str, ...]:
         "adr": ("docs/decisions",),
         "decision": ("docs/decisions",),
         "playbook": ("docs/playbooks",),
-        "source": ("src/codesight",),
+        "source": ("src/holusight",),
         "skill": (".claude/skills",),
         "agent": (".claude/agents",),
         "docs": ("docs",),

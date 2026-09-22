@@ -2,9 +2,9 @@
 
 This IS ``agentic/manifest.yaml``'s declared ``eval_entrypoint`` test
 surface (invoked via ``just fleet-smoke`` -> ``python -m
-codesight.fleet_scorecard smoke`` -> this file). See
+holusight.fleet_scorecard smoke`` -> this file). See
 ``specs/016-fleet-v1.2-protocol-pilot.md`` for the design record and
-``src/codesight/fleet_scorecard.py`` for the scorecard bridge these tests
+``src/holusight/fleet_scorecard.py`` for the scorecard bridge these tests
 exercise.
 
 Scope, by design:
@@ -29,9 +29,9 @@ from pathlib import Path
 
 import pytest
 
-from codesight import consistency
-from codesight.consistency_store import ConsistencyStore
-from codesight.fleet_scorecard import (
+from holusight import consistency
+from holusight.consistency_store import ConsistencyStore
+from holusight.fleet_scorecard import (
     SCHEMA_EVAL_SCORECARD,
     build_eval_scorecard,
     domain_result_summary,

@@ -1,6 +1,6 @@
 {
   "cid": "PLAN-20260403-df2d49dc",
-  "goal": "Push CodeSight from 52.5% hit rate to 95% with token efficiency as co-metric",
+  "goal": "Push Holusight from 52.5% hit rate to 95% with token efficiency as co-metric",
   "repo": "holusight",
   "status": "COMPLETED",
   "current_phase": 4,
@@ -42,7 +42,7 @@
           "skill_cid": "holusight-CODE-20260403-6d6cddb1",
           "status": "COMPLETED",
           "verified": true,
-          "output": "src/codesight/search.py, src/codesight/config.py"
+          "output": "src/holusight/search.py, src/holusight/config.py"
         },
         {
           "step": 2,
@@ -51,7 +51,7 @@
           "skill_cid": "holusight-CODE-20260403-0407f00e",
           "status": "COMPLETED",
           "verified": true,
-          "output": "src/codesight/search.py, src/codesight/store.py",
+          "output": "src/holusight/search.py, src/holusight/store.py",
           "note": "VPRF: vprf_enhance_query() + LanceDB predicate pushdown in get_chunk_vectors(). 71/71 tests. Gemini caught OOM bug (full table scan) \u2014 fixed."
         },
         {
@@ -61,7 +61,7 @@
           "skill_cid": "holusight-CODE-20260403-a6a0c653",
           "status": "COMPLETED",
           "verified": true,
-          "output": "src/codesight/types.py, src/codesight/search.py, tests/eval_harness.py",
+          "output": "src/holusight/types.py, src/holusight/search.py, tests/eval_harness.py",
           "note": "tokens_used field on SearchResult + run_eval() returning hit_rate/mrr/tokens_per_correct_answer/total_tokens. 84/84 tests."
         },
         {
@@ -107,7 +107,7 @@
           "skill_cid": "holusight-CODE-20260403-ast-f684889",
           "status": "COMPLETED",
           "verified": true,
-          "output": "src/codesight/chunker.py, tests/test_chunker.py, pyproject.toml",
+          "output": "src/holusight/chunker.py, tests/test_chunker.py, pyproject.toml",
           "note": "chunk_file_ast() with merge-small/sub-split-large. 95/95 tests. Commit f684889."
         },
         {
@@ -137,7 +137,7 @@
           "skill_cid": "manual",
           "status": "COMPLETED",
           "verified": true,
-          "output": "Re-indexed holusight via CodeSight.index() \u2014 175 chunks, 94 files"
+          "output": "Re-indexed holusight via Holusight.index() \u2014 175 chunks, 94 files"
         },
         {
           "step": 5,
@@ -183,7 +183,7 @@
           "skill_cid": "holusight-CODE-20260404-2072e7a6",
           "status": "COMPLETED",
           "verified": true,
-          "output": "src/codesight/search.py, src/codesight/config.py, tests/test_search.py",
+          "output": "src/holusight/search.py, src/holusight/config.py, tests/test_search.py",
           "note": "_reorder_by_filename_match() + metadata_boost field. Reranker default fixed (voyage-only auto-enable)."
         },
         {

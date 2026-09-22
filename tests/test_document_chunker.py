@@ -5,8 +5,8 @@ import re
 
 import pytest
 
-from codesight.chunker import chunk_document
-from codesight.parsers import DocumentPage
+from holusight.chunker import chunk_document
+from holusight.parsers import DocumentPage
 
 
 @pytest.mark.parametrize("max_chars,overlap", [(20, 0), (20, 2), (20, 19), (1, 0)])

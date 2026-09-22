@@ -1,6 +1,6 @@
 # Business Operations
 
-Business ops for the CodeSight consulting practice. Previously tracked in a separate `camilo-martinez-consulting` repo, now unified here.
+Business ops for the Holusight consulting practice. Previously tracked in a separate `camilo-martinez-consulting` repo, now unified here.
 
 ## Contents
 

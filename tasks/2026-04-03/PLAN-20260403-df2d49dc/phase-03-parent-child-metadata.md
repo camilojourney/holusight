@@ -33,7 +33,7 @@ INVOKE: Skill(skill="research", args="holusight --adversary We are about to impl
 ## Step 1: Implement parent-child chunk architecture
 
 ```
-INVOKE: Skill(skill="code", args="holusight Implement parent-child chunk architecture in indexer.py, store.py, and search.py. Architecture: (1) At index time, create two chunk sizes per file: child chunks (50 lines, 25-line overlap) used for embedding + retrieval, parent chunks (200 lines, 50-line overlap) stored separately for LLM context. Store parent_id foreign key on each child chunk. (2) In store.py: add parent_chunks table in LanceDB (no embedding needed, just text + metadata), add get_parent_chunks(parent_ids) retrieval function. (3) In search.py: after retrieval + reranking, replace returned child chunk text with parent chunk text (look up parent_id for each result). This means: precision of small-chunk retrieval, but LLM sees the full surrounding context. The trade-off: tokens increase slightly but correctness increases significantly. Add CODESIGHT_PARENT_CHILD=true env var, default true.")
+INVOKE: Skill(skill="code", args="holusight Implement parent-child chunk architecture in indexer.py, store.py, and search.py. Architecture: (1) At index time, create two chunk sizes per file: child chunks (50 lines, 25-line overlap) used for embedding + retrieval, parent chunks (200 lines, 50-line overlap) stored separately for LLM context. Store parent_id foreign key on each child chunk. (2) In store.py: add parent_chunks table in LanceDB (no embedding needed, just text + metadata), add get_parent_chunks(parent_ids) retrieval function. (3) In search.py: after retrieval + reranking, replace returned child chunk text with parent chunk text (look up parent_id for each result). This means: precision of small-chunk retrieval, but LLM sees the full surrounding context. The trade-off: tokens increase slightly but correctness increases significantly. Add HOLUSIGHT_PARENT_CHILD=true env var, default true.")
 ```
 
 **Done when:** indexer creates both chunk sizes, search returns parent context, tests pass
@@ -54,7 +54,7 @@ INVOKE: Skill(skill="code", args="holusight Add filename and directory path meta
 
 ```bash
 cd /Users/mini/.openclaw/workspace/github/~Projects/system/skills/fleet-brain/scripts
-python3 fleet_indexer.py --codesight --force-reindex
+python3 fleet_indexer.py --holusight --force-reindex
 ```
 
 This re-index creates both parent and child chunk tables. Expected to be faster than Phase 2 (same embedding model, just additional chunk size).
@@ -69,8 +69,8 @@ Write log to results/phase-03-step-03-reindex.md.
 
 ```bash
 cd /Users/mini/.openclaw/workspace/github/~Projects/system/skills/fleet-brain/scripts
-CODESIGHT_RERANKER=true CODESIGHT_QUERY_EXPANSION=true CODESIGHT_PARENT_CHILD=true \
-  python3 eval_search.py --backend codesight --output ../data/eval_phase3_results.json
+HOLUSIGHT_RERANKER=true HOLUSIGHT_QUERY_EXPANSION=true HOLUSIGHT_PARENT_CHILD=true \
+  python3 eval_search.py --backend holusight --output ../data/eval_phase3_results.json
 ```
 
 Record:

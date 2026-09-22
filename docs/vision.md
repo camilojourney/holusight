@@ -1,10 +1,10 @@
-# Vision — codesight
+# Vision — holusight
 
 _Updated: 2026-03-03 — Aligned with RESEARCH.md_
 
 ## What It Is
 
-CodeSight is an AI-powered enterprise knowledge search appliance. Deploy it for a client — point it at their documents, emails, SharePoint — and it indexes everything into a hybrid search index with strict access control enforcement. Users ask questions in plain English and get precise answers with source citations. No unauthorized user ever sees content they shouldn't.
+Holusight is an AI-powered enterprise knowledge search appliance. Deploy it for a client — point it at their documents, emails, SharePoint — and it indexes everything into a hybrid search index with strict access control enforcement. Users ask questions in plain English and get precise answers with source citations. No unauthorized user ever sees content they shouldn't.
 
 ## The Core Business
 

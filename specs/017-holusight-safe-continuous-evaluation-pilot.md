@@ -40,12 +40,12 @@ This spec is built from exactly those three sources:
 - **Merged Holusight work (PRs #16–#20)** — this pilot adds no new
   provider, no new retrieval mechanism, and no new CLI surface under
   `holus`. It is a thin evaluator layered over:
-  - `src/codesight/consistency.py` (spec 013, PR #16) — the
+  - `src/holusight/consistency.py` (spec 013, PR #16) — the
     documentation-code consistency engine.
-  - `src/codesight/cli_axi.py` / `src/codesight/axi_providers.py`
+  - `src/holusight/cli_axi.py` / `src/holusight/axi_providers.py`
     (spec 015, PR #18) — the `holus` AXI command surface and its evidence
     providers.
-  - `src/codesight/fleet_scorecard.py` (spec 016, PR #19) — the existing
+  - `src/holusight/fleet_scorecard.py` (spec 016, PR #19) — the existing
     Fleet v1.2 scorecard-bridge precedent this pilot's own aggregate
     export mirrors.
   - The bounded per-provider display-quota fix (PR #20, `commit
@@ -78,7 +78,7 @@ pilot's actual scope:
 | Built (this PR) | Not built (explicitly deferred) |
 |---|---|
 | A frozen JSONL case corpus (4 cases) with mandatory provenance | The 96-task suite, held-out splits, human-annotation manuals (spec 012 §"Frozen private suite") |
-| A bounded, deterministic local runner (`src/codesight/eval_pilot.py`) | Inspect AI or any external orchestration substrate |
+| A bounded, deterministic local runner (`src/holusight/eval_pilot.py`) | Inspect AI or any external orchestration substrate |
 | Candidate-lineage recording (who/what produced a run) | A trace/training store, central or otherwise |
 | One genuine candidate-vs-status-quo comparative case (the PR #20 fix vs. its pre-fix behavior) | A router benchmark, provider ablation matrix, or multi-provider architecture comparison |
 | Two Fleet v1.2-shaped, content-free exports (aggregate scorecard + minimal domain-result summary) | Any change to `agentic/manifest.yaml`'s declared `eval_entrypoint` (still `just fleet-smoke`, unchanged) |
@@ -89,7 +89,7 @@ pilot's actual scope:
 
 `tests/fixtures/holusight_eval_pilot_cases.jsonl`, schema
 `holus-eval-pilot-case/v1`, one JSON object per line. Every case is
-**read-only input** to `src/codesight/eval_pilot.py`'s runner — the
+**read-only input** to `src/holusight/eval_pilot.py`'s runner — the
 runner never opens this file for writing (proven by
 `tests/test_eval_pilot.py::test_run_pilot_works_when_case_file_is_read_only`,
 which chmods the fixture read-only mid-test).
@@ -193,7 +193,7 @@ comparator itself is ever edited to stop being a meaningful control.
 
 ## 6. Runner, lineage, and status-quo control
 
-`src/codesight/eval_pilot.py::run_pilot()` is the entire runner. For each
+`src/holusight/eval_pilot.py::run_pilot()` is the entire runner. For each
 case: look up its named grader, run it, catch any exception as a
 retained `"error"` verdict (never an unhandled crash), and accumulate
 results. No case can affect another case's grading.
@@ -264,7 +264,7 @@ step-by-step path. Summary: a new case is added via an ordinary PR that
 (`origin`, `description`, `admitted_by`, `admitted_at`, and either
 `diagnosis_ref`/`fix_ref` for a reproduced gap or a spec/ADR anchor for a
 documented contract), (b) if the case needs a new grading strategy, adds
-a grader function to `src/codesight/eval_pilot.py` and registers it in
+a grader function to `src/holusight/eval_pilot.py` and registers it in
 `GRADERS`, and (c) passes the same human PR review every other change in
 this repository requires — there is no separate, lower-friction, or
 automated admission path. No agent process in this repository is
@@ -312,11 +312,11 @@ silently change the production default."
 
 `specs/002-embedding-model-config.md`'s "Key Parameters" table states the
 default embedding model is `nomic-embed-text-v1.5`. The actual shipped
-default, unchanged by this pilot, is (`src/codesight/config.py`):
+default, unchanged by this pilot, is (`src/holusight/config.py`):
 
 ```python
 DEFAULT_EMBEDDING_MODEL = os.environ.get(
-    "CODESIGHT_EMBEDDING_MODEL",
+    "HOLUSIGHT_EMBEDDING_MODEL",
     "voyage-code-3" if VOYAGE_API_KEY else "sentence-transformers/all-MiniLM-L6-v2",
 )
 ```
@@ -335,13 +335,13 @@ its 4 seed cases touch the embedding layer at all.
 
 ```bash
 # Run the frozen corpus once, advisory only
-python -m codesight.eval_pilot run
+python -m holusight.eval_pilot run
 
 # Also print the Fleet v1.2 aggregate scorecard preview
-python -m codesight.eval_pilot run --scorecard
+python -m holusight.eval_pilot run --scorecard
 
 # Record explicit candidate lineage
-python -m codesight.eval_pilot run \
+python -m holusight.eval_pilot run \
   --candidate-id my-change-42 --workflow crewmate --tool holus-cli --model claude-sonnet-5
 
 # just recipe

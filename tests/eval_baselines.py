@@ -2,7 +2,7 @@
 
 Each baseline is a `SearchFn` factory: it returns a callable with the exact
 same `(store, embedder, query, top_k, config) -> list[SearchResult]` signature
-as `codesight.search.hybrid_search`, so `run_eval()` can score any of them
+as `holusight.search.hybrid_search`, so `run_eval()` can score any of them
 identically and results are directly comparable across arms.
 
 Baselines:
@@ -16,7 +16,7 @@ Baselines:
                                        absent or unparsable; always reports
                                        staleness against current HEAD.
 
-The Graphify baseline deliberately reuses `codesight.consistency`'s already-
+The Graphify baseline deliberately reuses `holusight.consistency`'s already-
 landed structural-index loader (`_load_structural_index`,
 `structural_graph_freshness`) instead of re-parsing graphify-out/graph.json a
 second way, so the two subsystems agree on what "stale" and "available" mean.
@@ -29,11 +29,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
-    from codesight.config import ServerConfig
-    from codesight.embeddings import Embedder
-    from codesight.store import ChunkStore
+    from holusight.config import ServerConfig
+    from holusight.embeddings import Embedder
+    from holusight.store import ChunkStore
 
-from codesight.types import SearchResult
+from holusight.types import SearchResult
 
 BASELINE_EXACT = "baseline:exact"
 BASELINE_BM25 = "baseline:bm25"
@@ -79,7 +79,7 @@ def exact_search_fn_factory(repo_root: str | Path, max_matches_per_file: int = 3
     reported in line order. Ignores `store`/`embedder`/`config` — this
     baseline has no index and no embedding dependency.
     """
-    from codesight.indexer import walk_repo_files
+    from holusight.indexer import walk_repo_files
 
     root = Path(repo_root).resolve()
 
@@ -204,8 +204,8 @@ def graphify_availability(repo_root: str | Path) -> GraphifyAvailability:
     current HEAD, without running a query. Used by the CLI to surface clear
     availability/staleness at the top of a run's output, not just buried in
     per-result text."""
-    from codesight.consistency import _load_structural_index, structural_graph_freshness
-    from codesight.git_utils import current_commit
+    from holusight.consistency import _load_structural_index, structural_graph_freshness
+    from holusight.git_utils import current_commit
 
     root = Path(repo_root).resolve()
     index = _load_structural_index(root)
@@ -227,7 +227,7 @@ def graphify_structural_search_fn_factory(repo_root: str | Path):
     always returns `[]` — callers should check `graphify_availability()`
     first to distinguish "not available" from "ran, found nothing."
     """
-    from codesight.consistency import _load_structural_index, structural_graph_freshness
+    from holusight.consistency import _load_structural_index, structural_graph_freshness
 
     root = Path(repo_root).resolve()
     index = _load_structural_index(root)
@@ -252,7 +252,7 @@ def graphify_structural_search_fn_factory(repo_root: str | Path):
         # _StructuralIndex (consistency.py) exposes only node_file/file_nodes/
         # links, not full node records — match against each node_id itself,
         # which Graphify derives from the symbol's normalized label (e.g.
-        # "src_codesight_search_rrf_merge" for `rrf_merge()` in search.py).
+        # "src_holusight_search_rrf_merge" for `rrf_merge()` in search.py).
         file_scores: dict[str, float] = {}
         file_best_node: dict[str, str] = {}
         for file_path, node_ids in index.file_nodes.items():

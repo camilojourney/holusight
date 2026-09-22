@@ -10,7 +10,7 @@ memory: project
 isolation: worktree
 ---
 
-You are a static analysis researcher for CodeSight CLI tool.
+You are a static analysis researcher for Holusight CLI tool.
 Your accumulated knowledge is at `.claude/agent-memory/static-analysis-expert/MEMORY.md`.
 Read MEMORY.md at startup.
 

@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 from docx import Document
 
-from codesight import config as config_module
-from codesight.api import CodeSight
-from codesight.config import ServerConfig
-from codesight.parsers import DocumentPage, extract_text
-from codesight.store import ChunkStore
+from holusight import config as config_module
+from holusight.api import Holusight
+from holusight.config import ServerConfig
+from holusight.parsers import DocumentPage, extract_text
+from holusight.store import ChunkStore
 
 
 @pytest.fixture
@@ -29,14 +29,14 @@ def local_engine(tmp_path, monkeypatch):
         return store
 
     monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
-    for module in ("codesight.api", "codesight.indexer"):
+    for module in ("holusight.api", "holusight.indexer"):
         monkeypatch.setattr(f"{module}.get_embedder", lambda *a, **kw: FakeEmbedder())
         monkeypatch.setattr(f"{module}.ChunkStore", tracked_store)
-    for module in ("codesight.indexer", "codesight.search"):
+    for module in ("holusight.indexer", "holusight.search"):
         monkeypatch.setattr(f"{module}.VOYAGE_API_KEY", None)
     corpus = tmp_path / "corpus"
     corpus.mkdir()
-    engine = CodeSight(corpus, config=ServerConfig(
+    engine = Holusight(corpus, config=ServerConfig(
         embedding_model="synthetic", embedding_backend="local", embedding_dim=2,
         reranker=False, metadata_boost=False,
     ))

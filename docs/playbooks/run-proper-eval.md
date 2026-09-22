@@ -23,7 +23,7 @@ just proper-eval
 Or:
 
 ```bash
-uv run --extra dev python -m codesight.proper_eval
+uv run --extra dev python -m holusight.proper_eval
 ```
 
 Exit codes: `0` pass, `1` block, `3` indeterminate (dirty/unbound subject with
@@ -39,4 +39,4 @@ passing surfaces).
 
 - AVO / G2 external acceptance (PR #32 and related).
 - Hidden-holdout scoring / trusted-sandbox evaluator isolation beyond this
-  advisory judge pin (`codesight.proper_eval/advisory-v1`).
+  advisory judge pin (`holusight.proper_eval/advisory-v1`).

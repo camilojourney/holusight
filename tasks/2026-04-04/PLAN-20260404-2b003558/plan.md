@@ -1,11 +1,11 @@
-# Plan: Push CodeSight Retrieval Quality Above MRR 0.85
+# Plan: Push Holusight Retrieval Quality Above MRR 0.85
 
 **CID:** PLAN-20260404-2b003558 | **Repo:** holusight | **Created:** 2026-04-04
 **Status:** PENDING
 
 ## Goal
 
-Push CodeSight's retrieval quality from MRR 0.793 (current best) to MRR 0.85+ on the 20-query holusight eval harness, while maintaining 100% hit rate. Research the latest 2026 retrieval techniques online, pick the highest-impact levers, implement them, and measure.
+Push Holusight's retrieval quality from MRR 0.793 (current best) to MRR 0.85+ on the 20-query holusight eval harness, while maintaining 100% hit rate. Research the latest 2026 retrieval techniques online, pick the highest-impact levers, implement them, and measure.
 
 ## Current Baseline
 
@@ -27,7 +27,7 @@ Push CodeSight's retrieval quality from MRR 0.793 (current best) to MRR 0.85+ on
 
 **Steps:**
 1. **research-retrieval-techniques** — Search online for 2025-2026 RAG/retrieval improvements (HyDE, late chunking, RAPTOR, multi-vector, contextual compression, query decomposition, ColBERT, BGE-M3, etc.) AND generate novel experiment ideas specific to code retrieval that are not in any paper → Output: `results/phase-01-step-01-research.md`
-2. **consult-architecture** — 3 specialists deliberate: given known techniques AND novel ideas, which 2-3 experiments should CodeSight run to push MRR from 0.793 to 0.85+? Ranked by expected MRR lift vs implementation effort → Output: `results/phase-01-step-02-consult.md`
+2. **consult-architecture** — 3 specialists deliberate: given known techniques AND novel ideas, which 2-3 experiments should Holusight run to push MRR from 0.793 to 0.85+? Ranked by expected MRR lift vs implementation effort → Output: `results/phase-01-step-02-consult.md`
 
 ### Phase 2: Implement, Eval, and Ship
 

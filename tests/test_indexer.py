@@ -17,12 +17,12 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from codesight import CodeSight, api, config, indexer, search
-from codesight.chunker import chunk_file
-from codesight.config import ServerConfig
-from codesight.indexer import index_repo
-from codesight.parsers import DocumentPage
-from codesight.store import ChunkStore
+from holusight import Holusight, api, config, indexer, search
+from holusight.chunker import chunk_file
+from holusight.config import ServerConfig
+from holusight.indexer import index_repo
+from holusight.parsers import DocumentPage
+from holusight.store import ChunkStore
 
 
 class _DeterministicEmbedder:
@@ -57,7 +57,7 @@ def offline_index(tmp_path, monkeypatch):
     monkeypatch.setattr(indexer, "ChunkStore", make_store)
     corpus = tmp_path / "corpus"
     corpus.mkdir()
-    engine = CodeSight(corpus, ServerConfig(
+    engine = Holusight(corpus, ServerConfig(
         embedding_model="synthetic",
         embedding_backend="local",
         embedding_dim=2,
@@ -119,7 +119,7 @@ def _stored_snapshot(engine):
 def _assert_matches_fresh(engine, tmp_path, monkeypatch):
     incremental = _stored_snapshot(engine)
     monkeypatch.setattr(config, "DATA_DIR", tmp_path / "fresh-derived")
-    fresh = CodeSight(engine.folder_path, engine.config)
+    fresh = Holusight(engine.folder_path, engine.config)
     _index_read_only(fresh)
     assert _stored_snapshot(fresh) == incremental
 
@@ -307,7 +307,7 @@ def indexing_session(tmp_path, monkeypatch):
         return store
 
     monkeypatch.setattr(indexer, "ChunkStore", new_store)
-    engine = api.CodeSight(
+    engine = api.Holusight(
         corpus,
         config.ServerConfig(
             embedding_model="synthetic", embedding_backend="local", embedding_dim=2,
@@ -487,10 +487,10 @@ def synthetic_indexing(tmp_path, monkeypatch):
                 vectors[i, 1] = hashlib.sha256(text.encode()).digest()[0] / 255
             return vectors
 
-    monkeypatch.setattr("codesight.indexer.get_embedder", lambda model, dim, **kw: (
+    monkeypatch.setattr("holusight.indexer.get_embedder", lambda model, dim, **kw: (
         SyntheticEmbedder(model, dim)
     ))
-    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.indexer.VOYAGE_API_KEY", None)
     monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
     server_config = ServerConfig(
         embedding_model="synthetic", embedding_dim=2,
@@ -506,7 +506,7 @@ def test_partial_edit_retains_rows_and_embeds_only_changed_chunk(
     config, calls = synthetic_indexing
     if code_vectors:
         # Enable only the route; the factory above returns a deterministic fake.
-        monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", True)
+        monkeypatch.setattr("holusight.indexer.VOYAGE_API_KEY", True)
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     source = corpus / "sample.py"
@@ -654,7 +654,7 @@ def indexing_env(tmp_path, monkeypatch):
     def engine_for(name):
         corpus = tmp_path / name
         corpus.mkdir()
-        return CodeSight(corpus, settings)
+        return Holusight(corpus, settings)
 
     yield engine_for, general, code
     for store in stores:

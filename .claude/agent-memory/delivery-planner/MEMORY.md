@@ -2,13 +2,13 @@
 
 **Last updated:** 2026-02-28
 
-## CodeSight Current State (v0.2 — Implemented)
+## Holusight Current State (v0.2 — Implemented)
 
 - Hybrid BM25 + vector search with RRF merge (working)
 - Document parsing: PDF, DOCX, PPTX (working)
 - Code search: 10 languages with language-aware chunking (working)
-- Streamlit web chat UI: `python -m codesight demo` (working)
-- CLI: `codesight index / search / ask / status` (working)
+- Streamlit web chat UI: `python -m holusight demo` (working)
+- CLI: `holusight index / search / ask / status` (working)
 - Python API: `index()`, `search()`, `ask()`, `status()` (working)
 - Claude answer synthesis with citations (working)
 - Local embeddings: all-MiniLM-L6-v2, no API key (working)

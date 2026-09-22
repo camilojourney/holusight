@@ -1,29 +1,29 @@
 """Evidence providers backing the ``holus`` AXI command surface.
 
-Every job in :mod:`codesight.cli_axi` is a thin wrapper over the functions
+Every job in :mod:`holusight.cli_axi` is a thin wrapper over the functions
 in this module, which are themselves thin wrappers over already-landed
-production code - :mod:`codesight.consistency` (Phase 1 consistency
-engine, PR #16) and :mod:`codesight.search` (hybrid BM25 + vector search).
+production code - :mod:`holusight.consistency` (Phase 1 consistency
+engine, PR #16) and :mod:`holusight.search` (hybrid BM25 + vector search).
 This module adds no new retrieval mechanism; it adds routing, budget
 limits, and explicit provider-state reporting on top of what already
 exists, per specs/015-holusight-axi-command-surface.md.
 
-Provider kinds (matching :class:`codesight.consistency.ProviderKind` plus
+Provider kinds (matching :class:`holusight.consistency.ProviderKind` plus
 one CLI-native addition):
 
 - ``exact`` - literal/token substring search over the gitignore-aware
-  repository file list (:func:`codesight.consistency.discover_artifacts`).
+  repository file list (:func:`holusight.consistency.discover_artifacts`).
   Deterministic, no network, no model call.
 - ``structural`` - the tracked Graphify graph
-  (:func:`codesight.consistency._load_structural_index`), matched by
+  (:func:`holusight.consistency._load_structural_index`), matched by
   path/node-id token containment. Reuses the exact same staleness check
   PR #17's ``graphify`` eval baseline reuses
-  (:func:`codesight.consistency.structural_graph_freshness`) so the two
+  (:func:`holusight.consistency.structural_graph_freshness`) so the two
   subsystems agree on what "stale" means - see
   ``.../holusight-axi-pr17-preflight/report.md``.
 - ``consistency`` - the Phase 1 concept/claim/health-flag cache
   (``.holusight/consistency.db``), matched by concept scope/id containment.
-- ``semantic`` - :func:`codesight.search.hybrid_search` against an
+- ``semantic`` - :func:`holusight.search.hybrid_search` against an
   *already-built* local index. Never triggers an index build (that would
   be a surprising, potentially slow, potentially network-calling side
   effect of a read-only evidence job) and never allows Voyage egress
@@ -394,10 +394,10 @@ def consistency_provider(
 def semantic_provider(
     repo_root: Path, question: str, *, full: bool = False, allow_egress: bool = False
 ) -> ProviderResult:
-    from .api import CodeSight
+    from .api import Holusight
 
     try:
-        engine = CodeSight(repo_root)
+        engine = Holusight(repo_root)
     except ValueError as exc:
         return ProviderResult(
             provider="semantic",
@@ -412,7 +412,7 @@ def semantic_provider(
             state=ProviderState.UNAVAILABLE,
             detail=(
                 "repository is not indexed for semantic search; run "
-                "`python -m codesight index .` first (never auto-triggered by `holus`)"
+                "`python -m holusight index .` first (never auto-triggered by `holus`)"
             ),
             route_reason="skipped: no local index found",
         )
@@ -439,7 +439,7 @@ def semantic_provider(
                 f"index was built with {stored_model!r}, but the configured "
                 f"embedding model is now {current_model!r}; a mismatched "
                 "index cannot be searched until it is rebuilt -- run "
-                "`python -m codesight index . --force` (never auto-triggered "
+                "`python -m holusight index . --force` (never auto-triggered "
                 "by `holus`)"
             ),
             route_reason="skipped: embedding model changed since index was built",
@@ -624,10 +624,10 @@ def provider_statuses(repo_root: Path) -> list[ProviderStatusEntry]:
             )
         )
 
-    from .api import CodeSight
+    from .api import Holusight
 
     try:
-        engine = CodeSight(repo_root)
+        engine = Holusight(repo_root)
         indexed = engine.store.is_indexed
     except ValueError:
         indexed = False
@@ -641,7 +641,7 @@ def provider_statuses(repo_root: Path) -> list[ProviderStatusEntry]:
                 version=None,
                 freshness="unavailable",
                 egress="none",
-                detail="repository not indexed; run `python -m codesight index .`",
+                detail="repository not indexed; run `python -m holusight index .`",
             )
         )
     else:

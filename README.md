@@ -1,4 +1,4 @@
-# CodeSight
+# Holusight
 
 AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with pluggable LLM answer synthesis.
 
@@ -23,10 +23,10 @@ From then on, in **any** project, either run `holus` directly or invoke `/holusi
 ```bash
 cd ~/some/other/project   # a repo holusight has never seen
 holus                      # exact + structural + consistency evidence, no setup at all
-python -m codesight index . && holus evidence "how does X work?"   # add semantic search
+python -m holusight index . && holus evidence "how does X work?"   # add semantic search
 ```
 
-`/holusight`'s own `SKILL.md` also self-bootstraps `holus` the first time it's invoked from an agent in a fresh project that doesn't have it yet, the same way graphify's skill bootstraps `graphify`. There is nothing to configure per-project: `holus` always operates on the current working directory, and its index lives outside the indexed folder in `~/.codesight/data/` (see Configuration below), keyed by that folder's path -- never written where it reads.
+`/holusight`'s own `SKILL.md` also self-bootstraps `holus` the first time it's invoked from an agent in a fresh project that doesn't have it yet, the same way graphify's skill bootstraps `graphify`. There is nothing to configure per-project: `holus` always operates on the current working directory, and its index lives outside the indexed folder in `~/.holusight/data/` (see Configuration below), keyed by that folder's path -- never written where it reads.
 
 Useful variations:
 
@@ -45,7 +45,7 @@ holusight-install-skill --harness claude,codex
 holusight-install-skill --print
 
 # Uninstall the CLI
-uv tool uninstall codesight
+uv tool uninstall holusight
 ```
 
 Uninstalling the skill itself is a plain `rm`: remove `~/.claude/skills/holusight/` (the real copy) and the four symlinks it created (`~/.codex/skills/holusight`, `~/.cursor/skills/holusight`, `~/.gemini/skills/holusight`, `~/.agents/skills/holusight`).
@@ -60,51 +60,51 @@ pip install -e ".[dev]"
 pip install -e ".[dev,ast]"
 
 # Index a folder of documents
-python -m codesight index /path/to/documents
+python -m holusight index /path/to/documents
 
 # Search (hybrid BM25 + vector)
-python -m codesight search "payment terms" /path/to/documents
+python -m holusight search "payment terms" /path/to/documents
 
 # Filter by file type
-python -m codesight search "auth" /path/to/code --glob '*.py'
+python -m holusight search "auth" /path/to/code --glob '*.py'
 
 # Ask a question (requires LLM API key — see Configuration)
-python -m codesight ask "What are the payment terms?" /path/to/documents
+python -m holusight ask "What are the payment terms?" /path/to/documents
 
 # Machine-readable output
-python -m codesight search "query" /path --json
+python -m holusight search "query" /path --json
 
 # Check index status
-python -m codesight status /path/to/documents
+python -m holusight status /path/to/documents
 
 # Launch the web chat UI
 pip install -e ".[demo]"
-python -m codesight demo
+python -m holusight demo
 
 # Production server (FastAPI + browser UI)
 pip install -e ".[server]"
-export CODESIGHT_API_KEY=$(openssl rand -hex 24)
-export CODESIGHT_DOCUMENTS_DIR=/path/to/documents
-python -m codesight serve
+export HOLUSIGHT_API_KEY=$(openssl rand -hex 24)
+export HOLUSIGHT_DOCUMENTS_DIR=/path/to/documents
+python -m holusight serve
 
 # Or use Docker (see docs/playbooks/docker-deployment.md)
-export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/documents
+export HOLUSIGHT_DOCUMENTS_HOST_DIR=/path/to/documents
 docker compose up --build
 ```
 
 ## Python API
 
 ```python
-from codesight import CodeSight
+from holusight import Holusight
 
-engine = CodeSight("/path/to/documents")
+engine = Holusight("/path/to/documents")
 engine.index()                                     # Index all files
 results = engine.search("payment terms")           # Hybrid search
 answer = engine.ask("What are the payment terms?") # Search + LLM answer
 status = engine.status()                           # Index freshness check
 ```
 
-The package root exports `CodeSight`, `ServerConfig`, `Answer`, `IndexStats`,
+The package root exports `Holusight`, `ServerConfig`, `Answer`, `IndexStats`,
 `RepoStatus`, and `SearchResult` for stable public imports.
 
 ## Supported Formats
@@ -121,7 +121,7 @@ The package root exports `CodeSight`, `ServerConfig`, `Answer`, `IndexStats`,
 
 - **Document Parsing**: PDF, DOCX, PPTX text extraction with page/section metadata
 - **Chunking**: AST-based (tree-sitter) for Python/JS/TS — function/class boundaries preserve semantic units. Regex fallback for other languages. Paragraph-aware splitting for documents.
-- **Embeddings**: `voyage-code-3` (API, every file) or `Qwen/Qwen3-Embedding-8B` (local, every file, the default — strongest open-weight MTEB retrieval score, at real per-embed cost) — auto-detected via `VOYAGE_API_KEY`. With a key, code files additionally get a second `voyage-code-3` embedding into their own table. `CODESIGHT_EMBEDDING_MODEL` overrides the local model (`-0.6B`/`-4B` trade quality for speed on lighter hardware).
+- **Embeddings**: `voyage-code-3` (API, every file) or `Qwen/Qwen3-Embedding-8B` (local, every file, the default — strongest open-weight MTEB retrieval score, at real per-embed cost) — auto-detected via `VOYAGE_API_KEY`. With a key, code files additionally get a second `voyage-code-3` embedding into their own table. `HOLUSIGHT_EMBEDDING_MODEL` overrides the local model (`-0.6B`/`-4B` trade quality for speed on lighter hardware).
 - **Vector Store**: LanceDB (serverless, file-based)
 - **Keyword Search**: SQLite FTS5 sidecar
 - **Retrieval**: Hybrid BM25 + vector + code-vector with RRF merge → metadata filename boost → optional reranker
@@ -148,8 +148,8 @@ Measured on the holusight codebase (96 files, 20 representative queries):
 Single-team production shape: FastAPI server, browser UI, API key auth, read-only document mount.
 
 ```bash
-export CODESIGHT_API_KEY=$(openssl rand -hex 24)
-export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/documents
+export HOLUSIGHT_API_KEY=$(openssl rand -hex 24)
+export HOLUSIGHT_DOCUMENTS_HOST_DIR=/path/to/documents
 docker compose up --build
 ```
 
@@ -163,13 +163,13 @@ See [docs/playbooks/docker-deployment.md](docs/playbooks/docker-deployment.md) a
 |----------|---------|-------------|
 | `ANTHROPIC_API_KEY` | — | Required for Claude backend (`ask()`) |
 | `VOYAGE_API_KEY` | — | Enables voyage-code-3 embeddings + voyage rerank-2 (recommended for code) |
-| `CODESIGHT_LLM_BACKEND` | `claude` | LLM backend: `claude`, `azure`, `openai`, `ollama` |
-| `CODESIGHT_DATA_DIR` | `~/.codesight/data` | Where indexes are stored |
-| `CODESIGHT_EMBEDDING_MODEL` | `Qwen/Qwen3-Embedding-8B` | Local embedding model for every file (`-0.6B`/`-4B` for less quality but more speed); overridden entirely by `voyage-code-3` when `VOYAGE_API_KEY` is set |
-| `CODESIGHT_LLM_MODEL` | `claude-sonnet-4-20250514` | LLM model for answers |
-| `CODESIGHT_RERANKER` | `true` (if VOYAGE_API_KEY set) | Enable reranker |
-| `CODESIGHT_RERANKER_BACKEND` | `voyage` (if key set) | Reranker backend: `voyage` or `local` |
-| `CODESIGHT_STALE_SECONDS` | `300` | Index freshness threshold (seconds) |
+| `HOLUSIGHT_LLM_BACKEND` | `claude` | LLM backend: `claude`, `azure`, `openai`, `ollama` |
+| `HOLUSIGHT_DATA_DIR` | `~/.holusight/data` | Where indexes are stored |
+| `HOLUSIGHT_EMBEDDING_MODEL` | `Qwen/Qwen3-Embedding-8B` | Local embedding model for every file (`-0.6B`/`-4B` for less quality but more speed); overridden entirely by `voyage-code-3` when `VOYAGE_API_KEY` is set |
+| `HOLUSIGHT_LLM_MODEL` | `claude-sonnet-4-20250514` | LLM model for answers |
+| `HOLUSIGHT_RERANKER` | `true` (if VOYAGE_API_KEY set) | Enable reranker |
+| `HOLUSIGHT_RERANKER_BACKEND` | `voyage` (if key set) | Reranker backend: `voyage` or `local` |
+| `HOLUSIGHT_STALE_SECONDS` | `300` | Index freshness threshold (seconds) |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 
 See [.env.example](.env.example) for all options.

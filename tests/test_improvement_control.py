@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from codesight import cli_axi, eval_pilot, improvement_control
+from holusight import cli_axi, eval_pilot, improvement_control
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,7 +37,7 @@ def _repo(tmp_path: Path) -> Path:
     _write(tmp_path, ".gitignore", ".holusight/\n")
     _write(tmp_path, ".claude/rules/structure.md", "# structure\n")
     _write(tmp_path, "specs/019-control.md", "# Control\n\n**Status:** Evaluated\n")
-    _write(tmp_path, "src/codesight/control_target.py", "VALUE = 1\n")
+    _write(tmp_path, "src/holusight/control_target.py", "VALUE = 1\n")
     _write(tmp_path, "tests/test_control_target.py", "def test_value():\n    assert True\n")
     _write(tmp_path, "docs/playbooks/control.md", "# Control explanation\n")
     case = {
@@ -70,7 +70,7 @@ def _repo(tmp_path: Path) -> Path:
 def _manifest(root: Path, classification: str = "accepted") -> Path:
     links = {
         "governing": ["specs/019-control.md"],
-        "implementation": ["src/codesight/control_target.py"],
+        "implementation": ["src/holusight/control_target.py"],
         "tests": ["tests/test_control_target.py"],
         "documentation": ["docs/playbooks/control.md"],
         "evaluation_case": ["tests/fixtures/holusight_eval_pilot_cases.jsonl"],
@@ -202,7 +202,7 @@ def test_missing_accepted_implementation_and_evaluation_are_exact_blockers(tmp_p
     value["links"]["implementation"] = []
     value["links"]["evaluation_case"] = ["tests/fixtures/missing.jsonl"]
     value["links"]["evaluation_result"] = []
-    value["link_hashes"].pop("src/codesight/control_target.py")
+    value["link_hashes"].pop("src/holusight/control_target.py")
     value["link_hashes"].pop("tests/fixtures/holusight_eval_pilot_cases.jsonl")
     value["link_hashes"].pop(".holusight/improvement-results/control-result.json")
     manifest.write_text(json.dumps(value), encoding="utf-8")
@@ -291,7 +291,7 @@ def test_detects_dangling_contradictory_duplicate_and_stale_links(tmp_path):
     manifest = _manifest(root)
     value = json.loads(manifest.read_text())
     value["links"]["governing"].append("specs/019-control.md")
-    value["links"]["tests"].append("src/codesight/control_target.py")
+    value["links"]["tests"].append("src/holusight/control_target.py")
     value["link_hashes"]["docs/playbooks/control.md"] = "sha256:" + ("0" * 64)
     value["classification_evidence"] = "rejected"
     manifest.write_text(json.dumps(value), encoding="utf-8")
@@ -416,7 +416,7 @@ def test_refuses_raw_private_export_evaluator_mutation_auto_promotion_and_path_e
         [
             sys.executable,
             "-m",
-            "codesight.cli_axi",
+            "holusight.cli_axi",
             "improve-review",
             "specs/019-control.change.json",
             "--format",
@@ -433,7 +433,7 @@ def test_refuses_raw_private_export_evaluator_mutation_auto_promotion_and_path_e
 
     value.pop("raw_prompt")
     value["proposed_artifacts"] = [
-        {"artifact_type": "source", "path": "src/codesight/eval_pilot.py"}
+        {"artifact_type": "source", "path": "src/holusight/eval_pilot.py"}
     ]
     manifest.write_text(json.dumps(value), encoding="utf-8")
     payload, _fmt, _exit = _run(

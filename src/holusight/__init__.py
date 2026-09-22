@@ -1,14 +1,14 @@
-"""CodeSight — AI-powered document search engine.
+"""Holusight — AI-powered document search engine.
 
 Hybrid BM25 + vector retrieval with pluggable LLM answer synthesis.
 """
 
-from .api import CodeSight
+from .api import Holusight
 from .config import ServerConfig
 from .types import Answer, IndexStats, RepoStatus, SearchResult
 
 __all__ = [
-    "CodeSight",
+    "Holusight",
     "ServerConfig",
     "Answer",
     "IndexStats",

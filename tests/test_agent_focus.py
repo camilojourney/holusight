@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from codesight.agent_focus import LENSES, build_context_pack, run_agent_focus
+from holusight.agent_focus import LENSES, build_context_pack, run_agent_focus
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,7 +31,7 @@ def test_context_pack_lists_hard_rules():
 
 
 def test_promotion_lens_passes_on_master_shape():
-    from codesight.agent_focus import _lens_promotion
+    from holusight.agent_focus import _lens_promotion
 
     result = _lens_promotion(REPO_ROOT)
     assert result.verdict == "pass", result

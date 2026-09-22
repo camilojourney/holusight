@@ -11,18 +11,18 @@
 The current Streamlit web chat UI works for demos and small teams but has limitations for the single-team pilot deployment:
 
 - Streamlit is not the deployment surface for the pilot
-- No REST API — other tools can't call CodeSight programmatically
+- No REST API — other tools can't call Holusight programmatically
 - No authentication — anyone who can reach the URL can search all documents
 - No standard deployment package — each client deployment is manual setup
 
-When a consultant deploys CodeSight for one team on the client's cloud (Azure, AWS, GCP), they need a Docker image they can `docker run` and a guarded HTTP server.
+When a consultant deploys Holusight for one team on the client's cloud (Azure, AWS, GCP), they need a Docker image they can `docker run` and a guarded HTTP server.
 
 The end product for clients is still the **web chat UI** — they type questions, get answers. FastAPI is the backend that serves this UI for the pilot.
 
 ## Goals
 
-- Dockerfile for single-command deployment: `docker run codesight`
-- FastAPI backend serving the CodeSight API over HTTP + web chat UI
+- Dockerfile for single-command deployment: `docker run holusight`
+- FastAPI backend serving the Holusight API over HTTP + web chat UI
 - Support the focused single-team pilot without promising a concurrency target
 - Basic auth (API key) for access control
 - Documents mounted as a read-only volume — container can never modify source files
@@ -40,7 +40,7 @@ The end product for clients is still the **web chat UI** — they type questions
 ## Solution
 
 ```
-Client opens browser → https://codesight.client.com
+Client opens browser → https://holusight.client.com
         |
         v
    [Docker container on client's cloud]
@@ -56,7 +56,7 @@ Client opens browser → https://codesight.client.com
    |                                                   |
    |  Auth middleware: X-API-Key header required        |
    |                                                   |
-   |  CodeSight engine (shared instance)               |
+   |  Holusight engine (shared instance)               |
    |  LanceDB + SQLite files                           |
    +--------------------------------------------------+
         |                    |
@@ -68,20 +68,20 @@ Client opens browser → https://codesight.client.com
 
 ```bash
 # 1. Build (or pull from registry)
-docker build -t codesight .
+docker build -t holusight .
 
 # 2. Deploy on client's cloud
 docker run -d \
   -p 8000:8000 \
   -v /path/to/client-docs:/data:ro \
-  -v codesight-index:/index \
-  -e CODESIGHT_DATA_DIR=/index \
-  -e CODESIGHT_LLM_BACKEND=azure \
+  -v holusight-index:/index \
+  -e HOLUSIGHT_DATA_DIR=/index \
+  -e HOLUSIGHT_LLM_BACKEND=azure \
   -e AZURE_OPENAI_ENDPOINT=https://client.openai.azure.com/ \
   -e AZURE_OPENAI_API_KEY=... \
   -e AZURE_OPENAI_DEPLOYMENT=gpt-4o \
-  -e CODESIGHT_API_KEY=client-secret-key \
-  codesight
+  -e HOLUSIGHT_API_KEY=client-secret-key \
+  holusight
 
 # 3. Client opens browser → http://server:8000
 # 4. Client sees chat UI, asks questions about their documents
@@ -194,8 +194,8 @@ server = ["fastapi>=0.110", "uvicorn>=0.30"]
 
 | File | Purpose |
 |------|---------|
-| `src/codesight/web/server.py` | FastAPI app, routes, auth middleware |
-| `src/codesight/web/static/` | Minimal HTML/JS/CSS chat UI |
+| `src/holusight/web/server.py` | FastAPI app, routes, auth middleware |
+| `src/holusight/web/static/` | Minimal HTML/JS/CSS chat UI |
 | `Dockerfile` | Container build |
 | `docker-compose.yml` | Dev/demo compose with example config |
 
@@ -213,9 +213,9 @@ RUN python -c "from sentence_transformers import SentenceTransformer; \
     SentenceTransformer('all-MiniLM-L6-v2')"
 
 EXPOSE 8000
-ENV CODESIGHT_DATA_DIR=/index
+ENV HOLUSIGHT_DATA_DIR=/index
 
-CMD ["uvicorn", "codesight.web.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "holusight.web.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 ```
 
 ### Web Chat UI
@@ -226,19 +226,19 @@ A minimal HTML/JS page served as a FastAPI static file. No build step, no React,
 - "Indexing..." spinner when re-index is triggered
 - Responsive design (works on mobile)
 
-This replaces Streamlit for the single-team pilot deployment. Streamlit stays for local development (`python -m codesight demo`).
+This replaces Streamlit for the single-team pilot deployment. Streamlit stays for local development (`python -m holusight demo`).
 
 ### Auth Middleware
 
 ```python
 # Simple API key auth — good enough for v0.4
-CODESIGHT_API_KEY = os.environ.get("CODESIGHT_API_KEY")
+HOLUSIGHT_API_KEY = os.environ.get("HOLUSIGHT_API_KEY")
 
 @app.middleware("http")
 async def auth_middleware(request, call_next):
-    if CODESIGHT_API_KEY and request.url.path.startswith("/api/"):
+    if HOLUSIGHT_API_KEY and request.url.path.startswith("/api/"):
         key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").removeprefix("Bearer ")
-        if key != CODESIGHT_API_KEY:
+        if key != HOLUSIGHT_API_KEY:
             return JSONResponse(status_code=401, content={"error": "Invalid API key"})
     return await call_next(request)
 ```
@@ -266,7 +266,7 @@ Rejected because: A minimal HTML/JS chat UI is sufficient for v0.4. The main int
 
 - Documents folder empty → `/api/index` returns 0 chunks, `/api/search` returns empty, `/api/ask` says "no documents indexed"
 - Large PDF (100MB) → skip with warning, configurable max file size
-- API key not set (`CODESIGHT_API_KEY` missing) → production startup fails; unauthenticated mode is limited to explicit local development configuration
+- API key not set (`HOLUSIGHT_API_KEY` missing) → production startup fails; unauthenticated mode is limited to explicit local development configuration
 - Docker volume not mounted → clear error on startup: "No documents found at /data. Mount your documents: -v /path/to/docs:/data:ro"
 - Multiple concurrent `/api/index` requests → lock to prevent double-indexing, return "indexing in progress" to second request
 - Container restart → index persists in `/index` volume, no re-indexing needed
@@ -288,7 +288,7 @@ Rejected because: A minimal HTML/JS chat UI is sufficient for v0.4. The main int
 
 ## Acceptance Criteria
 
-- [ ] `docker build -t codesight .` builds successfully
+- [ ] `docker build -t holusight .` builds successfully
 - [ ] `docker run` with mounted documents starts FastAPI server on port 8000
 - [ ] `GET /` serves the web chat UI — user can type questions and see answers
 - [ ] `POST /api/search` returns search results as JSON
