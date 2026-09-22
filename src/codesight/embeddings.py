@@ -4,7 +4,7 @@ or Voyage AI).
 Backend is selected via CODESIGHT_EMBEDDING_BACKEND env var:
   - local  (default) — runs on CPU/GPU/MPS, no API key, no data leaves.
              CODESIGHT_EMBEDDING_MODEL picks the model (default
-             Qwen/Qwen3-Embedding-0.6B; see config.EMBEDDING_MODEL_REGISTRY).
+             Qwen/Qwen3-Embedding-8B; see config.EMBEDDING_MODEL_REGISTRY).
   - api    — OpenAI text-embedding-3-large
   - voyage — Voyage AI voyage-code-3 (also the automatic default whenever
              VOYAGE_API_KEY is set, regardless of this env var)
