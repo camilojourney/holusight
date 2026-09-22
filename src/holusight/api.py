@@ -13,7 +13,7 @@ from typing import Any, Mapping
 from .config import ServerConfig
 from .embeddings import get_embedder
 from .holus import HolusImportStats, parse_holus_lineage_export
-from .indexer import index_repo
+from .indexer import index_repo, walk_repo_files
 from .llm import SYSTEM_PROMPT, LLMBackend, get_backend
 from .search import hybrid_search
 from .store import ChunkStore
@@ -246,15 +246,32 @@ class Holusight:
         return stored_model != self.config.embedding_model
 
     def _is_stale(self) -> bool:
-        """Check if the index is older than the staleness threshold."""
+        """Check the age and filesystem freshness of the index.
+
+        The age threshold is a fallback for filesystems whose timestamps are
+        unavailable, not a grace period during which ordinary changes may be
+        hidden from an immediate query.
+        """
         ts = self.store.last_indexed_at
         if not ts:
             return True
         try:
             indexed_at = datetime.fromisoformat(ts)
             age = (datetime.now(timezone.utc) - indexed_at).total_seconds()
-            return age > self.config.stale_threshold_seconds
-        except Exception:
+            if age > self.config.stale_threshold_seconds:
+                return True
+            # Only indexes created by the indexer carry the canonical path.
+            # This avoids treating caller-managed/imported store records as
+            # missing filesystem files and preserves their read-only semantics.
+            if self.store.repo_canonical_path != str(self.folder_path):
+                return False
+            indexed_ns = int(indexed_at.timestamp() * 1_000_000_000)
+            current_files = walk_repo_files(self.folder_path)
+            current_paths = {str(path.relative_to(self.folder_path)) for path in current_files}
+            if current_paths != self.store.fts.get_indexed_file_paths():
+                return True
+            return any(path.stat().st_mtime_ns > indexed_ns for path in current_files)
+        except (OSError, ValueError, TypeError):
             return True
 
 

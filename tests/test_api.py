@@ -14,7 +14,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+import pytest
+
 from holusight.api import Holusight
+from holusight.config import ServerConfig
 
 
 def _repo(tmp_path: Path) -> Path:
@@ -23,6 +27,50 @@ def _repo(tmp_path: Path) -> Path:
 
 
 class TestAutoIndex:
+    @pytest.mark.parametrize("mutation", ["add", "edit", "delete", "rename"])
+    def test_search_refreshes_immediate_filesystem_changes(
+        self, tmp_path, monkeypatch, mutation,
+    ):
+        repo = _repo(tmp_path)
+        data_dir = tmp_path.parent / f"{tmp_path.name}-index-data"
+        monkeypatch.setattr("holusight.config.DATA_DIR", data_dir)
+
+        class FakeEmbedder:
+            def embed(self, texts):
+                return np.tile(np.array([1.0, 0.0], dtype=np.float32), (len(texts), 1))
+
+            def embed_query(self, _query):
+                return np.array([1.0, 0.0], dtype=np.float32)
+
+        embedder = FakeEmbedder()
+        monkeypatch.setattr("holusight.api.get_embedder", lambda *a, **k: embedder)
+        monkeypatch.setattr("holusight.indexer.get_embedder", lambda *a, **k: embedder)
+        monkeypatch.setattr("holusight.indexer.VOYAGE_API_KEY", None)
+        monkeypatch.setattr("holusight.search.VOYAGE_API_KEY", None)
+        engine = Holusight(
+            repo,
+            config=ServerConfig(
+                embedding_model="synthetic", embedding_backend="local", embedding_dim=2,
+                stale_threshold_seconds=3600, reranker=False, query_enhancement=False,
+                metadata_boost=False, cnfb_alpha=0,
+            ),
+        )
+        engine.index()
+        if mutation == "add":
+            (repo / "added.txt").write_text("newly added needle", encoding="utf-8")
+        elif mutation == "edit":
+            (repo / "a.txt").write_text("edited needle", encoding="utf-8")
+        elif mutation == "delete":
+            (repo / "a.txt").unlink()
+        else:
+            (repo / "a.txt").rename(repo / "renamed.txt")
+
+        engine.search("needle")
+        indexed_paths = engine.store.fts.get_indexed_file_paths()
+        assert ("added.txt" in indexed_paths) is (mutation == "add")
+        assert ("a.txt" in indexed_paths) is (mutation not in {"delete", "rename"})
+        assert ("renamed.txt" in indexed_paths) is (mutation == "rename")
+
     def test_default_rebuilds_on_model_mismatch(self, tmp_path):
         repo = _repo(tmp_path)
         engine = Holusight(repo)
