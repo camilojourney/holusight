@@ -41,7 +41,7 @@ INVOKE: Skill(skill="research", args="holusight --adversary We are about to impl
 ## Step 1: Swap reranker to voyage rerank-2.5
 
 ```
-INVOKE: Skill(skill="code", args="holusight swap reranker from ms-marco-MiniLM-L-6-v2 to voyage rerank-2.5 API. Changes needed: (1) src/codesight/search.py — add VoyageReranker class that calls voyageai.Client.rerank() with model='rerank-2', input_type='document'. Replace the existing cross-encoder reranker when VOYAGE_API_KEY is set. (2) src/codesight/config.py — add DEFAULT_RERANKER_MODEL logic: if VOYAGE_API_KEY set, use 'rerank-2', else fall back to existing 'cross-encoder/ms-marco-MiniLM-L-6-v2'. (3) Keep the local cross-encoder as fallback for users without VOYAGE_API_KEY. The voyage rerank API signature: client.rerank(query=str, documents=list[str], model='rerank-2', top_k=N). Returns RerankingObject with .results list of {index, relevance_score}.")
+INVOKE: Skill(skill="code", args="holusight swap reranker from ms-marco-MiniLM-L-6-v2 to voyage rerank-2.5 API. Changes needed: (1) src/holusight/search.py — add VoyageReranker class that calls voyageai.Client.rerank() with model='rerank-2', input_type='document'. Replace the existing cross-encoder reranker when VOYAGE_API_KEY is set. (2) src/holusight/config.py — add DEFAULT_RERANKER_MODEL logic: if VOYAGE_API_KEY set, use 'rerank-2', else fall back to existing 'cross-encoder/ms-marco-MiniLM-L-6-v2'. (3) Keep the local cross-encoder as fallback for users without VOYAGE_API_KEY. The voyage rerank API signature: client.rerank(query=str, documents=list[str], model='rerank-2', top_k=N). Returns RerankingObject with .results list of {index, relevance_score}.")
 ```
 
 **What Claude Code does:**
@@ -57,7 +57,7 @@ INVOKE: Skill(skill="code", args="holusight swap reranker from ms-marco-MiniLM-L
 ## Step 2: Add LLM query expansion
 
 ```
-INVOKE: Skill(skill="code", args="holusight add LLM query expansion to search pipeline. In src/codesight/search.py, add a expand_query() function that: (1) takes the original query string, (2) calls the LLM (use existing llm.py backend, claude-haiku for speed) with prompt: 'You are a code search expert. Rewrite this query into 3 diverse variants to maximize code retrieval recall. Return only the 3 variants, one per line, no numbering: {query}', (3) returns list of 3 variant strings. In hybrid_search(), when query expansion is enabled (new ServerConfig flag: query_expansion: bool = False, default False), call expand_query() and search each variant, then merge all result lists via RRF before reranking. Add CODESIGHT_QUERY_EXPANSION=true env var support. Keep expansion off by default to avoid latency regression for users who don't need it.")
+INVOKE: Skill(skill="code", args="holusight add LLM query expansion to search pipeline. In src/holusight/search.py, add a expand_query() function that: (1) takes the original query string, (2) calls the LLM (use existing llm.py backend, claude-haiku for speed) with prompt: 'You are a code search expert. Rewrite this query into 3 diverse variants to maximize code retrieval recall. Return only the 3 variants, one per line, no numbering: {query}', (3) returns list of 3 variant strings. In hybrid_search(), when query expansion is enabled (new ServerConfig flag: query_expansion: bool = False, default False), call expand_query() and search each variant, then merge all result lists via RRF before reranking. Add HOLUSIGHT_QUERY_EXPANSION=true env var support. Keep expansion off by default to avoid latency regression for users who don't need it.")
 ```
 
 **What Claude Code does:**
@@ -65,7 +65,7 @@ INVOKE: Skill(skill="code", args="holusight add LLM query expansion to search pi
 2. Write output to results/phase-01-step-02-query-expansion.md
 3. Update status.json: step 2 COMPLETED
 
-**Done when:** `CODESIGHT_QUERY_EXPANSION=true` triggers 3-variant search in logs, tests pass
+**Done when:** `HOLUSIGHT_QUERY_EXPANSION=true` triggers 3-variant search in logs, tests pass
 
 ---
 
@@ -80,7 +80,7 @@ INVOKE: Skill(skill="code", args="holusight add token efficiency metrics to the 
 2. Write output to results/phase-01-step-03-token-metrics.md
 3. Update status.json: step 3 COMPLETED
 
-**Done when:** `python3 eval_search.py --backend codesight` outputs token efficiency metrics
+**Done when:** `python3 eval_search.py --backend holusight` outputs token efficiency metrics
 
 ---
 
@@ -88,8 +88,8 @@ INVOKE: Skill(skill="code", args="holusight add token efficiency metrics to the 
 
 ```bash
 cd /Users/mini/.openclaw/workspace/github/~Projects/system/skills/fleet-brain/scripts
-CODESIGHT_RERANKER=true CODESIGHT_RERANKER_MODEL=rerank-2 CODESIGHT_QUERY_EXPANSION=true \
-  python3 eval_search.py --backend codesight --output ../data/eval_phase1_results.json
+HOLUSIGHT_RERANKER=true HOLUSIGHT_RERANKER_MODEL=rerank-2 HOLUSIGHT_QUERY_EXPANSION=true \
+  python3 eval_search.py --backend holusight --output ../data/eval_phase1_results.json
 ```
 
 Write results to `results/phase-01-eval.json`. Record:

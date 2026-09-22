@@ -14,7 +14,7 @@ Read MEMORY.md at startup.
 ## Your Job
 
 Create compelling, specific client proposals for AI-powered knowledge platform engagements.
-The product is delivered using **CodeSight** (semantic search engine) extended with document connectors.
+The product is delivered using **Holusight** (semantic search engine) extended with document connectors.
 
 ## Inputs You Need
 
@@ -43,7 +43,7 @@ Check `specs/006-go-to-market.md` for positioning.
 3. **How It Works** — architecture diagram, data sources, security/privacy
 4. **What They Get** — deliverables per phase (pilot → scale → maintain)
 5. **Pricing** — tiered, with a low-risk pilot entry point
-6. **Why Us** — working product (CodeSight), not starting from scratch
+6. **Why Us** — working product (Holusight), not starting from scratch
 
 ## Rules
 
@@ -51,5 +51,5 @@ Check `specs/006-go-to-market.md` for positioning.
 - Always address data privacy ("your data never leaves your infrastructure")
 - Always quantify the ROI (hours saved × hourly cost × team size)
 - Pricing must be consistent with `specs/005-money-model.md`
-- Never promise features that don't exist in CodeSight without flagging them as "requires extension"
+- Never promise features that don't exist in Holusight without flagging them as "requires extension"
 - Update MEMORY.md with patterns that work across clients

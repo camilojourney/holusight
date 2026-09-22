@@ -11,7 +11,7 @@ expansion described in spec 012's experiment ladder as **Stage 0/1** ("free
 smoke" / "local private core" — $0 external spend, local-only, no downloads).
 It does not authorize spec 012's Stage 2+ (paid one-night runs, public
 benchmark corpora, a router benchmark, or an independent holus-axi
-interface study). It does not change `codesight.config.DEFAULT_EMBEDDING_MODEL`,
+interface study). It does not change `holusight.config.DEFAULT_EMBEDDING_MODEL`,
 does not deploy anything, and does not alter external links.
 
 ## 1. Purpose
@@ -75,7 +75,7 @@ distinction is deferred, see §8.
 
 The five `contradiction_no_answer` queries ask about capabilities this
 codebase does not have (Kubernetes, GraphQL, OAuth device-code flow, Rust
-bindings, distributed consensus). CodeSight's retrieval engine has no
+bindings, distributed consensus). Holusight's retrieval engine has no
 abstention mechanism — `hybrid_search` always returns its best-effort top-K,
 even when nothing is actually relevant. Scoring these queries pass/fail
 against a fabricated "should abstain" rule would invent ground truth the
@@ -98,7 +98,7 @@ All three new baselines share `hybrid_search`'s exact call signature —
 comparable in the same run.
 
 - **`exact_search_fn_factory(repo_root)`** — literal, case-insensitive
-  substring match over every file `codesight.indexer.walk_repo_files` would
+  substring match over every file `holusight.indexer.walk_repo_files` would
   index (the same gitignore-aware corpus the production index uses). No
   index structure, no embeddings. The ripgrep/grep-style control from spec
   012's variant matrix.
@@ -107,7 +107,7 @@ comparable in the same run.
 - **`graphify_structural_search_fn_factory(repo_root)`** — matches query
   tokens against Graphify node IDs (`graphify-out/graph.json`) and ranks
   files by distinct matched symbols. **Deliberately reuses
-  `codesight.consistency._load_structural_index` and
+  `holusight.consistency._load_structural_index` and
   `structural_graph_freshness`** (the already-landed Phase 1 consistency
   system, spec 013) instead of re-parsing the graph a second way, so the
   eval harness and the consistency engine agree on what "available" and
@@ -177,19 +177,19 @@ imported or invoked by `eval_holusight.py`'s default flow, and running
 `just eval` never touches it.
 
 Because a different embedding model produces vectors in a different space
-than whatever is already indexed at `~/.codesight/data/<hash>/`, a variant
+than whatever is already indexed at `~/.holusight/data/<hash>/`, a variant
 run **cannot** reuse the default store. It:
 
 1. Requires the caller to explicitly pass `--variant-model` and
    `--variant-backend` (no default variant; `EmbeddingVariantSpec` has no
    default constructor for either field).
-2. Sets `CODESIGHT_DATA_DIR` to a fresh `tempfile.mkdtemp()` **before**
-   `codesight` is imported anywhere in the process (config.py reads
+2. Sets `HOLUSIGHT_DATA_DIR` to a fresh `tempfile.mkdtemp()` **before**
+   `holusight` is imported anywhere in the process (config.py reads
    `DATA_DIR` from the environment once, at import time), builds a small,
    disposable, local-only index there, and `shutil.rmtree`s it in a
-   `finally` block. The default `~/.codesight/data/` store is never opened.
+   `finally` block. The default `~/.holusight/data/` store is never opened.
 3. If the requested backend needs an API key (`voyage`, `api`) and it's
-   absent, `codesight.embeddings.get_embedder` raises immediately — no
+   absent, `holusight.embeddings.get_embedder` raises immediately — no
    fallback, no silent network call, no silent downgrade to another model.
 4. Reports, explicitly, every run: `provider` (backend/model/dimensions),
    `index` (files indexed, chunks created, build wall time), `usage`
@@ -202,10 +202,10 @@ run **cannot** reuse the default store. It:
    spec 012's cost-model warning about pinning a price snapshot rather than
    assuming an old rate still holds), and a `guardrail` block asserting
    `variant_changed_process_default: false` alongside the actual
-   `codesight.config.DEFAULT_EMBEDDING_MODEL` value at run time.
+   `holusight.config.DEFAULT_EMBEDDING_MODEL` value at run time.
 
 `tests/test_eval_variants.py` asserts this guardrail directly: after a
-variant run using an explicit model/backend, `codesight.config`'s
+variant run using an explicit model/backend, `holusight.config`'s
 `DEFAULT_EMBEDDING_MODEL` is re-imported and checked unchanged, and the
 payload's own `guardrail` block is asserted.
 

@@ -32,7 +32,7 @@ from .fleet_scorecard import _run_smoke_suite
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = "holusight-proper-eval-result/v1"
-JUDGE_ID = "codesight.proper_eval/advisory-v1"
+JUDGE_ID = "holusight.proper_eval/advisory-v1"
 Verdict = Literal["pass", "block", "indeterminate"]
 
 

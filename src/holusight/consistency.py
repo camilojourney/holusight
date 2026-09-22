@@ -191,7 +191,7 @@ def _now() -> str:
 
 def _content_hash(path: Path) -> str:
     """sha256[:16] of file bytes, matching this repo's existing convention
-    (see ``src/codesight/chunker.py`` and ARCHITECTURE.md's content-hashing
+    (see ``src/holusight/chunker.py`` and ARCHITECTURE.md's content-hashing
     invariant)."""
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
 
@@ -617,7 +617,7 @@ _KNOWN_CLAIMS: tuple[_ClaimDef, ...] = (
         description="Reciprocal Rank Fusion k constant",
         doc_path="ARCHITECTURE.md",
         doc_pattern=re.compile(r"RRF k=(\d+) constant"),
-        code_path="src/codesight/search.py",
+        code_path="src/holusight/search.py",
         code_pattern=re.compile(r"def rrf_merge\([\s\S]*?k:\s*int\s*=\s*(\d+)"),
     ),
     _ClaimDef(
@@ -625,7 +625,7 @@ _KNOWN_CLAIMS: tuple[_ClaimDef, ...] = (
         description="AST chunking merge-small-siblings threshold",
         doc_path="ARCHITECTURE.md",
         doc_pattern=re.compile(r"AST min_lines=(\d+) threshold"),
-        code_path="src/codesight/chunker.py",
+        code_path="src/holusight/chunker.py",
         code_pattern=re.compile(r"min_lines:\s*int\s*=\s*(\d+)"),
     ),
     _ClaimDef(
@@ -633,23 +633,23 @@ _KNOWN_CLAIMS: tuple[_ClaimDef, ...] = (
         description="Content hash truncation length used for dedup",
         doc_path="ARCHITECTURE.md",
         doc_pattern=re.compile(r"sha256\(content\)\[:(\d+)\]"),
-        code_path="src/codesight/chunker.py",
+        code_path="src/holusight/chunker.py",
         code_pattern=re.compile(r"hexdigest\(\)\[:(\d+)\]"),
     ),
     _ClaimDef(
         name="data_dir_location",
         description="On-disk index storage root",
         doc_path="ARCHITECTURE.md",
-        doc_pattern=re.compile(r"(~/\.codesight/data/)"),
-        code_path="src/codesight/config.py",
-        code_pattern=re.compile(r'Path\.home\(\)\s*/\s*"\.codesight"\s*/\s*"data"'),
+        doc_pattern=re.compile(r"(~/\.holusight/data/)"),
+        code_path="src/holusight/config.py",
+        code_pattern=re.compile(r'Path\.home\(\)\s*/\s*"\.holusight"\s*/\s*"data"'),
     ),
 )
 
 # Per-claim raw-code-value normalizers, applied only when the code pattern
 # matched. Explicit and documented, not inferred.
 _CLAIM_NORMALIZERS: dict[str, Callable[[str], str]] = {
-    "data_dir_location": lambda _raw: "~/.codesight/data/",
+    "data_dir_location": lambda _raw: "~/.holusight/data/",
 }
 
 

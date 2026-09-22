@@ -61,7 +61,7 @@ nomic-embed-code was trained on **CoRNStack** — deduplicated Stackv2 with dual
 ## Architecture Recommendation: Option B
 
 ```
-Query: "how does fleet_search_daemon handle codesight results"
+Query: "how does fleet_search_daemon handle holusight results"
          │
          ▼
    query_router.py
@@ -164,7 +164,7 @@ nomic-embed-code is a 7B parameter model. At query time, embedding a query strin
 | Risk | Severity | Likelihood | Mitigation |
 |------|----------|------------|------------|
 | nomic-embed-code CPU latency kills daemon speed | HIGH | MEDIUM | Use ONNX export or voyage-code-3 API |
-| Two-index reindex complexity blocks upgrades | MEDIUM | MEDIUM | Automate via fleet_indexer.py --codesight per-repo |
+| Two-index reindex complexity blocks upgrades | MEDIUM | MEDIUM | Automate via fleet_indexer.py --holusight per-repo |
 | voyage-code-3 API pricing change | HIGH | LOW | nomic-embed-code as fallback (open source) |
 | BM25+2-vector RRF fusion degrades precision vs recall | MEDIUM | LOW | Eval gate catches this; rollout_gate.py already in place |
 
@@ -181,7 +181,7 @@ nomic-embed-code is a 7B parameter model. At query time, embedding a query strin
 ### Step 1: Add nomic-embed-code to holusight (no index rebuild yet)
 
 ```python
-# src/codesight/embeddings.py
+# src/holusight/embeddings.py
 from sentence_transformers import SentenceTransformer
 
 MODELS = {

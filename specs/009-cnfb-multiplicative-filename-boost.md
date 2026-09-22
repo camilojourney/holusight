@@ -76,11 +76,11 @@ CNFB **replaces** `_reorder_by_filename_match` entirely. The old binary post-rer
 
 | Env var | Type | Default | Range | Notes |
 |---------|------|---------|-------|-------|
-| `CODESIGHT_CNFB_ALPHA` | float | `0.0` | [0.0, 2.0] | 0.0 = disabled (old metadata_boost=False behavior). Values clamped at load time. |
+| `HOLUSIGHT_CNFB_ALPHA` | float | `0.0` | [0.0, 2.0] | 0.0 = disabled (old metadata_boost=False behavior). Values clamped at load time. |
 
-**Migration:** The existing `metadata_boost` env var is deprecated. When `CODESIGHT_CNFB_ALPHA > 0.0`, `metadata_boost` is ignored. When `CODESIGHT_CNFB_ALPHA = 0.0` and `metadata_boost = true`, the old binary boost still applies (backwards compatibility during rollout, remove in v0.6).
+**Migration:** The existing `metadata_boost` env var is deprecated. When `HOLUSIGHT_CNFB_ALPHA > 0.0`, `metadata_boost` is ignored. When `HOLUSIGHT_CNFB_ALPHA = 0.0` and `metadata_boost = true`, the old binary boost still applies (backwards compatibility during rollout, remove in v0.6).
 
-**Rollback:** Set `CODESIGHT_CNFB_ALPHA=0.0` — no index rebuild, no schema change.
+**Rollback:** Set `HOLUSIGHT_CNFB_ALPHA=0.0` — no index rebuild, no schema change.
 
 ---
 
@@ -88,8 +88,8 @@ CNFB **replaces** `_reorder_by_filename_match` entirely. The old binary post-rer
 
 | File | Change |
 |------|--------|
-| `src/codesight/search.py` | Add `_cnfb_boost()` function. Insert call after RRF merge, before `_rerank()`. Mark `_reorder_by_filename_match` as deprecated. |
-| `src/codesight/config.py` | Add `cnfb_alpha: float = Field(default=0.0)` with validator clamping to [0.0, 2.0]. |
+| `src/holusight/search.py` | Add `_cnfb_boost()` function. Insert call after RRF merge, before `_rerank()`. Mark `_reorder_by_filename_match` as deprecated. |
+| `src/holusight/config.py` | Add `cnfb_alpha: float = Field(default=0.0)` with validator clamping to [0.0, 2.0]. |
 | `tests/test_search.py` | Add unit tests for `_cnfb_boost()` (see Acceptance Criteria). |
 
 No LanceDB schema changes. No new API dependencies. No index rebuild required.
@@ -102,16 +102,16 @@ No LanceDB schema changes. No new API dependencies. No index rebuild required.
 Given `cnfb_alpha=0.0`, when `hybrid_search()` is called, then scores are identical to the pre-CNFB baseline and result order is unchanged (within floating-point tolerance).
 
 **AC-002 — Full-match boost**
-Given a query "chunker" and a result from `src/codesight/chunker.py`, when `cnfb_alpha=0.5`, then that result's score is multiplied by 1.5 (overlap=1.0, boost=1 + 0.5*1.0).
+Given a query "chunker" and a result from `src/holusight/chunker.py`, when `cnfb_alpha=0.5`, then that result's score is multiplied by 1.5 (overlap=1.0, boost=1 + 0.5*1.0).
 
 **AC-003 — No-match zero boost**
-Given a query "chunker" and a result from `src/codesight/store.py`, when `cnfb_alpha=0.5`, then that result's score is unchanged (overlap=0.0, boost=1.0).
+Given a query "chunker" and a result from `src/holusight/store.py`, when `cnfb_alpha=0.5`, then that result's score is unchanged (overlap=0.0, boost=1.0).
 
 **AC-004 — Partial match**
-Given a query "vector search store" and a result from `src/codesight/vector_store_impl.py`, when `cnfb_alpha=0.5`, then overlap = |{vector, store} ∩ {vector, store, impl}| / 3 = 2/3, boost = 1 + 0.5*(2/3) ≈ 1.333.
+Given a query "vector search store" and a result from `src/holusight/vector_store_impl.py`, when `cnfb_alpha=0.5`, then overlap = |{vector, store} ∩ {vector, store, impl}| / 3 = 2/3, boost = 1 + 0.5*(2/3) ≈ 1.333.
 
 **AC-005 — Alpha clamped**
-Given `CODESIGHT_CNFB_ALPHA=5.0`, when the config is loaded, then `cnfb_alpha` is stored as 2.0 (clamped).
+Given `HOLUSIGHT_CNFB_ALPHA=5.0`, when the config is loaded, then `cnfb_alpha` is stored as 2.0 (clamped).
 
 **AC-006 — Query tokens precomputed**
 Given a call to `_cnfb_boost()` with 20 results, the query tokenization is performed exactly once (verifiable via unit test with mock).
@@ -133,7 +133,7 @@ Expected: This is correct behavior (query token "test" should prefer test files)
 Recovery: If over-boosting observed, increase alpha minimum length to 4 chars — configurable as follow-on.
 
 **EDGE-003 — Alpha clamping boundary**
-Scenario: `CODESIGHT_CNFB_ALPHA=-0.5` (negative value).
+Scenario: `HOLUSIGHT_CNFB_ALPHA=-0.5` (negative value).
 Expected: Clamped to 0.0 at config load time. Warning logged: "CNFB alpha must be in [0.0, 2.0], got -0.5, clamping to 0.0."
 Recovery: User corrects env var.
 
@@ -154,5 +154,5 @@ Recovery: User corrects env var.
 
 - Boosting based on directory name (current binary boost uses parent dir — CNFB does not, to reduce false positive matches)
 - Index-time filename indexing into BM25 (that is a separate spec)
-- Multi-field filename expansion (module path tokens, e.g., `src.codesight.search` → `{src, codesight, search}`)
+- Multi-field filename expansion (module path tokens, e.g., `src.holusight.search` → `{src, holusight, search}`)
 - Deprecation and removal of `metadata_boost` env var (v0.6 cleanup, not this spec)

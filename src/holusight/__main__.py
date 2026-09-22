@@ -1,16 +1,16 @@
-"""CLI entry point for CodeSight.
+"""CLI entry point for Holusight.
 
 Usage:
-    python -m codesight index /path/to/docs     Index a folder
-    python -m codesight search "query" [path]    Search indexed documents
-    python -m codesight ask "question" [path]    Ask a question (uses Claude)
-    python -m codesight status [path]            Check index status
-    python -m codesight demo                     Launch Streamlit web chat
-    python -m codesight serve                    Launch FastAPI production server
-    python -m codesight consistency refresh [path]        Refresh consistency cache
-    python -m codesight consistency evidence <concept> [path]  Pre-change evidence packet
-    python -m codesight consistency check <concept> [path]     Post-change consistency check
-    python -m codesight consistency status [path]         Concepts + open health flags
+    python -m holusight index /path/to/docs     Index a folder
+    python -m holusight search "query" [path]    Search indexed documents
+    python -m holusight ask "question" [path]    Ask a question (uses Claude)
+    python -m holusight status [path]            Check index status
+    python -m holusight demo                     Launch Streamlit web chat
+    python -m holusight serve                    Launch FastAPI production server
+    python -m holusight consistency refresh [path]        Refresh consistency cache
+    python -m holusight consistency evidence <concept> [path]  Pre-change evidence packet
+    python -m holusight consistency check <concept> [path]     Post-change consistency check
+    python -m holusight consistency status [path]         Concepts + open health flags
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def _configure_logging(verbose: bool = False) -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="codesight",
+        prog="holusight",
         description="AI-powered document search engine",
     )
     parser.add_argument(
@@ -119,7 +119,7 @@ def main():
     p_serve.add_argument("--port", type=int, default=8000, help="Bind port")
     p_serve.add_argument(
         "path", nargs="?", default=None,
-        help="Document folder (sets CODESIGHT_DOCUMENTS_DIR)",
+        help="Document folder (sets HOLUSIGHT_DOCUMENTS_DIR)",
     )
 
     args = parser.parse_args()
@@ -142,7 +142,7 @@ def main():
         return
 
     # Lazy import to avoid loading heavy deps for --help
-    from .api import CodeSight
+    from .api import Holusight
 
     # Path validation with helpful messages
     if hasattr(args, "path"):
@@ -158,17 +158,17 @@ def main():
             sys.exit(1)
         if not _p.is_dir():
             print(f"Error: Not a directory: {args.path}", file=sys.stderr)
-            print("  CodeSight indexes directories, not individual files.", file=sys.stderr)
+            print("  Holusight indexes directories, not individual files.", file=sys.stderr)
             sys.exit(1)
 
     try:
         if args.command == "index":
-            engine = CodeSight(args.path)
+            engine = Holusight(args.path)
             stats = engine.index(force_rebuild=args.force)
             print(json.dumps(stats.model_dump(), indent=2))
 
         elif args.command == "search":
-            engine = CodeSight(args.path)
+            engine = Holusight(args.path)
             results = engine.search(
                 args.query, top_k=args.top_k, file_glob=args.file_glob,
             )
@@ -187,7 +187,7 @@ def main():
                     print(r.snippet[:500])
 
         elif args.command == "ask":
-            engine = CodeSight(args.path)
+            engine = Holusight(args.path)
             answer = engine.ask(
                 args.question, top_k=args.top_k, file_glob=args.file_glob,
             )
@@ -202,7 +202,7 @@ def main():
                     print(f"  - {s.file_path} ({loc_label}): {s.scope}")
 
         elif args.command == "status":
-            engine = CodeSight(args.path)
+            engine = Holusight(args.path)
             status = engine.status()
             print(json.dumps(status.model_dump(), indent=2))
 
@@ -211,7 +211,7 @@ def main():
         # Detect missing API key errors and provide onboarding guidance
         if "API_KEY" in error_msg or "environment variable is required" in error_msg:
             print("\n" + "=" * 60, file=sys.stderr)
-            print("  CodeSight Setup Required", file=sys.stderr)
+            print("  Holusight Setup Required", file=sys.stderr)
             print("=" * 60, file=sys.stderr)
             print(f"\n  {error_msg}\n", file=sys.stderr)
             print("  Quick setup:", file=sys.stderr)
@@ -219,7 +219,7 @@ def main():
             print("    2. Add your API key to .env", file=sys.stderr)
             print("    3. Source it:  source .env  (or export vars in your shell)", file=sys.stderr)
             print("\n  For 100% local mode (no API key needed):", file=sys.stderr)
-            print("    export CODESIGHT_LLM_BACKEND=ollama", file=sys.stderr)
+            print("    export HOLUSIGHT_LLM_BACKEND=ollama", file=sys.stderr)
             print("    ollama pull llama3.1", file=sys.stderr)
             print("\n" + "=" * 60, file=sys.stderr)
         else:
@@ -267,16 +267,16 @@ def _launch_serve(args) -> None:
         if not docs.is_dir():
             print(f"Error: Not a directory: {args.path}", file=sys.stderr)
             sys.exit(1)
-        os.environ["CODESIGHT_DOCUMENTS_DIR"] = str(docs)
+        os.environ["HOLUSIGHT_DOCUMENTS_DIR"] = str(docs)
 
     # Production-shaped unless explicitly opted out
-    if not os.environ.get("CODESIGHT_ALLOW_UNAUTHENTICATED"):
-        os.environ.setdefault("CODESIGHT_PRODUCTION", "1")
+    if not os.environ.get("HOLUSIGHT_ALLOW_UNAUTHENTICATED"):
+        os.environ.setdefault("HOLUSIGHT_PRODUCTION", "1")
 
     # SEC-005: tell validate_startup() which host we're actually binding to,
-    # so it can refuse to start CODESIGHT_ALLOW_UNAUTHENTICATED on anything
+    # so it can refuse to start HOLUSIGHT_ALLOW_UNAUTHENTICATED on anything
     # but a loopback bind.
-    os.environ["CODESIGHT_BIND_HOST"] = args.host
+    os.environ["HOLUSIGHT_BIND_HOST"] = args.host
 
     try:
         import uvicorn
@@ -288,7 +288,7 @@ def _launch_serve(args) -> None:
         sys.exit(1)
 
     uvicorn.run(
-        "codesight.web.server:app",
+        "holusight.web.server:app",
         host=args.host,
         port=args.port,
         reload=False,
@@ -296,7 +296,7 @@ def _launch_serve(args) -> None:
 
 
 def _run_consistency(args) -> None:
-    """Dispatch `python -m codesight consistency <action> ...` (Phase 1)."""
+    """Dispatch `python -m holusight consistency <action> ...` (Phase 1)."""
     from pathlib import Path as _Path
 
     action = getattr(args, "consistency_command", None)

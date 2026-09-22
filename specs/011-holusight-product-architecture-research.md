@@ -30,7 +30,7 @@ I would therefore pursue a **narrowed version of option C, with option G as an o
 
 **Confidence: 0.76 / moderate-high in the direction, low-to-moderate in product-market fit.**
 
-The confidence is not higher because Holusight's strongest retrieval evidence is still internal and small. Its architecture document reports a 20-query benchmark on its own 96-file codebase, and a separate 3×3 context experiment in which Fleet Brain averaged 93.0 while Fleet Brain plus CodeSight averaged 93.8; those are useful engineering signals, not evidence of customer value or broad agent improvement. fileciteturn1file0L2-L2 Current public Holusight capability documentation also shows a substantial implemented retrieval base—hybrid retrieval, local embeddings, document/code parsing, API/CLI/web surfaces and provenance—but still lists enterprise ACLs, SSO, M365/SharePoint, multi-tenant SaaS and Graphify integration as planned or unclaimed. fileciteturn0file0L2-L2
+The confidence is not higher because Holusight's strongest retrieval evidence is still internal and small. Its architecture document reports a 20-query benchmark on its own 96-file codebase, and a separate 3×3 context experiment in which Fleet Brain averaged 93.0 while Fleet Brain plus Holusight averaged 93.8; those are useful engineering signals, not evidence of customer value or broad agent improvement. fileciteturn1file0L2-L2 Current public Holusight capability documentation also shows a substantial implemented retrieval base—hybrid retrieval, local embeddings, document/code parsing, API/CLI/web surfaces and provenance—but still lists enterprise ACLs, SSO, M365/SharePoint, multi-tenant SaaS and Graphify integration as planned or unclaimed. fileciteturn0file0L2-L2
 
 The most important external challenge to the existing product thesis comes from March 2026 research showing that off-the-shelf coding agents using filesystem navigation, `grep`/`ripgrep`, scripts and iterative exploration beat fixed RAG baselines on several long-context tasks; adding BM25 or dense retrievers did **not** consistently help and sometimes degraded performance. On the authors' five benchmarks, their no-retriever Codex setup beat their RAG baseline substantially on answer quality, although it was also materially more expensive per query. This is unusually relevant to Holusight because it says the question is no longer “does semantic retrieval work?” but “on which repository tasks does an extra retriever improve the final outcome after a strong agent already has native tools?” citeturn21view0
 
@@ -74,7 +74,7 @@ The broad nontechnical-company thesis should be rejected for now. Glean advertis
 
 That is not merely a feature-count problem. For company knowledge, **authorization correctness becomes part of retrieval correctness**. Holusight would have to synchronize identity, inherited permissions and source changes, then ensure derivative chunks, caches, evaluation data and generated summaries never broaden access. Microsoft's and Glean's existing products make source-aware permissions central rather than optional. citeturn10search1turn10search2 Consequently, “company search” is a substantially different product from “local repository evidence.”
 
-**Explicitly reject a small nontechnical company when** its corpus already lives primarily in a platform with adequate search/Copilot, it has no repeated high-cost evidence problem, it cannot identify an owner for source authority, or it needs permission-aware multi-user search before Holusight has production ACL support. A tiny uniform-access document folder can remain a consulting use case for current CodeSight, but that is not sufficient justification for turning Holusight into a universal company router. Holusight's current public positioning already describes the offering as a focused consulting product rather than a Glean or Sourcegraph replacement. citeturn7view0
+**Explicitly reject a small nontechnical company when** its corpus already lives primarily in a platform with adequate search/Copilot, it has no repeated high-cost evidence problem, it cannot identify an owner for source authority, or it needs permission-aware multi-user search before Holusight has production ACL support. A tiny uniform-access document folder can remain a consulting use case for current Holusight, but that is not sufficient justification for turning Holusight into a universal company router. Holusight's current public positioning already describes the offering as a focused consulting product rather than a Glean or Sourcegraph replacement. citeturn7view0
 
 ### When routing becomes worth its overhead
 
@@ -251,7 +251,7 @@ This matrix points to a deliberately thin Holus architecture:
          +--------------------+---------------------+
          |                    |                     |
        exact              conceptual             structural
-   rg / Zoekt /         CodeSight/Voyage      SCIP/LSP/Serena/
+   rg / Zoekt /         Holusight/Voyage      SCIP/LSP/Serena/
     OpenGrok               optional               Graphify
          |                    |                     |
          +--------------------+---------------------+
@@ -294,7 +294,7 @@ Recommended eventual packaging, conditional on proof:
 | **Institutional-memory connector** | GBrain or equivalent | Separate provider |
 | **Hosted service** | Central team deployment | Only after SSO/ACL/security gates |
 
-The current CodeSight engine is already unusually well-positioned to become a provider rather than the whole product. Its current capability inventory shows hybrid BM25/dense retrieval, local embeddings, optional Voyage/reranking, multiple document formats, code chunking, local search and provenance. fileciteturn0file0L2-L2
+The current Holusight engine is already unusually well-positioned to become a provider rather than the whole product. Its current capability inventory shows hybrid BM25/dense retrieval, local embeddings, optional Voyage/reranking, multiple document formats, code chunking, local search and provenance. fileciteturn0file0L2-L2
 
 ### `holus-axi`: smallest stable command surface
 
@@ -423,7 +423,7 @@ providers:
     freshness: live
     egress: none
   semantic:
-    version: codesight-...
+    version: holusight-...
     model: voyage-code-4
     indexed_commit: 4bf27c1
     freshness: current
@@ -580,7 +580,7 @@ A provider should be considered for deletion when, over a sufficiently varied ev
 
 | Horizon after authorization | Purpose | What remains reversible | Delete/revisit trigger |
 |---|---|---|---|
-| **Initial quarter** | Falsify the need. Build/assemble real task corpus; compare native agent, exact search, repo map, current CodeSight, structural tools and mature alternatives | Everything | Stop if native tools/repo maps are essentially tied on final outcomes |
+| **Initial quarter** | Falsify the need. Build/assemble real task corpus; compare native agent, exact search, repo map, current Holusight, structural tools and mature alternatives | Everything | Stop if native tools/repo maps are essentially tied on final outcomes |
 | **Following quarter** | Specify/prototype one evidence envelope and AXI job surface; route only a few task classes | Providers interchangeable | Stop routing if users mostly force one provider |
 | **Following half-year** | Small design-partner repository pilots; optional deterministic `check` experiments | Local only; no broad SaaS commitment | Stop if retention/economics gates fail |
 | **Second year, early** | Team gateway only if shared usage justifies it; add SCM/CI integrations selectively | Local CLI remains primary fallback | Do not host if SSO/ACL/security cost dominates value |

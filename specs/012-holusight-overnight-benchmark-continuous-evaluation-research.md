@@ -862,7 +862,7 @@ The Holusight experiment should expose four semantically equivalent interfaces:
 
 | Surface | Condition |
 |---|---|
-| **Ordinary CLI** | existing human-oriented CodeSight/Holusight CLI [L] |
+| **Ordinary CLI** | existing human-oriented Holusight/Holusight CLI [L] |
 | **holus-axi** | compact TOON/minimal-schema agent interface |
 | **Direct Python/API** | direct callable API with equivalent operations |
 | **MCP/tool schema** | ordinary structured tools with equivalent rights |
@@ -1433,7 +1433,7 @@ evidence_packet:
 
   holus_axi_eval:
     surfaces:
-      - "ordinary CodeSight/Holusight CLI"
+      - "ordinary Holusight/Holusight CLI"
       - "holus-axi TOON/minimal schema"
       - "direct Python/API"
       - "MCP/tool-schema"

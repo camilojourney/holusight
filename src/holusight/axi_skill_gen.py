@@ -1,15 +1,15 @@
-"""Generate the installable ``/holus`` Agent Skill from :mod:`codesight.axi_schema`.
+"""Generate the installable ``/holus`` Agent Skill from :mod:`holusight.axi_schema`.
 
 Single source of truth: this module reads ``AXI_COMMANDS`` /
-``AXI_SCHEMA_VERSION`` from :mod:`codesight.axi_schema` - the same schema
-:mod:`codesight.cli_axi` parses against - and renders
+``AXI_SCHEMA_VERSION`` from :mod:`holusight.axi_schema` - the same schema
+:mod:`holusight.cli_axi` parses against - and renders
 ``.claude/skills/holus/SKILL.md``. It never hand-writes command names,
 flags, or examples a second time, so the skill cannot silently diverge
 from either the schema or the executable.
 
 Run directly to regenerate the committed skill file:
 
-    python -m codesight.axi_skill_gen
+    python -m holusight.axi_skill_gen
 
 ``tests/test_axi_skill_drift.py`` calls :func:`render_skill` and asserts
 its output matches the committed file byte-for-byte - the CI drift check
@@ -20,7 +20,7 @@ Per the AXI skill's own guidance on shipping a secondary/static skill
 path: this file omits live/dynamic repository state (that's what
 ``holus`` itself, run at agent-invocation time, is for) and rewrites
 command examples so they work without a global ``holus`` install
-(``python -m codesight.cli_axi`` as the fallback invocation).
+(``python -m holusight.cli_axi`` as the fallback invocation).
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ def _command_section(cmd) -> str:
             lines.append(ex)
             # Fallback form usable without a global `holus` install, per the
             # AXI skill's "non-interactive commands" guidance for skills.
-            fallback = ex.replace("holus", "python -m codesight.cli_axi", 1)
+            fallback = ex.replace("holus", "python -m holusight.cli_axi", 1)
             if fallback != ex:
                 lines.append(fallback)
         lines.append("```")
@@ -98,9 +98,9 @@ def render_skill() -> str:
         _FRONTMATTER,
         "# holus - Holusight-AXI repository evidence CLI",
         f"Schema version: `{AXI_SCHEMA_VERSION}` "
-        "(generated from `src/codesight/axi_schema.py` - do not hand-edit "
+        "(generated from `src/holusight/axi_schema.py` - do not hand-edit "
         "the command reference below; run "
-        "`python -m codesight.axi_skill_gen` after changing the schema).",
+        "`python -m holusight.axi_skill_gen` after changing the schema).",
         "## When to use this",
         when_to_use,
         "## Commands",
@@ -135,7 +135,7 @@ def write_skill(path: Path = SKILL_PATH) -> None:
 #
 # render_skill() above renders the repo-local `.claude/skills/holus/SKILL.md`,
 # deliberately self-referential to this repository's own dev loop (its
-# fallback invocation is `python -m codesight.cli_axi`, which only works
+# fallback invocation is `python -m holusight.cli_axi`, which only works
 # from inside a checkout of this repo). The distribution variant below is
 # for the *general* /holusight skill installed once into
 # ~/.claude/skills/holusight/ (and symlinked into every other harness), so
@@ -157,15 +157,15 @@ if command -v holus >/dev/null 2>&1; then
 fi
 # 2. uv tool install -- most reliable on modern Mac/Linux, isolated venv
 if [ "$PYTHON" != "__PATH__" ] && command -v uv >/dev/null 2>&1; then
-    _UV_PY=$(uv tool run --from codesight python -c "import sys; print(sys.executable)" 2>/dev/null)
-    if [ -n "$_UV_PY" ] && "$_UV_PY" -c "import codesight" 2>/dev/null; then PYTHON="$_UV_PY"; fi
+    _UV_PY=$(uv tool run --from holusight python -c "import sys; print(sys.executable)" 2>/dev/null)
+    if [ -n "$_UV_PY" ] && "$_UV_PY" -c "import holusight" 2>/dev/null; then PYTHON="$_UV_PY"; fi
 fi
 # 3. Fall back to python3 and check for an existing install
 if [ -z "$PYTHON" ]; then PYTHON="python3"; fi
-if [ "$PYTHON" != "__PATH__" ] && ! "$PYTHON" -c "import codesight" 2>/dev/null; then
+if [ "$PYTHON" != "__PATH__" ] && ! "$PYTHON" -c "import holusight" 2>/dev/null; then
     if command -v uv >/dev/null 2>&1; then
         uv tool install --upgrade "git+{GITHUB_URL}" -q 2>&1 | tail -5
-        _UV_PY=$(uv tool run --from codesight python \\
+        _UV_PY=$(uv tool run --from holusight python \\
             -c "import sys; print(sys.executable)" 2>/dev/null)
         if [ -n "$_UV_PY" ]; then PYTHON="$_UV_PY"; fi
     else
@@ -187,11 +187,11 @@ install output to print. Otherwise print nothing on success and move to
 Step 1.
 
 **In every subsequent bash block below, prefer the bare `holus` command.**
-Only fall back to `$(cat .holusight/.holusight_python) -m codesight.cli_axi`
+Only fall back to `$(cat .holusight/.holusight_python) -m holusight.cli_axi`
 when `holus` is not found on PATH (a fresh `uv tool install` shim may not
 be visible until a new shell) -- and to
-`$(cat .holusight/.holusight_python) -m codesight index .` for Step 1's
-`index` subcommand, which `python -m codesight` (not `holus`) exposes.
+`$(cat .holusight/.holusight_python) -m holusight index .` for Step 1's
+`index` subcommand, which `python -m holusight` (not `holus`) exposes.
 
 ## Step 1 -- Build the search index (first run, or after significant changes)
 
@@ -203,7 +203,7 @@ once, ahead of time; it is never built as a side effect of a read-only
 
 ```bash
 holus_python="$(cat .holusight/.holusight_python 2>/dev/null || echo python3)"
-"$holus_python" -m codesight index . 2>&1 | tail -10
+"$holus_python" -m holusight index . 2>&1 | tail -10
 ```
 
 Re-run this after substantial content changes (`--force` to rebuild from

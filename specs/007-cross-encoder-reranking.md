@@ -105,17 +105,17 @@ def _rerank(query: str, results: list[SearchResult], top_k: int) -> list[SearchR
 ### Configuration
 
 ```bash
-CODESIGHT_RERANKER=true                          # enable reranking
-CODESIGHT_RERANKER_MODEL=ms-marco-MiniLM-L-6-v2  # which model
-CODESIGHT_RERANKER_TOP_N=20                      # feed this many to reranker
+HOLUSIGHT_RERANKER=true                          # enable reranking
+HOLUSIGHT_RERANKER_MODEL=ms-marco-MiniLM-L-6-v2  # which model
+HOLUSIGHT_RERANKER_TOP_N=20                      # feed this many to reranker
 ```
 
 ### File Changes
 
 | File | Change |
 |------|--------|
-| `src/codesight/search.py` | Add `_rerank()` function, call after RRF merge when enabled |
-| `src/codesight/config.py` | Add `reranker`, `reranker_model`, `reranker_top_n` settings |
+| `src/holusight/search.py` | Add `_rerank()` function, call after RRF merge when enabled |
+| `src/holusight/config.py` | Add `reranker`, `reranker_model`, `reranker_top_n` settings |
 
 ## Alternatives Considered
 
@@ -151,8 +151,8 @@ Rejected because: Adds ~50-200ms to every search. Some deployments prioritize sp
 
 ## Acceptance Criteria
 
-- [ ] `CODESIGHT_RERANKER=true` enables cross-encoder reranking after RRF
-- [ ] `CODESIGHT_RERANKER=false` (default) skips reranking — zero overhead, no behavior change
+- [ ] `HOLUSIGHT_RERANKER=true` enables cross-encoder reranking after RRF
+- [ ] `HOLUSIGHT_RERANKER=false` (default) skips reranking — zero overhead, no behavior change
 - [ ] Reranker model downloaded once, cached in `~/.cache/torch/`
 - [ ] Reranker processes top 20 RRF results, returns top K re-sorted by reranker score
 - [ ] Search latency increase < 100ms for 20 chunks on M1 Mac

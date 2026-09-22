@@ -1,4 +1,4 @@
-# Verification Results -- CodeSight v0.3
+# Verification Results -- Holusight v0.3
 
 **Date:** 2026-03-26
 **Auditor:** Claude Opus 4.6 (automated)
@@ -48,7 +48,7 @@ Since the test suite is empty, I ran targeted verification tests against each mo
 |------|--------|-------|
 | `ServerConfig()` instantiates with defaults | PASS | All 14 config fields populated correctly |
 | `resolve_embedding_dim()` returns correct dims | PASS | Returns 384 for all-MiniLM-L6-v2, 768 for nomic |
-| `repo_data_dir()` creates dir outside indexed folder | PASS | Returns `~/.codesight/data/<hash>` |
+| `repo_data_dir()` creates dir outside indexed folder | PASS | Returns `~/.holusight/data/<hash>` |
 | `EMBEDDING_MODEL_REGISTRY` has 6 models | PASS | Includes both local and API models |
 
 ### Module: chunker.py
@@ -129,22 +129,22 @@ Since the test suite is empty, I ran targeted verification tests against each mo
 
 | Test | Result | Notes |
 |------|--------|-------|
-| `CodeSight("/tmp/nonexistent")` raises ValueError | PASS | "Not a directory" |
-| `CodeSight(file_path)` raises ValueError | PASS | Rejects non-directory paths |
+| `Holusight("/tmp/nonexistent")` raises ValueError | PASS | "Not a directory" |
+| `Holusight(file_path)` raises ValueError | PASS | Rejects non-directory paths |
 
 ### CLI: `__main__.py`
 
 | Test | Result | Notes |
 |------|--------|-------|
-| `python -m codesight --help` exits 0 | PASS | Clean help output |
+| `python -m holusight --help` exits 0 | PASS | Clean help output |
 | Shows 5 subcommands | PASS | index, search, ask, status, demo |
 
 ### Security: Read-Only Invariant
 
 | Test | Result | Notes |
 |------|--------|-------|
-| Data dir (`~/.codesight/data/<hash>`) is outside indexed folder | PASS | Verified with `repo_data_dir()` |
-| No write operations target the indexed folder in any module | PASS | Code inspection confirms: indexer reads files, store writes to `~/.codesight/` |
+| Data dir (`~/.holusight/data/<hash>`) is outside indexed folder | PASS | Verified with `repo_data_dir()` |
+| No write operations target the indexed folder in any module | PASS | Code inspection confirms: indexer reads files, store writes to `~/.holusight/` |
 
 ### Security: Path Traversal
 
@@ -180,8 +180,8 @@ Since the test suite is empty, I ran targeted verification tests against each mo
 | `lru_cache` on `get_embedder` with mutable-like args | LOW | `embeddings.py` line 151 |
 | `justfile` references old package name `semantic_search_mcp` | HIGH | Lines 9, 17 |
 | README references obsolete workflow (claude -p pipes) | MEDIUM | Line 75 |
-| CODESIGHT_STALE_SECONDS env var in .env.example is never read | MEDIUM | config.py vs .env.example |
-| README says CODESIGHT_STALE_MINUTES (wrong name AND wrong unit) | LOW | README line 67 |
+| HOLUSIGHT_STALE_SECONDS env var in .env.example is never read | MEDIUM | config.py vs .env.example |
+| README says HOLUSIGHT_STALE_MINUTES (wrong name AND wrong unit) | LOW | README line 67 |
 
 ### Category C: Architecture Gaps (From Roadmap)
 

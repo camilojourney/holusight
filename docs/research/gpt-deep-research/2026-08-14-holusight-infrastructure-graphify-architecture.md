@@ -23,7 +23,7 @@ The reasoning is unusually strong:
 1. Holusight already has a coherent retrieval function: it parses and chunks source/documents, embeds them, stores vectors and keyword metadata separately, performs BM25 and vector retrieval, fuses rankings, optionally reranks, and only invokes an LLM for `ask()`. Graphify is architecturally complementary because its stated purpose is relationship traversal rather than vector retrieval. fileciteturn4file0 fileciteturn7file0 citeturn17search1
 2. The local Graphify artifact is currently unusable as architecture evidence for cross-file structure: **1,559 nodes and zero links**, according to the maintainer-verified observation. A graph with no relationships cannot satisfy the requested architecture-checking role.
 3. Graphify itself is still moving rapidly. The current canonical release page lists **v0.9.38, released August 9, 2026**, and several releases immediately preceding it were explicitly correctness/data-integrity fixes: v0.9.37 fixed fabricated high-confidence TypeScript call relationships and dropped Kotlin imports; v0.9.35 repaired a shrink guard that had effectively been inactive; v0.9.34 fixed path-direction and graph merge/load integrity issues; v0.9.33 fixed incremental builds dropping cross-file call edges and worker failures silently producing missing extraction results. Those fixes are evidence of healthy project maintenance, but also evidence that Graphify should not yet be treated as product-authoritative truth without project-owned validation around it. citeturn18view0
-4. Holusight's repository is substantially less productionized than its business target documents imply. `pyproject.toml` identifies CodeSight as version **0.3.0** and has no FastAPI dependency; the deployment spec itself says FastAPI/Docker is **planned**; the inspected tree does not contain the proposed server or Docker deployment files. fileciteturn14file0 fileciteturn6file0 fileciteturn3file0
+4. Holusight's repository is substantially less productionized than its business target documents imply. `pyproject.toml` identifies Holusight as version **0.3.0** and has no FastAPI dependency; the deployment spec itself says FastAPI/Docker is **planned**; the inspected tree does not contain the proposed server or Docker deployment files. fileciteturn14file0 fileciteturn6file0 fileciteturn3file0
 5. Adding a second supported product knowledge substrate now would create another consistency, security, lifecycle, versioning, and privacy problem before the first production boundary is mature.
 
 **Confidence: high, approximately 0.87.** The recommendation would change primarily on local evidence: whether a clean, version-pinned Graphify run can recover highly accurate deterministic relationships; whether graph-derived checks find defects that tests and document lint do not; and whether actual customers need relationship-aware retrieval rather than ordinary hybrid retrieval.
@@ -66,7 +66,7 @@ The repository already demonstrates why provenance must become a first-class arc
 
 | Area | Evidence at inspected commit | Classification | Important conflict |
 |---|---|---|---|
-| CodeSight Python API | `CodeSight` provides `index`, `search`, `ask`, `status` and lazy store/embedder/LLM initialization | **Implemented** | None material in inspected source fileciteturn7file0 |
+| Holusight Python API | `Holusight` provides `index`, `search`, `ask`, `status` and lazy store/embedder/LLM initialization | **Implemented** | None material in inspected source fileciteturn7file0 |
 | Local ingestion | Walks filesystem, honors skip lists and `.gitignore`, handles code/text/PDF/DOCX/PPTX | **Implemented** | Enterprise connectors are separate future documents fileciteturn8file0 |
 | Tree-sitter chunking | Architecture/source describe AST path plus fallbacks | **Implemented in code path** | `specs/README.md` still labels Tree-sitter spec “Planned / Future”; stale provenance must be fixed, not silently reconciled fileciteturn4file0 fileciteturn5file0 |
 | Incremental behavior | Existing chunk hashes are compared and unchanged chunks skipped; timestamp-based auto-refresh exists | **Partially implemented** | Spec index labels “Incremental Refresh” planned; terminology and completeness are inconsistent fileciteturn8file0 fileciteturn7file0 fileciteturn5file0 |
@@ -79,7 +79,7 @@ The repository already demonstrates why provenance must become a first-class arc
 | Docker production image | Described in planned spec | **Planned** | Not established by inspected repository tree fileciteturn3file0 fileciteturn6file0 |
 | API-key auth | Proposed middleware | **Planned** | Not current security control fileciteturn6file0 |
 | SSO / ACL enforcement | Business specifications | **Business target / future architecture** | Must never be rendered as current implementation fileciteturn16file0 |
-| Enterprise connectors, Qdrant/Azure Search/Postgres/jobs | Business infrastructure document | **Business target / design proposal** | Far beyond CodeSight 0.3.0 current implementation fileciteturn15file0 fileciteturn14file0 |
+| Enterprise connectors, Qdrant/Azure Search/Postgres/jobs | Business infrastructure document | **Business target / design proposal** | Far beyond Holusight 0.3.0 current implementation fileciteturn15file0 fileciteturn14file0 |
 | Vercel site | Regression test explicitly requires static landing deployment rather than Python/FastAPI | **Implemented public-site architecture** | Must remain separate from product deployment claims fileciteturn12file0 |
 | Graphify | Rules/workflows/artifacts exist; local run reportedly 1,559 nodes/0 links | **Tooling exists; graph health failed locally** | Local skill/package patch mismatch; relationship output cannot presently establish architecture |
 
@@ -95,7 +95,7 @@ flowchart LR
         SRC["Source code + documents [I]\nintended read-only"]
     end
 
-    UI["CLI / local UI [I]"] --> API["CodeSight Python API [I]"]
+    UI["CLI / local UI [I]"] --> API["Holusight Python API [I]"]
     API --> IDX["Indexer [I]"]
 
     SRC --> IDX
@@ -134,7 +134,7 @@ flowchart LR
     SITE -. "separate deployment" .- FAST
 ```
 
-This map is the smallest coherent reference architecture supported by inspected source and repository documents. The stable organizing principle is the `CodeSight` Python API with separate indexing and searching paths; the persistent search representation is currently local LanceDB plus SQLite FTS5, not a network database. fileciteturn4file0 fileciteturn7file0 fileciteturn8file0 fileciteturn9file0
+This map is the smallest coherent reference architecture supported by inspected source and repository documents. The stable organizing principle is the `Holusight` Python API with separate indexing and searching paths; the persistent search representation is currently local LanceDB plus SQLite FTS5, not a network database. fileciteturn4file0 fileciteturn7file0 fileciteturn8file0 fileciteturn9file0
 
 ### The provenance model that should replace ambiguous “current architecture”
 
@@ -197,7 +197,7 @@ flowchart TB
     CHECK --> PUB
 
     subgraph SERVE["Serving boundary"]
-        API["CodeSight API [I]"]
+        API["Holusight API [I]"]
         HTTP["FastAPI [P / tier-gated]"]
         SEARCH["Hybrid retrieval [I]"]
         ANSWER["Optional answer synthesis [I]"]
@@ -240,7 +240,7 @@ The inspected `ChunkStore.upsert_chunks()` mutates LanceDB and then commits meta
 A safe target is:
 
 ```text
-~/.codesight/data/<repo-id>/
+~/.holusight/data/<repo-id>/
     generations/
         <generation-id>/
             lance/
@@ -304,7 +304,7 @@ Accordingly, customer documents and Graphify-derived prose must always be **data
 | Retrieval | BM25/vector/RRF and boosts | Need stable eval corpus and latency/correctness SLOs | Regression benchmark per corpus version; record retrieval configuration with index |
 | Reranking | Optional | External-provider privacy/cost/failure path; model quality can regress | Explicit opt-in backend; egress classification; quality and fallback benchmark |
 | LLM | Optional `ask()` pipeline | Retrieved documents enter prompt; no visible prompt-injection trust boundary | Treat content as untrusted; strict provider policy; answer/source auditing appropriate to tier |
-| Python API | Single CodeSight entry point | No network-service controls needed locally | Keep stable; network adapter remains thin |
+| Python API | Single Holusight entry point | No network-service controls needed locally | Keep stable; network adapter remains thin |
 | UI | Local/demo interfaces plus separate public static site | Do not make public landing site into product backend accidentally | Explicit deployment topology and separate domains/configuration |
 | FastAPI | Planned spec fileciteturn6file0 | Concurrency claims unmeasured; proposed four workers may conflict with embedded writable-store assumptions | Add only when remote/multi-user need exists; begin with one application process and one writer, then benchmark |
 | Docker | Planned | Source mount, persistence, health, image provenance still future | Read-only source mount; persistent generation volume; non-root/minimal runtime where feasible; health/readiness |
@@ -417,13 +417,13 @@ A useful graph should model not merely source symbols, but architectural claims 
 |---|---|---|
 | `Repository` | Holusight | SCM metadata |
 | `Commit` | exact SHA | Git |
-| `File` | `src/codesight/store.py` | source tree |
-| `Module` | `codesight.store` | deterministic language/package resolution |
+| `File` | `src/holusight/store.py` | source tree |
+| `Module` | `holusight.store` | deterministic language/package resolution |
 | `Symbol` | class/function/method | AST |
 | `DataModel` | Pydantic class, Arrow schema | code/schema |
 | `StorageObject` | Lance table, SQLite table/FTS index | code/schema/migration |
-| `APIContract` | `CodeSight.search`, future HTTP route | executable signature/router/OpenAPI |
-| `ConfigKey` | `CODESIGHT_*` | config code/schema |
+| `APIContract` | `Holusight.search`, future HTTP route | executable signature/router/OpenAPI |
+| `ConfigKey` | `HOLUSIGHT_*` | config code/schema |
 | `ExternalProvider` | embedding/rerank/LLM provider | config + call site |
 | `DeploymentUnit` | container, process, job | real deployment/build evidence |
 | `RuntimeDependency` | Python package, executable, service | lock/build/runtime observation |
@@ -476,7 +476,7 @@ confidence: 1.0
 source:
   repository: camilojourney/holusight
   commit: 5be6273fe645b3e753d7b8e18575dfa3639dcdef
-  path: src/codesight/store.py
+  path: src/holusight/store.py
   start_line: 250
   end_line: 290
 extractor:
@@ -821,10 +821,10 @@ Dates marked “accessed” indicate current documentation checked on August 13,
 
 | ID | Consequential claim | Evidence class | Canonical source / date | Option impact | Contradiction / weakness | Required local validation |
 |---|---|---|---|---|---|---|
-| **E01** | CodeSight's implemented core is local hybrid retrieval using LanceDB + SQLite FTS5 behind one Python API | Executable code + architecture doc | `https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/ARCHITECTURE.md` and `src/codesight/api.py` fileciteturn4file0 fileciteturn7file0 | Supports B/E; Graphify need not replace retrieval | Architecture doc contains some broader assertions beyond direct implementation | Run current test suite on maintainer checkout |
+| **E01** | Holusight's implemented core is local hybrid retrieval using LanceDB + SQLite FTS5 behind one Python API | Executable code + architecture doc | `https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/ARCHITECTURE.md` and `src/holusight/api.py` fileciteturn4file0 fileciteturn7file0 | Supports B/E; Graphify need not replace retrieval | Architecture doc contains some broader assertions beyond direct implementation | Run current test suite on maintainer checkout |
 | **E02** | FastAPI/Docker is documented as planned, not established current implementation | Spec + dependency manifest + tree | `https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/specs/008-docker-deployment-fastapi.md` fileciteturn6file0; `.../pyproject.toml` fileciteturn14file0 | Avoid premature infrastructure | Private/uncommitted implementation cannot be ruled out externally | Confirm local tree/branch |
-| **E03** | Tree-sitter spec provenance is stale/conflicting with implementation evidence | Code + spec metadata | `https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/specs/README.md` fileciteturn5file0; `.../src/codesight/indexer.py` fileciteturn8file0 | Strongly supports graph provenance model | Could reflect spec workflow terminology rather than implementation absence | Reconcile spec definitions locally |
-| **E04** | Lance and SQLite writes are not one atomic transaction in inspected store path | Executable code | `https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/src/codesight/store.py` fileciteturn11file0 | Supports generation publication design | Actual crash behavior not measured | Fault-injection test |
+| **E03** | Tree-sitter spec provenance is stale/conflicting with implementation evidence | Code + spec metadata | `https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/specs/README.md` fileciteturn5file0; `.../src/holusight/indexer.py` fileciteturn8file0 | Strongly supports graph provenance model | Could reflect spec workflow terminology rather than implementation absence | Reconcile spec definitions locally |
+| **E04** | Lance and SQLite writes are not one atomic transaction in inspected store path | Executable code | `https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/src/holusight/store.py` fileciteturn11file0 | Supports generation publication design | Actual crash behavior not measured | Fault-injection test |
 | **E05** | SQLite WAL allows concurrent readers/writer but only one writer; WAL is same-host and must be preserved with DB state | Primary official documentation, updated Apr. 13 2026 | `https://www.sqlite.org/wal.html` citeturn21view0 | Supports embedded single-writer design; argues against shared-file multi-host deployment | Filesystem/runtime-specific details still matter | Record runtime SQLite version and target filesystem |
 | **E06** | SQLite reported a rare WAL-reset bug fixed in 3.51.3 / selected backports | Primary official SQLite incident/documentation | `https://www.sqlite.org/wal.html`, update Apr. 13 2026 citeturn21view0 | Raises priority of runtime version check before multi-process WAL writes | Rare, tightly conditioned bug; not evidence Holusight is affected | `sqlite3.sqlite_version` + concurrency tests |
 | **E07** | FTS5 has an integrity check capable of checking external-content consistency | Primary SQLite documentation | `https://www.sqlite.org/fts5.html` citeturn19search8 | Enables cheap pre-publish guard | Does not reconcile LanceDB | Add generation validator |
@@ -909,7 +909,7 @@ research_packet:
 
   claims:
     - id: HLS-CORE-001
-      claim: CodeSight currently has a coherent embedded hybrid retrieval architecture.
+      claim: Holusight currently has a coherent embedded hybrid retrieval architecture.
       confidence: high
       area: retrieval
       source:
@@ -932,7 +932,7 @@ research_packet:
       confidence: high
       area: persistence
       source:
-        url: https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/src/codesight/store.py
+        url: https://github.com/camilojourney/holusight/blob/5be6273fe645b3e753d7b8e18575dfa3639dcdef/src/holusight/store.py
         evidence_class: executable_code
       proposed_response: immutable_validated_index_generations
       revisit_trigger: cross_store_transaction_protocol_changes

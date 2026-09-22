@@ -56,7 +56,7 @@ A change manifest is repository-relative JSON with schema
   "structured_sections": ["context", "evidence", "decision"],
   "links": {
     "governing": ["specs/019-research-to-improvement-control-plane.md"],
-    "implementation": ["src/codesight/improvement_control.py"],
+    "implementation": ["src/holusight/improvement_control.py"],
     "tests": ["tests/test_improvement_control.py"],
     "documentation": ["docs/playbooks/improvement-control-review.md"],
     "evaluation_case": ["tests/fixtures/example-cases.jsonl"],

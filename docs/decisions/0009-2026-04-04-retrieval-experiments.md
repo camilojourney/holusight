@@ -10,7 +10,7 @@ consult_cid: CONSULT-ENG-20260404-3e0dc4f6
 
 ## Context
 
-CodeSight currently achieves MRR@10 = 0.793 with 100% hit rate on the 20-query holusight eval harness. The target is MRR ≥ 0.85. Hit rate is already at ceiling — the gap is entirely in rank ordering (rank-2 results need to become rank-1). 
+Holusight currently achieves MRR@10 = 0.793 with 100% hit rate on the 20-query holusight eval harness. The target is MRR ≥ 0.85. Hit rate is already at ceiling — the gap is entirely in rank ordering (rank-2 results need to become rank-1). 
 
 Current stack: AST chunking (tree-sitter), BM25+vector RRF (k=60), voyage-code-3 (1024d), voyage rerank-2, metadata filename boost (binary), VPRF.
 
@@ -57,7 +57,7 @@ All three specialists moved to the same position after cross-reading:
 - Addresses the root cause of rank-2 failures: chunks that are semantically correct but lack surrounding context (a bare `def embed()` chunk doesn't indicate it's the main embedding dispatch function)
 - Empirical backing: Anthropic tested on 9 codebases, -35–67% retrieval failure rate
 - Write-path change → entire existing retrieval stack (including voyage rerank-2) benefits automatically
-- One-time cost ~$0.05 for the holusight codebase; one boolean env var (`CODESIGHT_CONTEXTUAL_RETRIEVAL=true`)
+- One-time cost ~$0.05 for the holusight codebase; one boolean env var (`HOLUSIGHT_CONTEXTUAL_RETRIEVAL=true`)
 - Graceful degradation: if `ANTHROPIC_API_KEY` is absent, skip context generation and log warning
 
 ### Statistical Concern (ML Engineer)

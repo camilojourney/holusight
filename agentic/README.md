@@ -34,8 +34,8 @@ directory's own files are not a substitute for reading it.
 ## What this pilot does and does not do
 
 Wires Holusight's existing Phase 1 documentation-code consistency
-evaluator (`src/codesight/consistency.py`, unmodified by this pilot) to
-the contracts above via `src/codesight/fleet_scorecard.py`, which shapes
+evaluator (`src/holusight/consistency.py`, unmodified by this pilot) to
+the contracts above via `src/holusight/fleet_scorecard.py`, which shapes
 `check_consistency()`'s four outcomes into `fleet.eval_scorecard.v1.2`
 documents. See `specs/016-fleet-v1.2-protocol-pilot.md` for the full
 design record, scope, and limitations, and

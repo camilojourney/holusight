@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """Opt-in embedding-model variant runner for the retrieval eval harness.
 
-This module NEVER changes `codesight.config.DEFAULT_EMBEDDING_MODEL` and is
+This module NEVER changes `holusight.config.DEFAULT_EMBEDDING_MODEL` and is
 NEVER invoked by `eval_holusight.py`'s default flow (`just eval`). It only
 runs when a caller explicitly supplies a model/backend, either via
 `run_variant_eval(...)` or `--variant-model`/`--variant-backend` on this
 script's own CLI.
 
 Because a different embedding model produces vectors in a different space
-than whatever is already indexed at `~/.codesight/data/<hash>/`, a variant
+than whatever is already indexed at `~/.holusight/data/<hash>/`, a variant
 run cannot reuse the default store — it builds a small, disposable, LOCAL-ONLY
-index in a temp directory (via `CODESIGHT_DATA_DIR`, set before `codesight` is
+index in a temp directory (via `HOLUSIGHT_DATA_DIR`, set before `holusight` is
 imported) and deletes it when done. The default store is never opened, read,
 or written by this module.
 
 If the requested backend needs an API key (`voyage`, `api`) and the key is
-absent, `codesight.embeddings.get_embedder` raises immediately — this module
+absent, `holusight.embeddings.get_embedder` raises immediately — this module
 adds no fallback, so there is no silent network call and no silent
 downgrade to a different model.
 
@@ -62,7 +62,7 @@ class EmbeddingVariantSpec:
 
     model_name: str
     backend: str  # "local" | "voyage" | "api"
-    dim: int | None = None  # resolved via codesight's own registry if None
+    dim: int | None = None  # resolved via holusight's own registry if None
     price_per_1k_input: float | None = None
     price_per_1k_output: float | None = None  # reserved; embeddings are input-only today
 
@@ -116,13 +116,13 @@ def run_variant_eval(
     """Run the eval harness against an isolated, disposable index built with
     `variant`'s embedding model. Returns a JSON-serializable report.
 
-    Must be called with `codesight` NOT YET IMPORTED in this process if you
-    need `CODESIGHT_DATA_DIR` isolation to take effect (it's read once at
+    Must be called with `holusight` NOT YET IMPORTED in this process if you
+    need `HOLUSIGHT_DATA_DIR` isolation to take effect (it's read once at
     import time). The CLI in this module handles that ordering; callers
     importing this function directly are responsible for the same ordering
     if they want the isolation guarantee.
     """
-    from codesight.config import DEFAULT_EMBEDDING_MODEL, ServerConfig, resolve_embedding_dim
+    from holusight.config import DEFAULT_EMBEDDING_MODEL, ServerConfig, resolve_embedding_dim
     from tests.eval_harness import run_eval
 
     dim = variant.dim if variant.dim is not None else resolve_embedding_dim(variant.model_name)
@@ -135,17 +135,17 @@ def run_variant_eval(
         query_enhancement=False,
     )
 
-    import codesight.indexer as _indexer_module
-    from codesight.api import CodeSight
+    import holusight.indexer as _indexer_module
+    from holusight.api import Holusight
 
-    engine = CodeSight(repo_path, config=config)
+    engine = Holusight(repo_path, config=config)
     # get_embedder(...) raises immediately if a required API key is missing.
     raw_embedder = engine.embedder
     instrumented = _InstrumentedEmbedder(raw_embedder)
     # noqa: SLF001 — intentional: swap in the instrumented wrapper post-construction
     engine._embedder = instrumented
 
-    # index_repo() resolves its own embedder via codesight.indexer.get_embedder(...)
+    # index_repo() resolves its own embedder via holusight.indexer.get_embedder(...)
     # rather than engine.embedder, so document-embedding calls made during
     # indexing would otherwise bypass the instrumentation above. Temporarily
     # redirect indexer.py's bound name to return the same instrumented
@@ -194,7 +194,7 @@ def run_variant_eval(
             "process_default_embedding_model": DEFAULT_EMBEDDING_MODEL,
             "variant_changed_process_default": False,
             "note": "This run built an isolated, disposable local index and never touched "
-            "the default ~/.codesight/data store or codesight.config.DEFAULT_EMBEDDING_MODEL.",
+            "the default ~/.holusight/data store or holusight.config.DEFAULT_EMBEDDING_MODEL.",
         },
         "provider": {
             "backend": variant.backend,
@@ -255,14 +255,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args(argv)
 
-    # Isolation MUST happen before `codesight` (and therefore
-    # `codesight.config`) is imported anywhere in this process — DATA_DIR is
+    # Isolation MUST happen before `holusight` (and therefore
+    # `holusight.config`) is imported anywhere in this process — DATA_DIR is
     # resolved from the environment once, at import time.
-    if "codesight" in sys.modules or "codesight.config" in sys.modules:
+    if "holusight" in sys.modules or "holusight.config" in sys.modules:
         print(
-            "error: codesight was already imported before isolation could be set up; "
+            "error: holusight was already imported before isolation could be set up; "
             "run this file as a fresh process (python tests/eval_variants.py ...), "
-            "don't import eval_variants after importing codesight.",
+            "don't import eval_variants after importing holusight.",
             file=sys.stderr,
         )
         return 1
@@ -271,8 +271,8 @@ def main(argv: list[str] | None = None) -> int:
     sys.path.insert(0, str(repo_path / "src"))
     sys.path.insert(0, str(repo_path))
 
-    tmp_data_dir = tempfile.mkdtemp(prefix="codesight-eval-variant-")
-    os.environ["CODESIGHT_DATA_DIR"] = tmp_data_dir
+    tmp_data_dir = tempfile.mkdtemp(prefix="holusight-eval-variant-")
+    os.environ["HOLUSIGHT_DATA_DIR"] = tmp_data_dir
 
     try:
         from tests.eval_holusight import _load_queries

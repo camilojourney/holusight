@@ -23,7 +23,7 @@ or external integration. `.holusight/` remains derived, non-canonical state.
 
 ## The immutable Git subject
 
-Every `PilotRunResult` (`src/codesight/eval_pilot.py`) now carries a
+Every `PilotRunResult` (`src/holusight/eval_pilot.py`) now carries a
 `subject: EvaluationSubject`, computed fresh by `run_pilot` from the real
 repository state at evaluation time - never trusted from caller input:
 

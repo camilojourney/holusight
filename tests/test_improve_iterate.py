@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from codesight.improve_iterate import compare_iterations
+from holusight.improve_iterate import compare_iterations
 
 
 def _result(verdict: str, passed: int, total: int) -> dict:

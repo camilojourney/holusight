@@ -4,7 +4,7 @@ review_cadence: 30d
 next_review: 2026-05-04
 ---
 
-# Research: Pushing CodeSight MRR from 0.793 to 0.85+
+# Research: Pushing Holusight MRR from 0.793 to 0.85+
 
 **Baseline:** MRR@10 = 0.793, Hit Rate = 100% (20-query holusight eval)
 **Current stack:** AST chunking (tree-sitter), BM25+vector RRF, voyage-code-3 1024d, voyage rerank-2, metadata filename boost, VPRF
@@ -19,7 +19,7 @@ next_review: 2026-05-04
 - **Mechanism:** Generate a hypothetical document/code snippet answering the query. Embed that synthetic document (not the query) for vector search.
 - **Code retrieval numbers:** No primary benchmark found for code. General text: +8.6 pp NDCG@5 on SciFact, +10.5 pp Recall@5 on FEVER. [VERIFIED] — https://arxiv.org/html/2504.14175v1
 - **⚠️ Critical finding:** A 2025 paper argues HyDE gains on open-domain QA benchmarks come from LLM knowledge leakage (memorized content), not genuine retrieval improvement. [VERIFIED] — https://arxiv.org/html/2504.14175v1. When the LLM lacks domain knowledge (e.g., private codebases), hallucinated code in the hypothetical document can hurt precision.
-- **Verdict for CodeSight:** HIGH RISK. Code is diverse; LLM-generated hypothetical code for "how does embedding work" may contain hallucinated API calls that retrieve the wrong module. Not recommended as first experiment.
+- **Verdict for Holusight:** HIGH RISK. Code is diverse; LLM-generated hypothetical code for "how does embedding work" may contain hallucinated API calls that retrieve the wrong module. Not recommended as first experiment.
 
 ### 2. Late Chunking (Jina AI, 2024)
 
@@ -48,7 +48,7 @@ next_review: 2026-05-04
 - **Mechanism:** Hierarchical clustering + LLM summarization of clusters → tree structure. Retrieval at multiple abstraction levels.
 - **Numbers:** +20 pp accuracy on QuALITY (long doc QA). Good for thematic questions across long documents. [VERIFIED] — ICLR 2024 paper.
 - **Code retrieval:** NOT tested. Designed for narrative documents, not codebases.
-- **Verdict:** Not applicable to CodeSight's code-retrieval use case. Skip.
+- **Verdict:** Not applicable to Holusight's code-retrieval use case. Skip.
 
 ### 6. Multi-Query Expansion / Query Decomposition (DMQR-RAG, 2024)
 
@@ -96,7 +96,7 @@ Embed original + 3 variants, run 4 retrievals, merge with RRF (original_weight=1
 
 **Implementation:** M (~100 lines — async Haiku calls, 4 embedding calls, RRF with configurable weights)
 
-**Risk:** +200–400ms query latency. Only needed when VOYAGE_API_KEY is set (same gate as other API features). Can be opt-in via `CODESIGHT_QUERY_EXPANSION_MODE=functional`.
+**Risk:** +200–400ms query latency. Only needed when VOYAGE_API_KEY is set (same gate as other API features). Can be opt-in via `HOLUSIGHT_QUERY_EXPANSION_MODE=functional`.
 
 ### Novel-3: Call-Graph-Aware Chunk Stitching (CGACS)
 

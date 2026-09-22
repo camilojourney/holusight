@@ -7,10 +7,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from codesight import config as config_module
-from codesight.api import CodeSight
-from codesight.config import ServerConfig
-from codesight.holus import parse_holus_lineage_export
+from holusight import config as config_module
+from holusight.api import Holusight
+from holusight.config import ServerConfig
+from holusight.holus import parse_holus_lineage_export
 
 
 class StaticEmbedder:
@@ -49,9 +49,9 @@ def source_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source_dir: Path) -> CodeSight:
+def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source_dir: Path) -> Holusight:
     monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "index-data")
-    instance = CodeSight(
+    instance = Holusight(
         source_dir,
         config=ServerConfig(
             embedding_backend="local",
@@ -127,7 +127,7 @@ def _holus_export() -> dict:
 
 
 class TestHolusLineageImport:
-    def test_import_is_idempotent_and_preserves_lineage_identity(self, engine: CodeSight) -> None:
+    def test_import_is_idempotent_and_preserves_lineage_identity(self, engine: Holusight) -> None:
         first = engine.import_holus_lineage(_holus_export())
         second = engine.import_holus_lineage(_holus_export())
 
@@ -182,7 +182,7 @@ class TestHolusLineageImport:
     )
     def test_import_rejects_invalid_or_private_contract_before_writing(
         self,
-        engine: CodeSight,
+        engine: Holusight,
         mutate,
         message: str,
     ) -> None:
@@ -263,7 +263,7 @@ class TestHolusSafeEdgeProvenance:
             "content-set:checkout"
         ].content_hash
 
-    def test_changed_edge_topology_updates_existing_record(self, engine: CodeSight) -> None:
+    def test_changed_edge_topology_updates_existing_record(self, engine: Holusight) -> None:
         first = engine.import_holus_lineage(_holus_export())
         assert first.records_imported == 2
 
@@ -292,7 +292,7 @@ class TestHolusSafeEdgeProvenance:
         assert "metadata" not in stored["lineage_edge_descriptors"][0]
 
     def test_legacy_provenance_without_descriptors_remains_readable(
-        self, engine: CodeSight
+        self, engine: Holusight
     ) -> None:
         imported = engine.import_holus_lineage(_holus_export())
         assert imported.records_imported == 2
@@ -315,7 +315,7 @@ class TestHolusSafeEdgeProvenance:
 
 class TestHolusLineageSearchAndAttribution:
     def test_source_filter_keeps_holus_and_existing_file_results_distinct(
-        self, engine: CodeSight
+        self, engine: Holusight
     ) -> None:
         engine.import_holus_lineage(_holus_export())
 
@@ -328,18 +328,18 @@ class TestHolusLineageSearchAndAttribution:
 
     def test_browser_api_and_ui_truthfully_attribute_holus_source(
         self,
-        engine: CodeSight,
+        engine: Holusight,
         source_dir: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         pytest.importorskip("fastapi")
         from fastapi.testclient import TestClient
 
-        from codesight.web import server as web_server
+        from holusight.web import server as web_server
 
-        monkeypatch.setenv("CODESIGHT_DOCUMENTS_DIR", str(source_dir))
-        monkeypatch.setenv("CODESIGHT_API_KEY", "test-key")
-        monkeypatch.setenv("CODESIGHT_PRODUCTION", "1")
+        monkeypatch.setenv("HOLUSIGHT_DOCUMENTS_DIR", str(source_dir))
+        monkeypatch.setenv("HOLUSIGHT_API_KEY", "test-key")
+        monkeypatch.setenv("HOLUSIGHT_PRODUCTION", "1")
         web_server._engine = engine
         try:
             with TestClient(web_server.create_app()) as client:

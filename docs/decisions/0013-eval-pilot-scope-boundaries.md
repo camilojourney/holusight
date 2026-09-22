@@ -38,7 +38,7 @@ delegated decision explicitly forbids reconstructing its missing text.
 
 Build the smallest possible version of spec 011/012's evaluation loop —
 4 frozen, human-admitted cases, all deterministic, all local — as a new
-module (`src/codesight/eval_pilot.py`) and a new spec
+module (`src/holusight/eval_pilot.py`) and a new spec
 (`specs/017-holusight-safe-continuous-evaluation-pilot.md`) that is
 explicitly built only from specs 011/012 plus current repository
 evidence plus merged work (PRs #16–#20), never from the missing draft.

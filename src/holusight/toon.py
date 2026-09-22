@@ -2,8 +2,8 @@
 
 TOON is an agent-facing *projection* of a payload, not a storage format.
 JSON stays the lossless canonical contract everywhere in this package
-(returned by every function in :mod:`codesight.axi_providers` and
-:mod:`codesight.cli_axi`); TOON is generated from the same in-memory
+(returned by every function in :mod:`holusight.axi_providers` and
+:mod:`holusight.cli_axi`); TOON is generated from the same in-memory
 ``dict``/``list``/scalar structure only at the CLI's output boundary,
 per the installed AXI skill ("Convert to TOON at the output boundary -
 keep internal logic on JSON") and spec 011's ``--format toon`` default.

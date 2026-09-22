@@ -1,4 +1,4 @@
-"""Unit tests for src/codesight/fleet_scorecard.py.
+"""Unit tests for src/holusight/fleet_scorecard.py.
 
 Complements tests/test_fleet_smoke.py (the Fleet v1.2 no-spend smoke
 suite, which exercises the four consistency outcomes end to end via
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import re
 
-from codesight import consistency
-from codesight.fleet_scorecard import (
+from holusight import consistency
+from holusight.fleet_scorecard import (
     FLEET_CONTRACT_COMMIT,
     FLEET_CONTRACT_PR,
     FLEET_CONTRACT_REPO,
@@ -105,7 +105,7 @@ def test_build_eval_scorecard_evaluator_version_defaults_to_installed_package():
     scorecard = build_eval_scorecard(
         _report(consistency.ConsistencyStatus.UP_TO_DATE), repo="r", repo_commit=_COMMIT
     )
-    assert scorecard["evaluator_version"].startswith("codesight-consistency/")
+    assert scorecard["evaluator_version"].startswith("holusight-consistency/")
 
 
 def test_build_eval_scorecard_schema_string_is_exact():

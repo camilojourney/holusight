@@ -79,7 +79,7 @@ uv run --extra dev python tests/eval_variants.py \
 - Requires `--variant-model` **and** `--variant-backend` explicitly — there
   is no default variant.
 - Builds a disposable local index in a temp directory and deletes it when
-  done; the default `~/.codesight/data/` store is never touched.
+  done; the default `~/.holusight/data/` store is never touched.
 - `voyage`/`api` backends need the matching API key already set in the
   environment (`VOYAGE_API_KEY` / `OPENAI_API_KEY`) — if it's missing, the
   script fails fast with a clear error rather than silently falling back.
@@ -107,7 +107,7 @@ existing shape:
   "query": "literal string that actually exists in the target file",
   "family": "exact_lookup",
   "split": "dev",
-  "expected_file": "src/codesight/whatever.py",
+  "expected_file": "src/holusight/whatever.py",
   "exact_string": "the literal string above"
 }
 ```

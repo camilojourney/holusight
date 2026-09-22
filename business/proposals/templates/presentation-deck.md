@@ -50,7 +50,7 @@
 > Your documents (PDF, Word, PowerPoint)
 >          │
 >          ▼
-> CodeSight indexes everything
+> Holusight indexes everything
 > (keyword + semantic search)
 >          │
 >          ▼
@@ -123,9 +123,9 @@
 > | Microsoft Copilot | $1,500/mo | Weeks |
 > | Glean | $2,250+/mo | Months |
 > | Azure AI Search (DIY) | $500-2,000/mo | Weeks + developer |
-> | **CodeSight** | **$50-200/mo** | **Hours** |
+> | **Holusight** | **$50-200/mo** | **Hours** |
 
-**Say:** "Copilot is $30 per user per month and searches everything — no project isolation. Glean starts at $45 per user and is built for Fortune 500. CodeSight costs a fraction and is scoped to exactly the documents you need searchable."
+**Say:** "Copilot is $30 per user per month and searches everything — no project isolation. Glean starts at $45 per user and is built for Fortune 500. Holusight costs a fraction and is scoped to exactly the documents you need searchable."
 
 ---
 

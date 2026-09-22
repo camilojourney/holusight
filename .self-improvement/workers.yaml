@@ -1,7 +1,7 @@
 # STATUS (2026-09-18): this schedule is a proposal, not a running system.
 # Nothing invokes these agents on this cadence — no cron, no CI job, no
 # credential. The actually-running self-improvement loop today is
-# `just improve-iterate` (src/codesight/improve_iterate.py), scheduled daily
+# `just improve-iterate` (src/holusight/improve_iterate.py), scheduled daily
 # by .github/workflows/improve-iterate.yml. Activating the schedule below
 # for real needs an ANTHROPIC_API_KEY secret and an explicit decision about
 # recurring spend — see .self-improvement/MEMORY.md.

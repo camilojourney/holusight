@@ -9,7 +9,7 @@ provides acceptance authority.
 
 ```bash
 uv run --extra dev python -c \
-  'from pathlib import Path; from codesight.eval_suite import load_suite; \
+  'from pathlib import Path; from holusight.eval_suite import load_suite; \
 s=load_suite(Path(".")); print(s.suite_id, s.suite.status, s.development_sha256, s.holdout_manifest.case_count)'
 ```
 
@@ -21,7 +21,7 @@ taxonomy SHA-256 and holdout case count `32`.
 ```bash
 just eval-suite
 # equivalent to:
-uv run --extra dev python -m codesight.eval_suite run \
+uv run --extra dev python -m holusight.eval_suite run \
   --suite holusight-local-retrieval-v1 --top-k 10
 ```
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from codesight.store import FTSSidecar
+from holusight.store import FTSSidecar
 
 
 class TestFTSQuerySanitization:
@@ -75,7 +75,7 @@ class TestChunkIdSanitization:
         """Chunk IDs containing quotes should be skipped."""
         import tempfile
 
-        from codesight.store import ChunkStore
+        from holusight.store import ChunkStore
 
         with tempfile.TemporaryDirectory() as tmpdir:
             store = ChunkStore(tmpdir)
@@ -89,7 +89,7 @@ class TestChunkIdSanitization:
 
     def test_allowlist_rejects_quotes(self):
         """Chunk IDs with quotes fail the allowlist validation."""
-        from codesight.store import ChunkStore
+        from holusight.store import ChunkStore
 
         with tempfile.TemporaryDirectory() as tmpdir:
             store = ChunkStore(tmpdir)
@@ -101,7 +101,7 @@ class TestChunkIdSanitization:
 
     def test_allowlist_rejects_backslash(self):
         """Chunk IDs with backslashes fail the allowlist."""
-        from codesight.store import ChunkStore
+        from holusight.store import ChunkStore
 
         with tempfile.TemporaryDirectory() as tmpdir:
             store = ChunkStore(tmpdir)
@@ -111,7 +111,7 @@ class TestChunkIdSanitization:
 
     def test_allowlist_rejects_semicolon(self):
         """Chunk IDs with semicolons (SQL injection) fail the allowlist."""
-        from codesight.store import ChunkStore
+        from holusight.store import ChunkStore
 
         with tempfile.TemporaryDirectory() as tmpdir:
             store = ChunkStore(tmpdir)
@@ -121,7 +121,7 @@ class TestChunkIdSanitization:
 
     def test_allowlist_accepts_valid_ids(self):
         """Normal chunk IDs pass the allowlist."""
-        from codesight.store import ChunkStore
+        from holusight.store import ChunkStore
 
         with tempfile.TemporaryDirectory() as tmpdir:
             store = ChunkStore(tmpdir)
@@ -169,8 +169,8 @@ class TestVectorFilterInjection:
     def test_malicious_id_is_excluded_before_reaching_the_filter_string(
         self, tmp_path, monkeypatch
     ):
-        from codesight import config as config_module
-        from codesight.store import ChunkStore
+        from holusight import config as config_module
+        from holusight.store import ChunkStore
 
         monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
         with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
@@ -186,8 +186,8 @@ class TestVectorFilterInjection:
     def test_all_malicious_ids_never_queries_the_table(self, tmp_path, monkeypatch):
         """No valid IDs survive validation -> must short-circuit before
         ever calling .search(), not send an empty/malformed filter."""
-        from codesight import config as config_module
-        from codesight.store import ChunkStore
+        from holusight import config as config_module
+        from holusight.store import ChunkStore
 
         monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
         with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
@@ -204,8 +204,8 @@ class TestVectorFilterInjection:
         exactly the legitimate vector when malicious IDs are mixed in."""
         import numpy as np
 
-        from codesight import config as config_module
-        from codesight.store import ChunkStore
+        from holusight import config as config_module
+        from holusight.store import ChunkStore
 
         monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
         with ChunkStore(tmp_path / "corpus", embedding_dim=2) as store:
@@ -240,7 +240,7 @@ class TestAggregateIndexingBudget:
     gap the security-sentinel audit found and confirmed on 2026-09-19."""
 
     def test_raises_when_file_count_budget_exceeded(self, tmp_path, monkeypatch):
-        from codesight import indexer
+        from holusight import indexer
 
         monkeypatch.setattr(indexer, "MAX_INDEXED_FILES", 2)
         for i in range(3):
@@ -250,7 +250,7 @@ class TestAggregateIndexingBudget:
             indexer.walk_repo_files(tmp_path)
 
     def test_raises_when_total_byte_budget_exceeded(self, tmp_path, monkeypatch):
-        from codesight import indexer
+        from holusight import indexer
 
         monkeypatch.setattr(indexer, "MAX_TOTAL_INDEXED_BYTES", 10)
         (tmp_path / "a.py").write_text("x" * 6)
@@ -260,7 +260,7 @@ class TestAggregateIndexingBudget:
             indexer.walk_repo_files(tmp_path)
 
     def test_accepts_a_folder_within_budget(self, tmp_path, monkeypatch):
-        from codesight import indexer
+        from holusight import indexer
 
         monkeypatch.setattr(indexer, "MAX_INDEXED_FILES", 10)
         monkeypatch.setattr(indexer, "MAX_TOTAL_INDEXED_BYTES", 10_000)
@@ -275,7 +275,7 @@ class TestAggregateIndexingBudget:
         would make every file past the cutoff look deleted to the
         incremental-refresh removal logic. Confirms the budget check
         raises instead of returning a partial list."""
-        from codesight import indexer
+        from holusight import indexer
 
         monkeypatch.setattr(indexer, "MAX_INDEXED_FILES", 1)
         (tmp_path / "a.py").write_text("x = 1")
@@ -292,7 +292,7 @@ class TestBoundedEmbeddingInput:
     confirmed on 2026-09-19."""
 
     def test_bound_texts_truncates_oversized_input(self):
-        from codesight.embeddings import _MAX_EMBEDDING_TEXT_CHARS, _bound_texts
+        from holusight.embeddings import _MAX_EMBEDDING_TEXT_CHARS, _bound_texts
 
         oversized = "x" * (_MAX_EMBEDDING_TEXT_CHARS + 500)
         result = _bound_texts([oversized, "short"])
@@ -301,7 +301,7 @@ class TestBoundedEmbeddingInput:
         assert result[1] == "short"
 
     def test_api_embedder_bounds_input_before_sending(self, monkeypatch):
-        from codesight import embeddings
+        from holusight import embeddings
 
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         embedder = embeddings.APIEmbedder()
@@ -327,7 +327,7 @@ class TestBoundedEmbeddingInput:
         assert len(captured["input"][0]) == embeddings._MAX_EMBEDDING_TEXT_CHARS
 
     def test_voyage_embedder_bounds_input_before_sending(self, monkeypatch):
-        from codesight import embeddings
+        from holusight import embeddings
 
         monkeypatch.setattr(embeddings, "VOYAGE_API_KEY", "test-key")
         embedder = embeddings.VoyageEmbedder()
@@ -357,7 +357,7 @@ class TestReadOnlyInvariant:
         """After indexing, the source folder should have no new files."""
         import tempfile
 
-        from codesight.config import ServerConfig
+        from holusight.config import ServerConfig
 
         with tempfile.TemporaryDirectory() as source_dir:
             # Create a simple test file
@@ -367,15 +367,15 @@ class TestReadOnlyInvariant:
             # Record initial state
             initial_files = set(Path(source_dir).rglob("*"))
 
-            # Index (using a separate data dir to avoid default ~/.codesight)
+            # Index (using a separate data dir to avoid default ~/.holusight)
             with tempfile.TemporaryDirectory() as data_dir:
-                os.environ["CODESIGHT_DATA_DIR"] = data_dir
+                os.environ["HOLUSIGHT_DATA_DIR"] = data_dir
                 try:
-                    from codesight.indexer import index_repo
+                    from holusight.indexer import index_repo
                     config = ServerConfig()
                     index_repo(source_dir, config)
                 finally:
-                    del os.environ["CODESIGHT_DATA_DIR"]
+                    del os.environ["HOLUSIGHT_DATA_DIR"]
 
             # Verify no new files in source
             final_files = set(Path(source_dir).rglob("*"))
@@ -384,14 +384,14 @@ class TestReadOnlyInvariant:
 
 
 class TestDataDirContainment:
-    """SEC-002: CODESIGHT_DATA_DIR must never resolve inside the folder
+    """SEC-002: HOLUSIGHT_DATA_DIR must never resolve inside the folder
     being indexed, directly or through a symlink. Reproduces the exact
     exploit the security-sentinel audit found and confirmed on 2026-09-19."""
 
     def test_rejects_data_dir_nested_inside_indexed_root(self, monkeypatch):
         import tempfile
 
-        from codesight import config
+        from holusight import config
 
         with tempfile.TemporaryDirectory() as source_dir:
             nested = Path(source_dir) / "derived-index"
@@ -405,7 +405,7 @@ class TestDataDirContainment:
     def test_rejects_data_dir_equal_to_indexed_root(self, monkeypatch):
         import tempfile
 
-        from codesight import config
+        from holusight import config
 
         with tempfile.TemporaryDirectory() as source_dir:
             monkeypatch.setattr(config, "DATA_DIR", Path(source_dir))
@@ -416,7 +416,7 @@ class TestDataDirContainment:
     def test_rejects_data_dir_symlinked_into_indexed_root(self, monkeypatch):
         import tempfile
 
-        from codesight import config
+        from holusight import config
 
         with tempfile.TemporaryDirectory() as source_dir, \
                 tempfile.TemporaryDirectory() as elsewhere:
@@ -430,7 +430,7 @@ class TestDataDirContainment:
     def test_accepts_data_dir_genuinely_outside_indexed_root(self, monkeypatch):
         import tempfile
 
-        from codesight import config
+        from holusight import config
 
         with tempfile.TemporaryDirectory() as source_dir, \
                 tempfile.TemporaryDirectory() as data_dir:
@@ -442,19 +442,19 @@ class TestDataDirContainment:
 
     def test_env_var_override_is_read_fresh_on_every_call(self, monkeypatch):
         """A later os.environ mutation (e.g. a test's monkeypatch.setenv, or
-        any code path that sets CODESIGHT_DATA_DIR after codesight.config
+        any code path that sets HOLUSIGHT_DATA_DIR after holusight.config
         was already imported) must actually take effect. DATA_DIR itself is
         computed once at import time; repo_data_dir() must not silently
         keep using that frozen value forever."""
         import tempfile
 
-        from codesight import config
+        from holusight import config
 
         with tempfile.TemporaryDirectory() as source_dir, \
                 tempfile.TemporaryDirectory() as data_dir:
             # DATA_DIR still points somewhere else entirely -- only the env
             # var is set, simulating a real mid-process override.
-            monkeypatch.setenv("CODESIGHT_DATA_DIR", data_dir)
+            monkeypatch.setenv("HOLUSIGHT_DATA_DIR", data_dir)
 
             result = config.repo_data_dir(source_dir)
 
@@ -463,10 +463,10 @@ class TestDataDirContainment:
     def test_env_var_override_still_enforces_containment(self, monkeypatch):
         import tempfile
 
-        from codesight import config
+        from holusight import config
 
         with tempfile.TemporaryDirectory() as source_dir:
-            monkeypatch.setenv("CODESIGHT_DATA_DIR", source_dir)
+            monkeypatch.setenv("HOLUSIGHT_DATA_DIR", source_dir)
 
             with pytest.raises(ValueError, match="resolves inside the indexed"):
                 config.repo_data_dir(source_dir)
@@ -474,7 +474,7 @@ class TestDataDirContainment:
     def test_index_does_not_write_inside_source_when_misconfigured_end_to_end(
         self, monkeypatch
     ):
-        """Full reproduction of the audit's E2E finding. CODESIGHT_DATA_DIR
+        """Full reproduction of the audit's E2E finding. HOLUSIGHT_DATA_DIR
         is a module-level constant read once at import time, so the
         misconfiguration is applied the same way the rest of this test
         class does it: monkeypatching the already-imported config module,
@@ -482,9 +482,9 @@ class TestDataDirContainment:
         wouldn't be re-read)."""
         import tempfile
 
-        from codesight import config
-        from codesight.config import ServerConfig
-        from codesight.indexer import index_repo
+        from holusight import config
+        from holusight.config import ServerConfig
+        from holusight.indexer import index_repo
 
         with tempfile.TemporaryDirectory() as source_dir:
             (Path(source_dir) / "doc.txt").write_text("hello world")
@@ -505,7 +505,7 @@ class TestConsistencyCacheSymlink:
     def test_rejects_symlinked_holusight_directory(self):
         import tempfile
 
-        from codesight.consistency_store import ConsistencyStore
+        from holusight.consistency_store import ConsistencyStore
 
         with tempfile.TemporaryDirectory() as repo_dir, \
                 tempfile.TemporaryDirectory() as elsewhere:
@@ -524,7 +524,7 @@ class TestConsistencyCacheSymlink:
         replaced with a symlink before a later run."""
         import tempfile
 
-        from codesight.consistency_store import ConsistencyStore
+        from holusight.consistency_store import ConsistencyStore
 
         with tempfile.TemporaryDirectory() as repo_dir, \
                 tempfile.TemporaryDirectory() as elsewhere:
@@ -546,7 +546,7 @@ class TestConsistencyCacheSymlink:
     def test_accepts_genuine_non_symlinked_holusight_directory(self):
         import tempfile
 
-        from codesight.consistency_store import ConsistencyStore
+        from holusight.consistency_store import ConsistencyStore
 
         with tempfile.TemporaryDirectory() as repo_dir:
             db_path = Path(repo_dir) / ".holusight" / "consistency.db"
@@ -566,7 +566,7 @@ class TestSymlinkEscape:
     def test_walk_repo_files_rejects_symlinked_files(self):
         import tempfile
 
-        from codesight.indexer import walk_repo_files
+        from holusight.indexer import walk_repo_files
 
         with tempfile.TemporaryDirectory() as outside_dir, \
                 tempfile.TemporaryDirectory() as source_dir:
@@ -583,8 +583,8 @@ class TestSymlinkEscape:
     def test_chunk_text_file_refuses_symlinked_path(self):
         import tempfile
 
-        from codesight.config import ServerConfig
-        from codesight.indexer import _chunk_text_file
+        from holusight.config import ServerConfig
+        from holusight.indexer import _chunk_text_file
 
         with tempfile.TemporaryDirectory() as outside_dir, \
                 tempfile.TemporaryDirectory() as source_dir:
@@ -605,8 +605,8 @@ class TestSymlinkEscape:
         enters the index and is unreachable through search()."""
         import tempfile
 
-        from codesight.api import CodeSight
-        from codesight.config import ServerConfig
+        from holusight.api import Holusight
+        from holusight.config import ServerConfig
 
         with tempfile.TemporaryDirectory() as outside_dir, \
                 tempfile.TemporaryDirectory() as source_dir:
@@ -618,9 +618,9 @@ class TestSymlinkEscape:
             (Path(source_dir) / "normal.txt").write_text("ordinary quazzledorf content")
 
             with tempfile.TemporaryDirectory() as data_dir:
-                os.environ["CODESIGHT_DATA_DIR"] = data_dir
+                os.environ["HOLUSIGHT_DATA_DIR"] = data_dir
                 try:
-                    engine = CodeSight(source_dir, ServerConfig())
+                    engine = Holusight(source_dir, ServerConfig())
                     stats = engine.index()
                     assert stats.files_indexed == 1  # only normal.txt, not the symlink
 
@@ -636,22 +636,22 @@ class TestSymlinkEscape:
                     normal_results = engine.search("quazzledorf")
                     assert any(r.file_path == "normal.txt" for r in normal_results)
                 finally:
-                    del os.environ["CODESIGHT_DATA_DIR"]
+                    del os.environ["HOLUSIGHT_DATA_DIR"]
 
 
 class TestPathTraversal:
     """Verify path traversal attacks are prevented."""
 
     def test_folder_must_be_directory(self):
-        """CodeSight rejects non-directory paths."""
-        from codesight.api import CodeSight
+        """Holusight rejects non-directory paths."""
+        from holusight.api import Holusight
 
         with pytest.raises(ValueError, match="Not a directory"):
-            CodeSight("/nonexistent/path/that/does/not/exist")
+            Holusight("/nonexistent/path/that/does/not/exist")
 
     def test_folder_must_be_real_directory(self):
-        """CodeSight resolves symlinks and validates the real path."""
-        from codesight.api import CodeSight
+        """Holusight resolves symlinks and validates the real path."""
+        from holusight.api import Holusight
 
         with pytest.raises(ValueError, match="Not a directory"):
-            CodeSight("/tmp/../nonexistent_path_12345")
+            Holusight("/tmp/../nonexistent_path_12345")

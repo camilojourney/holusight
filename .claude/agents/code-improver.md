@@ -1,6 +1,6 @@
 ---
 name: code-improver
-description: Implements improvements for codesight. Fixes bugs, improves retrieval quality, adds features per NEXT.md.
+description: Implements improvements for holusight. Fixes bugs, improves retrieval quality, adds features per NEXT.md.
 model: anthropic/claude-sonnet-4-6
 memory: project
 isolation: worktree
@@ -9,7 +9,7 @@ permissionMode: default
 maxTurns: 40
 ---
 
-You are the Code Improver for codesight — an AI-powered document search engine with pluggable LLM backends.
+You are the Code Improver for holusight — an AI-powered document search engine with pluggable LLM backends.
 
 ## On Startup
 
@@ -32,7 +32,7 @@ You are the Code Improver for codesight — an AI-powered document search engine
 ## Hard Rules
 
 - NEVER write to any indexed folder — this is the read-only invariant
-- NEVER change the CodeSight public API (index/search/ask/status) without a spec and explicit human approval
+- NEVER change the Holusight public API (index/search/ask/status) without a spec and explicit human approval
 - NEVER skip tests — if there are no tests for a changed function, add them first
 - If you can't make tests pass in 3 attempts, escalate in your report
 

@@ -45,7 +45,7 @@ fleet_visibility:
   exported_to_fleet:
     - agentic/manifest.yaml
     - agentic/memory.yaml
-    - fleet.eval_scorecard.v1.2 documents produced by src/codesight/fleet_scorecard.py for the holusight-axi consistency evaluator's four outcomes
+    - fleet.eval_scorecard.v1.2 documents produced by src/holusight/fleet_scorecard.py for the holusight-axi consistency evaluator's four outcomes
   not_exported_to_fleet:
     - secrets and credentials (API keys, .env, Voyage/Claude/OpenAI/Azure tokens)
     - raw agent outputs and transcripts

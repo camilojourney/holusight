@@ -384,7 +384,7 @@ class SuiteManifest(_Closed):
     schema_version: Literal["holusight-eval-suite/v1"]
     suite_id: str
     status: Literal["local_advisory_execution"]
-    runner: Literal["python -m codesight.eval_suite run"]
+    runner: Literal["python -m holusight.eval_suite run"]
     evaluator_execution: Literal["local_visible_development_only"]
     promotion: Literal["denied"]
     method_config_path: str
@@ -755,11 +755,11 @@ def _local_harness_environment(data_dir: Path) -> dict[str, str]:
     env = {key: value for key, value in os.environ.items() if key not in blocked}
     env.update(
         {
-            "CODESIGHT_DATA_DIR": str(data_dir),
-            "CODESIGHT_EMBEDDING_BACKEND": "local",
-            "CODESIGHT_EMBEDDING_MODEL": "sentence-transformers/all-MiniLM-L6-v2",
-            "CODESIGHT_RERANKER": "false",
-            "CODESIGHT_QUERY_ENHANCEMENT": "false",
+            "HOLUSIGHT_DATA_DIR": str(data_dir),
+            "HOLUSIGHT_EMBEDDING_BACKEND": "local",
+            "HOLUSIGHT_EMBEDDING_MODEL": "sentence-transformers/all-MiniLM-L6-v2",
+            "HOLUSIGHT_RERANKER": "false",
+            "HOLUSIGHT_QUERY_ENHANCEMENT": "false",
             "HF_HUB_OFFLINE": "1",
             "TRANSFORMERS_OFFLINE": "1",
         }
@@ -937,7 +937,7 @@ def _run_named_suite(repo_root: Path, suite_id: str, top_k: int) -> SuiteRunResu
 
 def main(argv: list[str] | None = None) -> int:
     """CLI boundary for the named local advisory runner."""
-    parser = argparse.ArgumentParser(prog="python -m codesight.eval_suite")
+    parser = argparse.ArgumentParser(prog="python -m holusight.eval_suite")
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("run", help="Run a named local advisory development suite")
     run.add_argument("--suite", default=DEFAULT_SUITE_ID)

@@ -35,7 +35,7 @@ We propose deploying an AI-powered search system that makes your existing docume
 
 ## 3. The Solution
 
-We deploy **CodeSight** — a hybrid AI search engine that combines keyword matching with semantic understanding. Unlike basic search (Ctrl+F, SharePoint search), it:
+We deploy **Holusight** — a hybrid AI search engine that combines keyword matching with semantic understanding. Unlike basic search (Ctrl+F, SharePoint search), it:
 
 - **Answers questions**, not just finds files — "What are the payment terms in the Acme contract?" returns the actual answer with the page number
 - **Searches across documents** — finds information scattered across multiple files
@@ -89,7 +89,7 @@ Your team member opens web chat
 
 | Week | Deliverables |
 |------|-------------|
-| **Week 1** | Audit document structure, set up CodeSight, index [pilot project/dept] |
+| **Week 1** | Audit document structure, set up Holusight, index [pilot project/dept] |
 | **Week 2** | Deploy web chat, train [X] power users, test with real questions, tune results |
 
 **Done when:** Your team can search [pilot scope] and get relevant answers with citations.
@@ -129,7 +129,7 @@ Do not publish unverified Copilot/Glean ROI or per-user comparisons in the clien
 
 ## 7. Why Us
 
-1. **Working product.** CodeSight is built and deployed — not a prototype. We demo with your actual documents.
+1. **Working product.** Holusight is built and deployed — not a prototype. We demo with your actual documents.
 2. **Speed.** Working system in days, not months.
 3. **Privacy.** Document indexing and search run on your infrastructure; cloud answer providers may receive retrieved context. Open source, fully auditable.
 4. **Cost.** Fraction of enterprise alternatives (Glean: $45-50/user/month, Copilot: $30/user/month).

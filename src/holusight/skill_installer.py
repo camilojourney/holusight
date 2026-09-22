@@ -1,8 +1,8 @@
 """Install (or update) the general, install-anywhere `/holusight` skill.
 
-Writes the distribution SKILL.md (see :mod:`codesight.axi_skill_gen`'s
+Writes the distribution SKILL.md (see :mod:`holusight.axi_skill_gen`'s
 ``render_distribution_skill`` -- single source of truth stays
-``src/codesight/axi_schema.py``) to one canonical real directory, then
+``src/holusight/axi_schema.py``) to one canonical real directory, then
 symlinks every other supported harness's skills directory to it, exactly
 mirroring how ``~/.claude/skills/graphify/`` is the one real copy and
 ``~/.codex``, ``~/.cursor``, ``~/.gemini``, ``~/.agents`` each hold a symlink

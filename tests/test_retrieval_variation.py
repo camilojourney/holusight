@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from codesight import cli_axi, control_storage, improvement_control, retrieval_variation
+from holusight import cli_axi, control_storage, improvement_control, retrieval_variation
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -76,10 +76,10 @@ def test_baseline_and_benchmark_are_content_addressed_and_all_case_families_run(
     assert result["program"]["source_fixture_hashes"]
     assert result["program"]["evaluator_digest"].startswith("sha256:")
     assert set(result["program"]["implementation_hashes"]) == {
-        "src/codesight/retrieval_variation.py",
-        "src/codesight/cli_axi.py",
-        "src/codesight/axi_providers.py",
-        "src/codesight/control_storage.py",
+        "src/holusight/retrieval_variation.py",
+        "src/holusight/cli_axi.py",
+        "src/holusight/axi_providers.py",
+        "src/holusight/control_storage.py",
     }
     assert result["baseline"]["candidate"]["candidate_id"] == (
         "baseline-legacy-concatenate-v1"
@@ -384,7 +384,7 @@ def test_public_operator_run_and_record_envelope_are_closed_and_non_promoting(tm
     root = _frozen_repo(tmp_path)
     environment = {**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")}
     completed = subprocess.run(
-        [sys.executable, "-m", "codesight.cli_axi", "improve-variation-run", "--format", "json"],
+        [sys.executable, "-m", "holusight.cli_axi", "improve-variation-run", "--format", "json"],
         cwd=root,
         env=environment,
         capture_output=True,
@@ -403,7 +403,7 @@ def test_public_operator_run_and_record_envelope_are_closed_and_non_promoting(tm
         [
             sys.executable,
             "-m",
-            "codesight.cli_axi",
+            "holusight.cli_axi",
             "improve-variation-run",
             "--record",
             "--format",
@@ -429,7 +429,7 @@ def test_public_feedback_command_is_aggregate_only_and_schema_registered():
         [
             sys.executable,
             "-m",
-            "codesight.cli_axi",
+            "holusight.cli_axi",
             "improve-variation-feedback",
             "--signal",
             "failure_case",

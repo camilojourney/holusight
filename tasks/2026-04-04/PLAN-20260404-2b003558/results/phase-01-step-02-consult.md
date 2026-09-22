@@ -26,7 +26,7 @@
 - Why: Addresses root cause of rank-2 failures — bare function bodies lack surrounding context that human queries assume
 - Empirical backing: Anthropic tested on 9 codebases, -35–67% retrieval failure rate
 - One-time cost: ~$0.05 for holusight codebase
-- Env var gate: `CODESIGHT_CONTEXTUAL_RETRIEVAL=true` (graceful fallback if no key)
+- Env var gate: `HOLUSIGHT_CONTEXTUAL_RETRIEVAL=true` (graceful fallback if no key)
 - Expected MRR lift: +0.03–0.06 (2-4 queries rank-1)
 - Effort: M (2-3 days including index rebuild + test)
 - Risk: MEDIUM (external LLM dependency at index time; silent degradation without key)

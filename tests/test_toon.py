@@ -1,4 +1,4 @@
-"""Tests for the compact TOON encoder (codesight.toon).
+"""Tests for the compact TOON encoder (holusight.toon).
 
 TOON is an output-boundary projection only - nothing in this codebase
 parses TOON back into Python, so these tests check the encoder's output
@@ -12,7 +12,7 @@ from enum import Enum
 
 import pytest
 
-from codesight.toon import to_toon
+from holusight.toon import to_toon
 
 
 def test_scalar_keys():

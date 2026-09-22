@@ -4,7 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from codesight.council import list_prior_runs, main, persist_council, render_board_html, run_council
+from holusight.council import list_prior_runs, main, persist_council, render_board_html, run_council
 
 COUNCIL_LATEST = Path(".holusight/improvement-runs/council-runs/latest.json")
 TMP_BOARD = Path("/tmp/holusight-council-board.html")

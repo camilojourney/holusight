@@ -1,4 +1,4 @@
-"""Tests for the `holus` AXI command surface (codesight.cli_axi / axi_providers).
+"""Tests for the `holus` AXI command surface (holusight.cli_axi / axi_providers).
 
 Covers, per the ship task's acceptance criteria: unknown flags, no-evidence,
 stale/unavailable providers, dirty repositories, projection/truncation,
@@ -9,7 +9,7 @@ Most tests build a small synthetic repository under `tmp_path` (mirroring
 `tests/test_consistency.py`'s pattern) so they never touch this actual
 repository's own `.holusight/` cache. A handful of true subprocess tests
 exercise the real process boundary (exit codes, stdout wiring, unknown
-flags) for genuine end-to-end coverage of `python -m codesight.cli_axi`.
+flags) for genuine end-to-end coverage of `python -m holusight.cli_axi`.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from codesight import axi_providers, cli_axi, consistency
+from holusight import axi_providers, cli_axi, consistency
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -73,7 +73,7 @@ def _run(argv: list[str], cwd: Path) -> tuple[dict, str, int]:
 
 def _subprocess_holus(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, "-m", "codesight.cli_axi", *args],
+        [sys.executable, "-m", "holusight.cli_axi", *args],
         cwd=str(cwd),
         capture_output=True,
         text=True,
@@ -602,10 +602,10 @@ def test_no_egress_env_is_noop_when_key_absent(monkeypatch):
 
 def test_semantic_provider_denies_voyage_index_without_allow_egress(tmp_path, monkeypatch):
     monkeypatch.delenv("VOYAGE_API_KEY", raising=False)
-    from codesight.api import CodeSight
+    from holusight.api import Holusight
 
     repo = _minimal_repo(tmp_path)
-    engine = CodeSight(repo)
+    engine = Holusight(repo)
     engine.index()
     # Simulate an index that claims Voyage embeddings, without ever calling
     # the real Voyage API (VOYAGE_API_KEY stays unset for this whole test).
@@ -621,7 +621,7 @@ def test_semantic_provider_denies_voyage_index_without_allow_egress(tmp_path, mo
 
 def test_semantic_provider_never_rebuilds_on_model_mismatch(tmp_path, monkeypatch):
     """Regression: semantic_provider must report UNAVAILABLE and never
-    silently trigger CodeSight.search()'s auto-rebuild-on-model-change
+    silently trigger Holusight.search()'s auto-rebuild-on-model-change
     side effect. That violates holus's own documented "never
     auto-triggered" contract (see the not-indexed case right above), and
     with a large local embedding model can turn a read-only evidence
@@ -629,17 +629,17 @@ def test_semantic_provider_never_rebuilds_on_model_mismatch(tmp_path, monkeypatc
     exactly reproduced by hand while shipping the Qwen3-Embedding-8B
     default: a plain `holus evidence` call silently spent 20+ minutes
     reindexing the entire repository."""
-    from codesight.api import CodeSight
+    from holusight.api import Holusight
 
     repo = _minimal_repo(tmp_path)
-    engine = CodeSight(repo)
+    engine = Holusight(repo)
     engine.index()
     engine.store.fts.set_meta("embedding_model", "a-totally-different-model")
 
     def _fail_if_called(*_a, **_k):
-        raise AssertionError("CodeSight.index() must never be called by semantic_provider")
+        raise AssertionError("Holusight.index() must never be called by semantic_provider")
 
-    monkeypatch.setattr(CodeSight, "index", _fail_if_called)
+    monkeypatch.setattr(Holusight, "index", _fail_if_called)
 
     result = axi_providers.semantic_provider(repo, "alpha")
 
@@ -659,11 +659,11 @@ def test_semantic_provider_still_picks_up_a_doc_edit_via_cheap_staleness_refresh
     by hand first."""
     from datetime import datetime, timedelta, timezone
 
-    from codesight.api import CodeSight
-    from codesight.config import STALE_THRESHOLD_SECONDS
+    from holusight.api import Holusight
+    from holusight.config import STALE_THRESHOLD_SECONDS
 
     repo = _minimal_repo(tmp_path)
-    engine = CodeSight(repo)
+    engine = Holusight(repo)
     engine.index()
 
     # Force staleness without waiting STALE_THRESHOLD_SECONDS for real.

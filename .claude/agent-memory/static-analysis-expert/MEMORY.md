@@ -1,4 +1,4 @@
-# static-analysis-expert Memory -- codesight
+# static-analysis-expert Memory -- holusight
 
 > Auto-managed by the static-analysis-expert worker. Do not edit manually.
 

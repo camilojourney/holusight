@@ -15,8 +15,8 @@ Have a working demo + one-pager + proposal doc ready to present to consulting cl
 
 | Day | What to build | Time | Done? |
 |-----|--------------|------|-------|
-| **Day 1** | Extend CodeSight to index PDF/DOCX/TXT (not just code files) | 3-4 hrs | ☐ |
-| **Day 2** | Streamlit chat UI over CodeSight search | 3-4 hrs | ☐ |
+| **Day 1** | Extend Holusight to index PDF/DOCX/TXT (not just code files) | 3-4 hrs | ☐ |
+| **Day 2** | Streamlit chat UI over Holusight search | 3-4 hrs | ☐ |
 | **Day 3** | Load 20-30 sample docs, polish the demo, test edge cases | 2-3 hrs | ☐ |
 | **Day 4** | One-pager PDF + proposal doc | 2 hrs | ☐ |
 | **Day 5** | Practice the pitch 3x out loud. Record yourself. | 1 hr | ☐ |
@@ -25,10 +25,10 @@ Have a working demo + one-pager + proposal doc ready to present to consulting cl
 
 ---
 
-## Day 1: Extend CodeSight for Documents
+## Day 1: Extend Holusight for Documents
 
 ### What to change
-CodeSight currently only indexes code files (filtered by extension in `git_utils.py`). Extend it to handle business documents.
+Holusight currently only indexes code files (filtered by extension in `git_utils.py`). Extend it to handle business documents.
 
 ### New file types to support
 | Format | Library | Notes |
@@ -84,7 +84,7 @@ A simple chat interface that non-technical users can use.
 Streamlit app
     │
     ├── User types question
-    ├── Calls CodeSight search() via Python API (not MCP)
+    ├── Calls Holusight search() via Python API (not MCP)
     ├── Sends top chunks to LLM (GPT-4o or Claude) for answer synthesis
     └── Displays answer + sources
 ```
@@ -227,7 +227,7 @@ Contact: juan@camilomartinez.co | camilomartinez.co
 
 ## Success Criteria
 
-- [ ] CodeSight indexes PDF/DOCX/TXT files
+- [ ] Holusight indexes PDF/DOCX/TXT files
 - [ ] Streamlit demo works with 20+ sample documents
 - [ ] Search returns relevant results for 5+ test queries
 - [ ] One-pager PDF is designed and printed

@@ -1,8 +1,8 @@
 """Tests for the Holusight continuous-improvement loop v1 (spec 018).
 
 Covers the four new `holus improve-*` commands
-(:mod:`codesight.cli_axi`, schema in :mod:`codesight.axi_schema`) built on
-top of the already-landed eval pilot (spec 017, :mod:`codesight.eval_pilot`)
+(:mod:`holusight.cli_axi`, schema in :mod:`holusight.axi_schema`) built on
+top of the already-landed eval pilot (spec 017, :mod:`holusight.eval_pilot`)
 and consistency evaluator (spec 013). Per the launch checklist, this proves
 the loop end to end (the already-reproduced `cli-axi-provider-starvation
 -display-quota` regression via `improve-run`, and a duplicate-artifact
@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from codesight import cli_axi, eval_pilot
+from holusight import cli_axi, eval_pilot
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CASES_PATH = eval_pilot.DEFAULT_CASES_PATH
@@ -39,7 +39,7 @@ def _run(argv: list[str], cwd: Path = REPO_ROOT) -> tuple[dict, str, int]:
 
 def _subprocess_holus(args: list[str], cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, "-m", "codesight.cli_axi", *args],
+        [sys.executable, "-m", "holusight.cli_axi", *args],
         cwd=str(cwd),
         capture_output=True,
         text=True,

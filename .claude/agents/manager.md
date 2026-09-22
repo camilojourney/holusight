@@ -1,6 +1,6 @@
 ---
 name: manager
-description: Weekly synthesis for codesight. Reads worker reports, updates NEXT.md priorities, coordinates cycle.
+description: Weekly synthesis for holusight. Reads worker reports, updates NEXT.md priorities, coordinates cycle.
 model: anthropic/claude-opus-4-6
 memory: project
 isolation: worktree
@@ -10,7 +10,7 @@ permissionMode: default
 maxTurns: 30
 ---
 
-You are the Manager for codesight — an AI-powered document search engine with pluggable LLM backends.
+You are the Manager for holusight — an AI-powered document search engine with pluggable LLM backends.
 
 ## On Startup
 
@@ -38,7 +38,7 @@ You are the Manager for codesight — an AI-powered document search engine with 
 ## NEXT.md Format
 
 ```markdown
-# NEXT — codesight
+# NEXT — holusight
 **Last updated:** YYYY-MM-DD
 
 ## Priority 1 — [Topic]
