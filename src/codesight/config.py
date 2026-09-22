@@ -74,25 +74,6 @@ def repo_fts_db_path(repo_path: str | Path) -> Path:
 
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY")
 
-# When VOYAGE_API_KEY is set, default to voyage-code-3 for everything (single model, no dual-index).
-# Override via CODESIGHT_EMBEDDING_MODEL / CODESIGHT_EMBEDDING_BACKEND env vars.
-#
-# Local default is Qwen3-Embedding-0.6B, not all-MiniLM-L6-v2: it scores
-# meaningfully higher on MTEB retrieval (mid-60s vs ~56) while staying fast
-# enough for interactive query embedding on modest hardware, and
-# LocalEmbedder applies its query/document asymmetric prompting
-# automatically. CODESIGHT_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B or -8B
-# trade speed for still-higher quality on a machine with the RAM to spare
-# (2560-dim / 4096-dim respectively) -- see both registry entries below.
-DEFAULT_EMBEDDING_MODEL = os.environ.get(
-    "CODESIGHT_EMBEDDING_MODEL",
-    "voyage-code-3" if VOYAGE_API_KEY else "Qwen/Qwen3-Embedding-0.6B",
-)
-DEFAULT_EMBEDDING_BACKEND = os.environ.get(
-    "CODESIGHT_EMBEDDING_BACKEND",
-    "voyage" if VOYAGE_API_KEY else "local",
-)
-
 # Allowlist of tested embedding models with their dimensions.
 EMBEDDING_MODEL_REGISTRY: dict[str, int] = {
     "sentence-transformers/all-MiniLM-L6-v2": 384,
@@ -113,6 +94,45 @@ def resolve_embedding_dim(model_name: str) -> int:
     return EMBEDDING_MODEL_REGISTRY.get(model_name, 384)
 
 
+# When VOYAGE_API_KEY is set, default to voyage-code-3 for everything (single model, no dual-index).
+# Override via CODESIGHT_EMBEDDING_MODEL / CODESIGHT_EMBEDDING_BACKEND env vars.
+#
+# Local default is Qwen3-Embedding-8B, not all-MiniLM-L6-v2: it's the top
+# open-weight embedding model on MTEB retrieval as of writing (~70 vs
+# MiniLM's ~56), and LocalEmbedder applies its query/document asymmetric
+# prompting automatically. It's a real cost: an 8B-parameter model is slow
+# per embed relative to MiniLM, so this default assumes the operator has
+# the CPU/GPU/MPS to spare. CODESIGHT_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
+# or -4B trade quality back for speed on more constrained hardware -- see
+# all three registry entries below.
+def _resolve_default_embedding_model() -> str:
+    """Fresh per-call resolution, unlike the DEFAULT_EMBEDDING_MODEL
+    constant below (frozen at import time, kept only for other modules'
+    direct imports). ServerConfig.embedding_model uses this via
+    default_factory so a later os.environ mutation -- a test's
+    monkeypatch.setenv, or any code setting the var after config.py was
+    first imported -- actually takes effect, the same class of bug
+    repo_data_dir() had for CODESIGHT_DATA_DIR."""
+    return os.environ.get(
+        "CODESIGHT_EMBEDDING_MODEL",
+        "voyage-code-3" if os.environ.get("VOYAGE_API_KEY") else "Qwen/Qwen3-Embedding-8B",
+    )
+
+
+def _resolve_default_embedding_backend() -> str:
+    """See _resolve_default_embedding_model -- same fresh-read rationale."""
+    return os.environ.get(
+        "CODESIGHT_EMBEDDING_BACKEND",
+        "voyage" if os.environ.get("VOYAGE_API_KEY") else "local",
+    )
+
+
+def _resolve_default_embedding_dim() -> int:
+    return resolve_embedding_dim(_resolve_default_embedding_model())
+
+
+DEFAULT_EMBEDDING_MODEL = _resolve_default_embedding_model()
+DEFAULT_EMBEDDING_BACKEND = _resolve_default_embedding_backend()
 DEFAULT_EMBEDDING_DIM = resolve_embedding_dim(DEFAULT_EMBEDDING_MODEL)
 DEFAULT_TOP_K = 8
 DEFAULT_CHUNK_MAX_LINES = 200
@@ -223,9 +243,14 @@ class IndexBudgetExceeded(ValueError):
 class ServerConfig(BaseModel):
     """Runtime configuration."""
 
-    embedding_model: str = Field(default=DEFAULT_EMBEDDING_MODEL)
-    embedding_backend: str = Field(default=DEFAULT_EMBEDDING_BACKEND)
-    embedding_dim: int = Field(default=DEFAULT_EMBEDDING_DIM)
+    # default_factory, not default=DEFAULT_EMBEDDING_MODEL: a bare default
+    # value is bound once at class-definition time, so ServerConfig()
+    # would keep resolving to whatever CODESIGHT_EMBEDDING_MODEL was set
+    # to (or absent) the first time this module was imported, ignoring any
+    # later os.environ change in the same process.
+    embedding_model: str = Field(default_factory=_resolve_default_embedding_model)
+    embedding_backend: str = Field(default_factory=_resolve_default_embedding_backend)
+    embedding_dim: int = Field(default_factory=_resolve_default_embedding_dim)
     top_k: int = Field(default=DEFAULT_TOP_K)
     chunk_max_lines: int = Field(default=DEFAULT_CHUNK_MAX_LINES)
     chunk_overlap_lines: int = Field(default=DEFAULT_CHUNK_OVERLAP_LINES)

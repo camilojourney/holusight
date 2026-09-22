@@ -619,6 +619,66 @@ def test_semantic_provider_denies_voyage_index_without_allow_egress(tmp_path, mo
     assert allowed.state != axi_providers.ProviderState.DENIED
 
 
+def test_semantic_provider_never_rebuilds_on_model_mismatch(tmp_path, monkeypatch):
+    """Regression: semantic_provider must report UNAVAILABLE and never
+    silently trigger CodeSight.search()'s auto-rebuild-on-model-change
+    side effect. That violates holus's own documented "never
+    auto-triggered" contract (see the not-indexed case right above), and
+    with a large local embedding model can turn a read-only evidence
+    query into an unbounded synchronous rebuild with no confirmation --
+    exactly reproduced by hand while shipping the Qwen3-Embedding-8B
+    default: a plain `holus evidence` call silently spent 20+ minutes
+    reindexing the entire repository."""
+    from codesight.api import CodeSight
+
+    repo = _minimal_repo(tmp_path)
+    engine = CodeSight(repo)
+    engine.index()
+    engine.store.fts.set_meta("embedding_model", "a-totally-different-model")
+
+    def _fail_if_called(*_a, **_k):
+        raise AssertionError("CodeSight.index() must never be called by semantic_provider")
+
+    monkeypatch.setattr(CodeSight, "index", _fail_if_called)
+
+    result = axi_providers.semantic_provider(repo, "alpha")
+
+    assert result.state == axi_providers.ProviderState.UNAVAILABLE
+    assert "a-totally-different-model" in result.detail
+    assert "index . --force" in result.detail
+
+
+def test_semantic_provider_still_picks_up_a_doc_edit_via_cheap_staleness_refresh(
+    tmp_path,
+):
+    """The fix above must not go too far the other way: ordinary staleness
+    (same embedding model, index just older than the threshold) is a cheap,
+    content-hash-gated incremental refresh, not the expensive full rebuild
+    the "never auto-triggered" contract is about -- a doc edit still has to
+    show up in the next query without a human remembering to run `index`
+    by hand first."""
+    from datetime import datetime, timedelta, timezone
+
+    from codesight.api import CodeSight
+    from codesight.config import STALE_THRESHOLD_SECONDS
+
+    repo = _minimal_repo(tmp_path)
+    engine = CodeSight(repo)
+    engine.index()
+
+    # Force staleness without waiting STALE_THRESHOLD_SECONDS for real.
+    old = datetime.now(timezone.utc) - timedelta(seconds=STALE_THRESHOLD_SECONDS + 60)
+    engine.store.last_indexed_at = old.isoformat()
+
+    # The edit that should show up in the next query.
+    _write(repo, "specs/002-beta.md", "# Beta Feature\n\nA brand-new unique-marker-xyz section.\n")
+
+    result = axi_providers.semantic_provider(repo, "unique-marker-xyz")
+
+    assert result.state != axi_providers.ProviderState.UNAVAILABLE
+    assert any("002-beta.md" in item.source for item in result.items)
+
+
 def test_evidence_default_mode_never_reports_egress_without_flag(tmp_path, monkeypatch):
     monkeypatch.delenv("VOYAGE_API_KEY", raising=False)
     repo = _minimal_repo(tmp_path)

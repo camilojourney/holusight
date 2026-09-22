@@ -23,6 +23,13 @@ def server_env(tmp_path, monkeypatch):
     monkeypatch.setenv("CODESIGHT_API_KEY", TEST_API_KEY)
     monkeypatch.setenv("CODESIGHT_PRODUCTION", "1")
     monkeypatch.delenv("CODESIGHT_ALLOW_UNAUTHENTICATED", raising=False)
+    # Pin to the small, already-cached local model regardless of the
+    # production default -- these tests exercise server/auth/index-status
+    # contracts, not embedding quality, and should never pay for
+    # downloading or running a multi-GB model just because the default
+    # embedding model changed.
+    monkeypatch.setenv("CODESIGHT_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    monkeypatch.setenv("CODESIGHT_EMBEDDING_BACKEND", "local")
     # Reset module-level engine between tests
     web_server._engine = None
     web_server._index_in_progress = False

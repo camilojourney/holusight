@@ -430,10 +430,36 @@ def semantic_provider(
             route_reason="attempted: index requires egress, --allow-egress not set",
         )
 
+    current_model = engine.config.embedding_model
+    if stored_model and stored_model != current_model:
+        return ProviderResult(
+            provider="semantic",
+            state=ProviderState.UNAVAILABLE,
+            detail=(
+                f"index was built with {stored_model!r}, but the configured "
+                f"embedding model is now {current_model!r}; a mismatched "
+                "index cannot be searched until it is rebuilt -- run "
+                "`python -m codesight index . --force` (never auto-triggered "
+                "by `holus`)"
+            ),
+            route_reason="skipped: embedding model changed since index was built",
+        )
+
     is_stale = engine._is_stale()
 
     try:
         with _no_egress_env() if not allow_egress else _noop_ctx():
+            # auto_index stays at its default (True) here deliberately: by
+            # this point is_indexed and the model-mismatch check above have
+            # already ruled out the two expensive cases (build from scratch,
+            # full rebuild on a changed model) that "never auto-triggered by
+            # holus" is actually about. The one case _ensure_indexed() can
+            # still reach from here is the cheap one -- same model, index
+            # just older than the staleness threshold -- an incremental,
+            # content-hash-gated refresh that only re-embeds what actually
+            # changed. Suppressing that too would mean a doc edit never
+            # shows up in search results until someone remembers to run
+            # `index` by hand, which defeats the point of a search tool.
             results = engine.search(question, top_k=_SEMANTIC_TOP_K)
     except Exception as exc:  # noqa: BLE001 - never leak a raw dependency traceback
         return ProviderResult(

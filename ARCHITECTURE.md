@@ -83,7 +83,8 @@ EXTERNAL (only when ask() is called — client chooses provider):
 | `chunker.py`    | AST-based code chunking (tree-sitter) + document chunking (paragraphs).  |
 | `parsers.py`    | Document text extraction: PDF (pymupdf), DOCX (python-docx), PPTX.      |
 | `llm.py`        | Pluggable LLM backend: Claude, Azure OpenAI, OpenAI, Ollama adapters.   |
-| `embeddings.py` | Embedding wrapper: local (sentence-transformers) or API (Voyage/OpenAI). |
+| `embeddings.py` | Embedding wrapper: local (sentence-transformers, via a persistent daemon by default) or API (Voyage/OpenAI). |
+| `embedding_daemon.py` | Persistent local embedding daemon (`holusight-embedding-daemon` console script): keeps a large local embedding model warm across invocations of the stateless `holus` CLI. `get_embedder()` tries it first, falls back transparently to in-process loading. |
 | `store.py`      | LanceDB + SQLite FTS5 dual-write. Content hash deduplication.            |
 | `config.py`     | Pydantic settings from env vars. Auto-detects Voyage API capabilities.   |
 | `git_utils.py`  | .gitignore-aware file walking via `pathspec`.                            |
@@ -208,13 +209,15 @@ Primary embedder — every file, code and documents alike:
   IF VOYAGE_API_KEY is set:
     voyage-code-3 (1024 dims) → sent to Voyage AI API
   ELSE (local, no API key, the default):
-    Qwen/Qwen3-Embedding-0.6B (1024 dims) via sentence-transformers
-    Free, private, runs on CPU/MPS/CUDA. Applies the model's own
-    asymmetric query prompt automatically (LocalEmbedder.embed_query) —
-    meaningfully better retrieval than a document-style query embedding.
-    CODESIGHT_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B or -8B trade speed
-    for still-higher quality on a machine with the RAM to spare (2560-dim
-    / 4096-dim; both are in EMBEDDING_MODEL_REGISTRY).
+    Qwen/Qwen3-Embedding-8B (4096 dims) via sentence-transformers
+    Free, private, runs on CPU/MPS/CUDA — strongest open-weight MTEB
+    retrieval score as of writing, at real per-embed latency cost.
+    Applies the model's own asymmetric query prompt automatically
+    (LocalEmbedder.embed_query) — meaningfully better retrieval than a
+    document-style query embedding. CODESIGHT_EMBEDDING_MODEL=Qwen/
+    Qwen3-Embedding-0.6B or -4B trade quality back for speed on more
+    constrained hardware (1024-dim / 2560-dim; all three are in
+    EMBEDDING_MODEL_REGISTRY).
 
 Second, additional code embedder — only when VOYAGE_API_KEY is set:
   Files in CODE_EMBEDDING_EXTENSIONS (.py, .ts, .go, ...) are ALSO
