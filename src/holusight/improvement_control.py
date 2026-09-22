@@ -69,8 +69,8 @@ _GIT_OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 _CONSEQUENTIAL_ROLES = ("implementation", "tests", "documentation", "evaluation_case")
 _EVALUATOR_PATHS = frozenset(
     {
-        "src/codesight/eval_pilot.py",
-        "src/codesight/retrieval_variation.py",
+        "src/holusight/eval_pilot.py",
+        "src/holusight/retrieval_variation.py",
         "tests/fixtures/holusight_eval_pilot_cases.jsonl",
         "tests/fixtures/holusight_retrieval_variation_benchmark.json",
     }
@@ -320,7 +320,7 @@ def _placement(repo_root: Path, artifact_type: str, raw_path: str) -> list[dict[
         "adr": ("docs/decisions",),
         "decision": ("docs/decisions",),
         "playbook": ("docs/playbooks",),
-        "source": ("src/codesight",),
+        "source": ("src/holusight",),
         "skill": (".claude/skills",),
         "agent": (".claude/agents",),
         "docs": ("docs",),

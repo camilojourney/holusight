@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from codesight.config import DEFAULT_EMBEDDING_MODEL
+from holusight.config import DEFAULT_EMBEDDING_MODEL
 from tests.eval_harness import EvalQuery
 from tests.eval_variants import EmbeddingVariantSpec, _InstrumentedEmbedder, run_variant_eval
 
@@ -63,12 +63,12 @@ class TestEmbeddingVariantSpec:
 
 
 @pytest.fixture(autouse=True)
-def _isolated_codesight_data_dir(tmp_path_factory, monkeypatch):
-    """Redirect codesight's data directory into an isolated tmp directory for
+def _isolated_holusight_data_dir(tmp_path_factory, monkeypatch):
+    """Redirect holusight's data directory into an isolated tmp directory for
     every test in this module, so these tests never write into a developer's
-    real ~/.codesight/data cache — mirrors the isolation eval_variants.py's
-    CLI gets for free via CODESIGHT_DATA_DIR (which only takes effect before
-    `codesight` is first imported; in-process tests need this instead).
+    real ~/.holusight/data cache — mirrors the isolation eval_variants.py's
+    CLI gets for free via HOLUSIGHT_DATA_DIR (which only takes effect before
+    `holusight` is first imported; in-process tests need this instead).
 
     Uses tmp_path_factory (a directory outside any single test's tmp_path),
     not tmp_path itself: several tests in this module index tmp_path
@@ -76,10 +76,10 @@ def _isolated_codesight_data_dir(tmp_path_factory, monkeypatch):
     data directory nested inside the folder being indexed -- correctly so,
     since that's the exact misconfiguration the security audit found could
     violate the read-only invariant in production."""
-    from codesight import config as config_module
+    from holusight import config as config_module
 
     monkeypatch.setattr(
-        config_module, "DATA_DIR", tmp_path_factory.mktemp("codesight_data_isolated")
+        config_module, "DATA_DIR", tmp_path_factory.mktemp("holusight_data_isolated")
     )
 
 
@@ -99,7 +99,7 @@ class TestRunVariantEvalGuardrails:
         assert payload["guardrail"]["variant_changed_process_default"] is False
         assert payload["guardrail"]["process_default_embedding_model"] == DEFAULT_EMBEDDING_MODEL
         # Re-import after the call to make sure nothing was mutated in place.
-        from codesight import config as config_module
+        from holusight import config as config_module
 
         assert config_module.DEFAULT_EMBEDDING_MODEL == DEFAULT_EMBEDDING_MODEL
 

@@ -18,7 +18,7 @@ AI-powered document search for a customer-mounted document folder or repository 
 
 ### HOW IT WORKS
 
-1. I point CodeSight at your [mounted document folder / repository export]
+1. I point Holusight at your [mounted document folder / repository export]
 2. Your documents are indexed — search runs on your infrastructure
 3. Your team opens a web chat and asks questions in plain English
 4. They get instant answers with the exact source document and page number

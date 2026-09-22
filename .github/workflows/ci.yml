@@ -48,7 +48,7 @@ jobs:
       # in the job summary so it's visible on every PR without requiring
       # anyone to remember to run `holus check` by hand. Promotion to a
       # blocking gate is a separate, deliberate decision -- see
-      # src/codesight/spec_duplication.py's module docstring for why an
+      # src/holusight/spec_duplication.py's module docstring for why an
       # unproven threshold isn't hard-enforced here.
       # Advisory (ADR-0019): agent orientation council. Process exit codes:
       # 0=pass, 1=block, 3=indeterminate. Only block fails CI; indeterminate
@@ -57,7 +57,7 @@ jobs:
         if: always()
         run: |
           set +e
-          uv run --extra dev python -m codesight.agent_focus > /tmp/agent-focus.json
+          uv run --extra dev python -m holusight.agent_focus > /tmp/agent-focus.json
           code=$?
           set -e
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
@@ -82,7 +82,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          uv run --extra dev python -m codesight.cli_axi check --format json > /tmp/consistency.json
+          uv run --extra dev python -m holusight.cli_axi check --format json > /tmp/consistency.json
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
           d = json.load(open("/tmp/consistency.json"))
@@ -117,7 +117,7 @@ jobs:
             echo "No specs/ changes in this PR -- skipping." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          uv run --extra dev python -m codesight.spec_duplication --changed $changed > /tmp/neighbors.json
+          uv run --extra dev python -m holusight.spec_duplication --changed $changed > /tmp/neighbors.json
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
           d = json.load(open("/tmp/neighbors.json"))

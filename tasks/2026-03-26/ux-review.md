@@ -1,4 +1,4 @@
-# UX Review -- CodeSight v0.3
+# UX Review -- Holusight v0.3
 
 **Date:** 2026-03-26
 **Auditor:** Claude Opus 4.6 (automated, read-only)
@@ -38,12 +38,12 @@
 
 **Where:** `justfile`, lines 8-9 and 16-17
 
-**Problem:** `just dev` runs `python -m semantic_search_mcp` and `just inspect` runs the MCP inspector on `semantic_search_mcp`. The package was renamed to `codesight` in v0.2. These commands crash with `ModuleNotFoundError`.
+**Problem:** `just dev` runs `python -m semantic_search_mcp` and `just inspect` runs the MCP inspector on `semantic_search_mcp`. The package was renamed to `holusight` in v0.2. These commands crash with `ModuleNotFoundError`.
 
 **Impact:** Any developer (or agent) running `just dev` or `just inspect` gets an error. This breaks the development workflow.
 
 **Fix plan:**
-- Update `just dev` to `python -m codesight demo` (or whatever the correct dev server command is).
+- Update `just dev` to `python -m holusight demo` (or whatever the correct dev server command is).
 - Update `just inspect` or remove it if MCP is no longer the interface.
 
 ---
@@ -106,7 +106,7 @@
 
 **Problem:** The demo launch command calculates the path relative to the installed package location. If the package is installed as a wheel (not editable), the `demo/` directory won't exist at that relative path.
 
-**Impact:** `python -m codesight demo` fails for users who installed via `pip install codesight` (non-editable). Only works in dev mode.
+**Impact:** `python -m holusight demo` fails for users who installed via `pip install holusight` (non-editable). Only works in dev mode.
 
 **Fix plan:**
 - Bundle `demo/app.py` as package data, or
@@ -124,7 +124,7 @@
 **Problem:** When the app loads with no folder configured, the main area is completely blank. No welcome message, no instructions, no sample query suggestions.
 
 **Fix plan:**
-- Show a welcome card: "Welcome to CodeSight. Point me at a document folder to get started."
+- Show a welcome card: "Welcome to Holusight. Point me at a document folder to get started."
 - Show 3-4 sample questions as clickable chips once indexed.
 - Show a "Getting Started" section with the 3-step workflow.
 
@@ -148,16 +148,16 @@
 - If the business versions are client-facing and the docs versions are internal, document this distinction.
 - If they're duplicates, delete one set and add a symlink or cross-reference.
 
-### P2-4: `.env.example` has `CODESIGHT_STALE_SECONDS` but config.py reads `stale_threshold_seconds`
+### P2-4: `.env.example` has `HOLUSIGHT_STALE_SECONDS` but config.py reads `stale_threshold_seconds`
 
 **Where:** `.env.example` line 70, `config.py` line 70
 
-**Problem:** The env example shows `CODESIGHT_STALE_SECONDS=300` but the config class uses `stale_threshold_seconds` with a hardcoded default of `STALE_THRESHOLD_SECONDS = 300`. The env var is never actually read. The README says `CODESIGHT_STALE_MINUTES=60` (a third name, in minutes not seconds).
+**Problem:** The env example shows `HOLUSIGHT_STALE_SECONDS=300` but the config class uses `stale_threshold_seconds` with a hardcoded default of `STALE_THRESHOLD_SECONDS = 300`. The env var is never actually read. The README says `HOLUSIGHT_STALE_MINUTES=60` (a third name, in minutes not seconds).
 
-**Impact:** Users who set `CODESIGHT_STALE_SECONDS` in their `.env` will find it has no effect. The README gives the wrong variable name AND the wrong unit.
+**Impact:** Users who set `HOLUSIGHT_STALE_SECONDS` in their `.env` will find it has no effect. The README gives the wrong variable name AND the wrong unit.
 
 **Fix plan:**
-- Add `os.environ.get("CODESIGHT_STALE_SECONDS", "300")` to config.py to actually read the env var.
+- Add `os.environ.get("HOLUSIGHT_STALE_SECONDS", "300")` to config.py to actually read the env var.
 - Fix README to match the actual variable name and unit.
 
 ### P2-5: ADR numbering has collisions
@@ -204,7 +204,7 @@
 
 **Where:** `__main__.py`
 
-**Problem:** `python -m codesight --version` fails. No way to check the installed version from the CLI.
+**Problem:** `python -m holusight --version` fails. No way to check the installed version from the CLI.
 
 **Fix plan:**
 - Read version from `__init__.py` or `importlib.metadata` and add `parser.add_argument("-v", "--version", action="version", version=...)`.
@@ -222,7 +222,7 @@
 
 **Where:** `README.md`, docs
 
-**Problem:** The Python API (`CodeSight` class) is the most flexible interface but gets only 8 lines in the README. The `ask()` docstring explains backend selection but there's no tutorial or cookbook.
+**Problem:** The Python API (`Holusight` class) is the most flexible interface but gets only 8 lines in the README. The `ask()` docstring explains backend selection but there's no tutorial or cookbook.
 
 **Fix plan:**
 - Add a "Python API Guide" playbook in `docs/playbooks/`.

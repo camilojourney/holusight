@@ -21,8 +21,8 @@ reusable local evaluation product. It ships:
   comparisons must use: Git subject, corpus, evaluator, configuration, and
   suite/manifest hashes
 
-`src/codesight/eval_suite.py` loads and verifies manifests and provides the
-named CLI `python -m codesight.eval_suite run` (also `just eval-suite`). It
+`src/holusight/eval_suite.py` loads and verifies manifests and provides the
+named CLI `python -m holusight.eval_suite run` (also `just eval-suite`). It
 reuses the existing retrieval harness only for the visible development fixture,
 in a disposable local index with API credentials removed and model downloads
 disabled. It reports a bounded `pass`, `block`, or `indeterminate` advisory
@@ -35,7 +35,7 @@ remain deferred.
 
 ## Schemas
 
-Canonical models live in `src/codesight/eval_suite.py` (`extra="forbid"`).
+Canonical models live in `src/holusight/eval_suite.py` (`extra="forbid"`).
 JSON documents are the committed instances.
 
 | Schema | Version string | Committed instance |
@@ -124,7 +124,7 @@ revision requires a separately reviewed protocol revision and a new baseline.
 ## Named-suite runner
 
 `eval_suite.load_suite(repo_root, "holusight-local-retrieval-v1")` remains the
-single manifest-load path. The CLI `python -m codesight.eval_suite run` uses
+single manifest-load path. The CLI `python -m holusight.eval_suite run` uses
 that loader and invokes the existing `tests/eval_holusight.py` harness against
 only the 85 visible development cases with the hybrid baseline.
 

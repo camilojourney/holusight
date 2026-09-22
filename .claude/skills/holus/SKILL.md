@@ -10,7 +10,7 @@ description: >
 
 # holus - Holusight-AXI repository evidence CLI
 
-Schema version: `0.6.0` (generated from `src/codesight/axi_schema.py` - do not hand-edit the command reference below; run `python -m codesight.axi_skill_gen` after changing the schema).
+Schema version: `0.6.0` (generated from `src/holusight/axi_schema.py` - do not hand-edit the command reference below; run `python -m holusight.axi_skill_gen` after changing the schema).
 
 ## When to use this
 
@@ -31,7 +31,7 @@ Flags:
 Examples:
 ```
 holus
-python -m codesight.cli_axi
+python -m holusight.cli_axi
 ```
 
 ### `holus evidence "<question>"`
@@ -50,11 +50,11 @@ Flags:
 Examples:
 ```
 holus evidence "where is retry policy enforced?"
-python -m codesight.cli_axi evidence "where is retry policy enforced?"
+python -m holusight.cli_axi evidence "where is retry policy enforced?"
 holus evidence "where is retry policy enforced?" --mode exact
-python -m codesight.cli_axi evidence "where is retry policy enforced?" --mode exact
+python -m holusight.cli_axi evidence "where is retry policy enforced?" --mode exact
 holus evidence "<question>" --fields snapshot,evidence.source,evidence.location
-python -m codesight.cli_axi evidence "<question>" --fields snapshot,evidence.source,evidence.location
+python -m holusight.cli_axi evidence "<question>" --fields snapshot,evidence.source,evidence.location
 ```
 
 ### `holus check [scope]`
@@ -69,11 +69,11 @@ Flags:
 Examples:
 ```
 holus check
-python -m codesight.cli_axi check
+python -m holusight.cli_axi check
 holus check specs/013-holusight-axi-consistency-architecture.md
-python -m codesight.cli_axi check specs/013-holusight-axi-consistency-architecture.md
+python -m holusight.cli_axi check specs/013-holusight-axi-consistency-architecture.md
 holus check --refresh
-python -m codesight.cli_axi check --refresh
+python -m holusight.cli_axi check --refresh
 ```
 
 ### `holus status`
@@ -87,7 +87,7 @@ Flags:
 Examples:
 ```
 holus status
-python -m codesight.cli_axi status
+python -m holusight.cli_axi status
 ```
 
 ### `holus providers`
@@ -100,7 +100,7 @@ Flags:
 Examples:
 ```
 holus providers
-python -m codesight.cli_axi providers
+python -m holusight.cli_axi providers
 ```
 
 ### `holus improve-status`
@@ -115,9 +115,9 @@ Flags:
 Examples:
 ```
 holus improve-status
-python -m codesight.cli_axi improve-status
+python -m holusight.cli_axi improve-status
 holus improve-status --cases tests/fixtures/holusight_eval_pilot_cases.jsonl
-python -m codesight.cli_axi improve-status --cases tests/fixtures/holusight_eval_pilot_cases.jsonl
+python -m holusight.cli_axi improve-status --cases tests/fixtures/holusight_eval_pilot_cases.jsonl
 ```
 
 ### `holus improve-intake "<summary>"`
@@ -139,8 +139,9 @@ Flags:
 Examples:
 ```
 holus improve-intake "holus evidence can starve structural evidence" --origin reproduced_usage_gap --kind comparative --admitted-by team-x
-python -m codesight.cli_axi improve-intake "holus evidence can starve structural evidence" --origin reproduced_usage_gap --kind comparative --admitted-by team-x
-python -m codesight.cli_axi improve-intake "structural graph stale case" --origin spec_documented_finding --admitted-by team-x
+python -m holusight.cli_axi improve-intake "holus evidence can starve structural evidence" --origin reproduced_usage_gap --kind comparative --admitted-by team-x
+python -m holusight.cli_axi improve-intake "structural graph stale case" --origin spec_documented_finding --admitted-by team-x
+python -m python -m holusight.cli_axiight.cli_axi improve-intake "structural graph stale case" --origin spec_documented_finding --admitted-by team-x
 ```
 
 ### `holus improve-run`
@@ -163,11 +164,11 @@ Flags:
 Examples:
 ```
 holus improve-run
-python -m codesight.cli_axi improve-run
+python -m holusight.cli_axi improve-run
 holus improve-run --candidate-id run-42 --workflow crewmate --model claude-sonnet-5
-python -m codesight.cli_axi improve-run --candidate-id run-42 --workflow crewmate --model claude-sonnet-5
+python -m holusight.cli_axi improve-run --candidate-id run-42 --workflow crewmate --model claude-sonnet-5
 holus improve-run --cases tests/fixtures/holusight_eval_pilot_cases.jsonl --compare-result /tmp/last-run.json
-python -m codesight.cli_axi improve-run --cases tests/fixtures/holusight_eval_pilot_cases.jsonl --compare-result /tmp/last-run.json
+python -m holusight.cli_axi improve-run --cases tests/fixtures/holusight_eval_pilot_cases.jsonl --compare-result /tmp/last-run.json
 ```
 
 ### `holus improve-placement`
@@ -183,9 +184,9 @@ Flags:
 Examples:
 ```
 holus improve-placement --artifact-type case --proposed-path tests/fixtures/my_case.jsonl
-python -m codesight.cli_axi improve-placement --artifact-type case --proposed-path tests/fixtures/my_case.jsonl
+python -m holusight.cli_axi improve-placement --artifact-type case --proposed-path tests/fixtures/my_case.jsonl
 holus improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
-python -m codesight.cli_axi improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
+python -m holusight.cli_axi improve-placement --artifact-type spec --proposed-path specs/018-new-idea.md
 ```
 
 ### `holus improve-variation-run`
@@ -199,9 +200,9 @@ Flags:
 Examples:
 ```
 holus improve-variation-run
-python -m codesight.cli_axi improve-variation-run
+python -m holusight.cli_axi improve-variation-run
 holus improve-variation-run --record --format json
-python -m codesight.cli_axi improve-variation-run --record --format json
+python -m holusight.cli_axi improve-variation-run --record --format json
 ```
 
 ### `holus improve-variation-feedback`
@@ -216,7 +217,7 @@ Flags:
 Examples:
 ```
 holus improve-variation-feedback --signal failure_case --count 2
-python -m codesight.cli_axi improve-variation-feedback --signal failure_case --count 2
+python -m holusight.cli_axi improve-variation-feedback --signal failure_case --count 2
 ```
 
 ### `holus improve-review <change-manifest.json>`
@@ -232,9 +233,9 @@ Flags:
 Examples:
 ```
 holus improve-review specs/019-example.change.json --phase before_change
-python -m codesight.cli_axi improve-review specs/019-example.change.json --phase before_change
+python -m holusight.cli_axi improve-review specs/019-example.change.json --phase before_change
 holus improve-review specs/019-example.change.json --phase pre_promotion --record
-python -m codesight.cli_axi improve-review specs/019-example.change.json --phase pre_promotion --record
+python -m holusight.cli_axi improve-review specs/019-example.change.json --phase pre_promotion --record
 ```
 
 ### `holus improve-history <change-id>`
@@ -248,7 +249,7 @@ Flags:
 Examples:
 ```
 holus improve-history example-change
-python -m codesight.cli_axi improve-history example-change
+python -m holusight.cli_axi improve-history example-change
 ```
 
 ### `holus improve-integration <change-manifest.json>`
@@ -263,7 +264,7 @@ Flags:
 Examples:
 ```
 holus improve-integration specs/019-example.change.json --phase pre_promotion
-python -m codesight.cli_axi improve-integration specs/019-example.change.json --phase pre_promotion
+python -m holusight.cli_axi improve-integration specs/019-example.change.json --phase pre_promotion
 ```
 
 ## Output formats

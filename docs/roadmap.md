@@ -1,4 +1,4 @@
-# Roadmap — codesight
+# Roadmap — holusight
 
 _Updated: 2026-04-04_
 
@@ -15,20 +15,20 @@ _Updated: 2026-04-04_
 
 ## v0.2 — Enterprise Document Search ✅ DONE
 
-- [x] Package rename: `semantic_search_mcp` → `codesight`
+- [x] Package rename: `semantic_search_mcp` → `holusight`
 - [x] Document parsers: PDF (pymupdf), DOCX (python-docx), PPTX (python-pptx)
 - [x] Document-aware chunking (paragraph boundaries, page metadata)
-- [x] Python API: `CodeSight` class with `index()`, `search()`, `ask()`, `status()`
+- [x] Python API: `Holusight` class with `index()`, `search()`, `ask()`, `status()`
 - [x] Claude answer synthesis with source citations
 - [x] Streamlit web chat UI (`demo/app.py`)
-- [x] CLI: `python -m codesight index|search|ask|status|demo`
+- [x] CLI: `python -m holusight index|search|ask|status|demo`
 - [x] Auto-index on first search, auto-refresh when stale
 
 ## v0.3 — Pluggable LLM + Better Embeddings ✅ DONE
 
 - [x] Pluggable LLM backend: Claude, Azure OpenAI, OpenAI, Ollama
-- [x] `CODESIGHT_LLM_BACKEND` config
-- [x] Optional API embedding (Voyage) via `VOYAGE_API_KEY` + `CODESIGHT_EMBEDDING_BACKEND`
+- [x] `HOLUSIGHT_LLM_BACKEND` config
+- [x] Optional API embedding (Voyage) via `VOYAGE_API_KEY` + `HOLUSIGHT_EMBEDDING_BACKEND`
 - [x] Cross-encoder reranker after RRF (voyage rerank-2)
 
 ## v0.4 — Retrieval Quality ✅ DONE — 2026-04-04
@@ -67,7 +67,7 @@ Still planned (not in this slice):
 
 ## v0.6 — ACL Enforcement
 
-_The core differentiator. This is what makes CodeSight enterprise-grade._
+_The core differentiator. This is what makes Holusight enterprise-grade._
 
 - [ ] **SSO integration** — OIDC/OAuth2 identity resolution
 - [ ] **Group membership mapping** — Entra ID / Active Directory groups

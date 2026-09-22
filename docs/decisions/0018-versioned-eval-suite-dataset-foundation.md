@@ -28,7 +28,7 @@ receipts, or any holdout access path. Evaluator execution stays blocked
 until the trusted G2 sandbox lands.
 
 Do not introduce a new root `eval/` tree. Manifests live under
-`tests/fixtures/` and models live in `src/codesight/eval_suite.py`, matching
+`tests/fixtures/` and models live in `src/holusight/eval_suite.py`, matching
 existing placement rules (ADR-0014).
 
 ## Consequences

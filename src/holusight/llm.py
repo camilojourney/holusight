@@ -1,6 +1,6 @@
 """Pluggable LLM backend for answer synthesis.
 
-Supports 4 backends, selected via CODESIGHT_LLM_BACKEND env var:
+Supports 4 backends, selected via HOLUSIGHT_LLM_BACKEND env var:
   - claude  (default) — Anthropic API
   - azure   — Azure OpenAI (data stays in client's tenant)
   - openai  — OpenAI API
@@ -52,7 +52,7 @@ class ClaudeBackend:
         if not api_key:
             raise ValueError(
                 "ANTHROPIC_API_KEY environment variable is required for the Claude backend. "
-                "Set it or switch to a different backend: CODESIGHT_LLM_BACKEND=ollama"
+                "Set it or switch to a different backend: HOLUSIGHT_LLM_BACKEND=ollama"
             )
         self._model = model
         self._api_key = api_key

@@ -24,10 +24,10 @@ Keep read-only invariant intact — never write to repo_path.
 
 ```bash
 # No writes to repo_path
-grep -rn "open.*'w'" src/codesight/
+grep -rn "open.*'w'" src/holusight/
 
 # No path traversal
-grep -rn "\.\./" src/codesight/
+grep -rn "\.\./" src/holusight/
 ```
 
 ## 5. Run Full Suite

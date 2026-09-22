@@ -24,9 +24,9 @@ Existing tools are either too expensive (Glean, Microsoft Copilot at $30/user/mo
 
 ## Non-Goals
 
-- Writing to indexed folders — codesight is strictly read-only. This is a security invariant.
+- Writing to indexed folders — holusight is strictly read-only. This is a security invariant.
 - Cloud storage integration (SharePoint, Google Drive) — local paths only for now (connectors are v0.7)
-- Multi-folder search — one `CodeSight` instance per folder
+- Multi-folder search — one `Holusight` instance per folder
 - Streaming LLM responses — planned for later
 
 ## Solution
@@ -42,7 +42,7 @@ User (non-technical)
            |
            v
 +------------------------------------------+
-| CodeSight Python API (api.py)            |
+| Holusight Python API (api.py)            |
 | index()  search()  ask()  status()       |
 +----------+-------------------------------+
            |
@@ -84,12 +84,12 @@ query → BM25 via SQLite FTS5 → top 20 keyword matches
 ## API Contract
 
 ```python
-from codesight import CodeSight
+from holusight import Holusight
 
-engine = CodeSight("/path/to/documents")
+engine = Holusight("/path/to/documents")
 
 # Stable public imports from package root:
-# CodeSight, ServerConfig, Answer, IndexStats, RepoStatus, SearchResult
+# Holusight, ServerConfig, Answer, IndexStats, RepoStatus, SearchResult
 
 # Index all files in the folder
 engine.index(force_rebuild: bool = False) -> IndexStats
@@ -131,7 +131,7 @@ engine.import_holus_lineage(payload: Mapping[str, Any]) -> HolusImportStats
 | Default top_k | 8 (search), 5 (ask) | Balance completeness vs noise |
 | Max file size | 10MB | Covers large PDFs without OOM |
 | Content hash | sha256[:16] | Dedup without storage overhead |
-| Stale threshold | 60 minutes | Configurable via CODESIGHT_STALE_MINUTES |
+| Stale threshold | 60 minutes | Configurable via HOLUSIGHT_STALE_MINUTES |
 | Chunk max chars | 1500 (docs), 200 lines (code) | Fits in embedding context window |
 
 ### Dependencies
@@ -160,7 +160,7 @@ File on disk
 ### Storage Layout
 
 ```
-~/.codesight/data/<sha256(folder_path)[:12]>/
+~/.holusight/data/<sha256(folder_path)[:12]>/
     ├── lance/         ← LanceDB vector tables
     └── metadata.db    ← SQLite with FTS5 virtual table + repo metadata
 ```
@@ -170,7 +170,7 @@ File on disk
 ### Alternative A: Vector-only search (no BM25)
 
 Trade-off: Simpler implementation, but misses exact keyword matches (contract numbers, dates, vendor names).
-Rejected because: Hybrid BM25+vector+RRF is table stakes (Azure AI Search, Onyx, RAGFlow ship it natively). CodeSight differentiates on: $0 local-first search, pluggable LLM backends, and the strategy router (v0.5).
+Rejected because: Hybrid BM25+vector+RRF is table stakes (Azure AI Search, Onyx, RAGFlow ship it natively). Holusight differentiates on: $0 local-first search, pluggable LLM backends, and the strategy router (v0.5).
 
 ### Alternative B: Cloud-hosted vector DB (Pinecone, Weaviate)
 
@@ -200,7 +200,7 @@ Rejected because: We need index + search + ask. Our implementation is ~500 lines
 - [x] `engine.ask("What are the payment terms?")` returns LLM-generated answer with source citations
 - [x] `engine.status()` reports index health, file count, chunk count, staleness
 - [x] Auto-index on first `search()` if no index exists
-- [x] Auto-refresh when index is stale (beyond CODESIGHT_STALE_MINUTES)
+- [x] Auto-refresh when index is stale (beyond HOLUSIGHT_STALE_MINUTES)
 - [x] `.gitignore`-aware file walking (skip node_modules, .git, dist, etc.)
 - [x] Language-aware chunking for 10 languages (Python, JS, TS, Go, Rust, Java, Ruby, PHP, C, C++)
 - [x] Document chunking with paragraph boundaries and page metadata

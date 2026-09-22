@@ -69,7 +69,7 @@ candidate-vs-alternate-implementation comparison, in which case use
 
 ## 3. Write (or reuse) a grader
 
-If an existing grader in `src/codesight/eval_pilot.py`'s `GRADERS`
+If an existing grader in `src/holusight/eval_pilot.py`'s `GRADERS`
 registry already fits (e.g. another dangling-reference case can reuse
 `grade_known_dangling_reference_case` with a different `fixture.doc_path`),
 just point your case's `"grader"` field at it — no code change needed.
@@ -107,13 +107,13 @@ commented pure function whose only job is to reproduce the historical
 ```bash
 uv run --extra dev pytest tests/test_eval_pilot.py -x -v
 uv run --extra dev ruff check src/ tests/
-python -m codesight.eval_pilot run --scorecard
+python -m holusight.eval_pilot run --scorecard
 ```
 
 Confirm your new case appears in the run output with the verdict you
 expect, and that the full suite (`just check`) still passes.
 `holus improve-run --scorecard` is the schema-generated CLI equivalent of
-`python -m codesight.eval_pilot run --scorecard` (spec 018 §4) — either
+`python -m holusight.eval_pilot run --scorecard` (spec 018 §4) — either
 works.
 
 If your case needs a new fixture file (not a JSONL line — an actual new

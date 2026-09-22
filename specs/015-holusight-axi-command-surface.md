@@ -2,7 +2,7 @@
 
 **Status:** Phase 1 implemented (direct-PR). This spec is the design record
 for the `holus` command-line tool; the versioned contract it implements
-lives in code as `src/codesight/axi_schema.py`, not in this prose.
+lives in code as `src/holusight/axi_schema.py`, not in this prose.
 
 **Authorization boundary:** captain-authorized per
 `/Users/camiloslaptop/github/firstmate/data/holusight-axi-core-v1/instructions.md`.
@@ -15,7 +15,7 @@ routing/promotion, broad MCP architecture, or production deployment.
 `specs/013-holusight-axi-consistency-architecture.md` (Phase 1, PR #16)
 built the documentation-code consistency *engine* - the Python functions
 and `.holusight/consistency.db` cache. It exposed that engine through the
-existing generic `python -m codesight consistency <verb>` subcommand
+existing generic `python -m holusight consistency <verb>` subcommand
 group. `specs/011-holusight-product-architecture-research.md` (research
 only, not implementation authorization) separately proposed a smaller,
 job-oriented command surface - `holus`, `holus evidence`, `holus check`,
@@ -23,14 +23,14 @@ job-oriented command surface - `holus`, `holus evidence`, `holus check`,
 projection-aware, TOON-by-default, structured-error, no-hidden-egress.
 
 This spec is the implementation authorization and design record for that
-surface. It does not replace `python -m codesight consistency ...`
+surface. It does not replace `python -m holusight consistency ...`
 (unchanged - still the direct, generic entry point used by tests and by
 this repository's own dogfooding), and it does not create a router,
 autonomous provider promotion, or a new retrieval mechanism. `holus` is a
 thin, job-shaped CLI over already-landed code:
 
-- `src/codesight/consistency.py` (Phase 1 consistency engine, PR #16)
-- `src/codesight/search.py` (`hybrid_search`, already-shipped BM25+vector)
+- `src/holusight/consistency.py` (Phase 1 consistency engine, PR #16)
+- `src/holusight/search.py` (`hybrid_search`, already-shipped BM25+vector)
 - `graphify-out/graph.json` (tracked structural graph, read via the exact
   same `consistency._load_structural_index` /
   `consistency.structural_graph_freshness` functions PR #17's own
@@ -57,8 +57,8 @@ parallel API:
 ```
 
 The full, versioned flag/example set for every command lives in
-`src/codesight/axi_schema.py` (`AXI_COMMANDS`). `src/codesight/cli_axi.py`
-parses against that schema; `src/codesight/axi_skill_gen.py` generates
+`src/holusight/axi_schema.py` (`AXI_COMMANDS`). `src/holusight/cli_axi.py`
+parses against that schema; `src/holusight/axi_skill_gen.py` generates
 `.claude/skills/holus/SKILL.md` from the same schema. `tests/
 test_axi_skill_drift.py` fails if the committed skill and the schema ever
 disagree - this is the drift check required by acceptance criterion 7 of
@@ -67,7 +67,7 @@ every payload as `schema_version`) on any command/flag/field change.
 
 ## 3. Providers
 
-Four provider kinds, implemented in `src/codesight/axi_providers.py`:
+Four provider kinds, implemented in `src/holusight/axi_providers.py`:
 
 | Provider | Source | Egress | Cost |
 |---|---|---|---|
@@ -139,9 +139,9 @@ drift signal `check` exists to surface. So:
 JSON is the lossless canonical contract (`--format json`), matching every
 other model in this codebase (`.model_dump()` → `json.dumps`). `--format
 toon` (default) is a compact agent-facing projection generated at the
-output boundary only (`src/codesight/toon.py`) - nothing in this codebase
+output boundary only (`src/holusight/toon.py`) - nothing in this codebase
 parses TOON back into Python. `--format text` is a plain human-readable
-rendering. `--fields a,b.c` (dotted-path projection, `src/codesight/
+rendering. `--fields a,b.c` (dotted-path projection, `src/holusight/
 cli_axi.py:project_fields`) works against the same JSON-shaped payload
 regardless of the chosen output format.
 

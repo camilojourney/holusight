@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from codesight import consistency
-from codesight.consistency_store import ConsistencyStore
+from holusight import consistency
+from holusight.consistency_store import ConsistencyStore
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -64,7 +64,7 @@ def _minimal_repo(tmp_path: Path) -> Path:
          consistency.ArtifactAuthority.CANONICAL),
         ("docs/playbooks/deploy.md", consistency.ArtifactKind.PLAYBOOK,
          consistency.ArtifactAuthority.SUPPORTING),
-        ("src/codesight/search.py", consistency.ArtifactKind.IMPLEMENTATION,
+        ("src/holusight/search.py", consistency.ArtifactKind.IMPLEMENTATION,
          consistency.ArtifactAuthority.SUPPORTING),
         ("tests/test_search.py", consistency.ArtifactKind.TEST,
          consistency.ArtifactAuthority.SUPPORTING),
@@ -213,7 +213,7 @@ def test_evaluate_known_claims_detects_drift(tmp_path):
     _write(tmp_path, "ARCHITECTURE.md", "RRF k=60 constant\n")
     _write(
         tmp_path,
-        "src/codesight/search.py",
+        "src/holusight/search.py",
         "def rrf_merge(\n    ranked_lists,\n    k: int = 99,\n):\n    pass\n",
     )
     claims = consistency.evaluate_known_claims(tmp_path)
@@ -232,7 +232,7 @@ def test_structural_graph_freshness_self_consistent_on_real_repo():
     """Doesn't assert a specific commit (that would break on the next
     `graphify update .`); asserts the staleness computation is internally
     consistent with the graph's own declared commit and current HEAD."""
-    from codesight.git_utils import current_commit
+    from holusight.git_utils import current_commit
 
     index = consistency._load_structural_index(REPO_ROOT)
     assert index.available is True

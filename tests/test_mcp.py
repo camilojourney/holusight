@@ -1,7 +1,7 @@
-"""Tests for the CodeSight API surface that replaces the former MCP tools.
+"""Tests for the Holusight API surface that replaces the former MCP tools.
 
 The original FastMCP server exposed three tools: index, search, status.
-CodeSight.index/search/status/ask are the Python API equivalents — these
+Holusight.index/search/status/ask are the Python API equivalents — these
 tests lock that contract so future MCP re-exposure stays compatible.
 """
 
@@ -13,10 +13,10 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-import codesight.config as config_module
-from codesight.api import CodeSight
-from codesight.config import ServerConfig
-from codesight.types import Answer, IndexStats, RepoStatus, SearchResult
+import holusight.config as config_module
+from holusight.api import Holusight
+from holusight.config import ServerConfig
+from holusight.types import Answer, IndexStats, RepoStatus, SearchResult
 
 # Keys returned by the original MCP tools via model_dump().
 MCP_INDEX_KEYS = {
@@ -64,7 +64,7 @@ def doc_folder(tmp_path):
 @pytest.fixture
 def isolated_data_dir(tmp_path, monkeypatch):
     """Route index storage to a temp dir (config.DATA_DIR is import-time bound)."""
-    data_dir = tmp_path / "codesight-data"
+    data_dir = tmp_path / "holusight-data"
     data_dir.mkdir()
     monkeypatch.setattr(config_module, "DATA_DIR", data_dir)
     return data_dir
@@ -73,7 +73,7 @@ def isolated_data_dir(tmp_path, monkeypatch):
 @pytest.fixture
 def engine(doc_folder, isolated_data_dir, monkeypatch):
     """Real index/search with deterministic embeddings and no provider calls."""
-    from codesight.store import ChunkStore
+    from holusight.store import ChunkStore
 
     class FakeEmbedder:
         def embed(self, texts):
@@ -83,10 +83,10 @@ def engine(doc_folder, isolated_data_dir, monkeypatch):
             return np.array([1.0, 0.0], dtype=np.float32)
 
     embedder = FakeEmbedder()
-    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: embedder)
-    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: embedder)
-    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
-    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.api.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.indexer.get_embedder", lambda *a, **kw: embedder)
+    monkeypatch.setattr("holusight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.search.VOYAGE_API_KEY", None)
     stores = []
 
     def tracked_store(*args, **kwargs):
@@ -94,8 +94,8 @@ def engine(doc_folder, isolated_data_dir, monkeypatch):
         stores.append(store)
         return store
 
-    monkeypatch.setattr("codesight.indexer.ChunkStore", tracked_store)
-    monkeypatch.setattr("codesight.api.ChunkStore", tracked_store)
+    monkeypatch.setattr("holusight.indexer.ChunkStore", tracked_store)
+    monkeypatch.setattr("holusight.api.ChunkStore", tracked_store)
     config = ServerConfig(
         embedding_model="synthetic",
         embedding_backend="local",
@@ -106,14 +106,14 @@ def engine(doc_folder, isolated_data_dir, monkeypatch):
         cnfb_alpha=0,
     )
     try:
-        yield CodeSight(doc_folder, config=config)
+        yield Holusight(doc_folder, config=config)
     finally:
         for store in stores:
             store.close()
 
 
 class TestMCPIndexTool:
-    """CodeSight.index() ↔ former MCP index tool."""
+    """Holusight.index() ↔ former MCP index tool."""
 
     def test_index_returns_index_stats(self, engine, doc_folder):
         stats = engine.index()
@@ -140,7 +140,7 @@ class TestMCPIndexTool:
 
 
 class TestMCPSearchTool:
-    """CodeSight.search() ↔ former MCP search tool."""
+    """Holusight.search() ↔ former MCP search tool."""
 
     def test_search_auto_indexes_when_empty(self, engine):
         """MCP search auto-indexed on first call; API must do the same."""
@@ -210,7 +210,7 @@ class TestMCPSearchTool:
 
 
 class TestMCPStatusTool:
-    """CodeSight.status() ↔ former MCP status tool."""
+    """Holusight.status() ↔ former MCP status tool."""
 
     def test_status_before_index_reports_not_indexed(self, engine, doc_folder):
         status = engine.status()
@@ -239,7 +239,7 @@ class TestMCPStatusTool:
 
 
 class TestMCPAskExtension:
-    """CodeSight.ask() — API extension beyond the original three MCP tools."""
+    """Holusight.ask() — API extension beyond the original three MCP tools."""
 
     def test_ask_with_no_index_returns_helpful_message(self, engine):
         mock_llm = MagicMock()
@@ -286,10 +286,10 @@ class TestMCPPathResolution:
 
     def test_nonexistent_folder_raises(self):
         with pytest.raises(ValueError, match="Not a directory"):
-            CodeSight("/nonexistent/holusight/path")
+            Holusight("/nonexistent/holusight/path")
 
     def test_tilde_expands_to_real_directory(self, tmp_path, isolated_data_dir):
         link = tmp_path / "linked"
         link.mkdir()
-        engine = CodeSight(link)
+        engine = Holusight(link)
         assert engine.folder_path == link.resolve()

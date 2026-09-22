@@ -1,6 +1,6 @@
-# Specs — codesight
+# Specs — holusight
 
-Feature specifications for codesight.
+Feature specifications for holusight.
 
 ## Feature Specs
 
@@ -55,8 +55,8 @@ Hybrid BM25 + vector + RRF search engine. Language-aware chunking for 10 languag
 
 ### v0.2 — Enterprise Document Search (completed)
 Major pivot from MCP code search server to enterprise document search engine:
-- Package renamed `semantic_search_mcp` → `codesight`
-- MCP layer removed, Python API created (`CodeSight` class)
+- Package renamed `semantic_search_mcp` → `holusight`
+- MCP layer removed, Python API created (`Holusight` class)
 - Document parsers: PDF, DOCX, PPTX
 - Claude answer synthesis via Anthropic API
 - Streamlit web chat UI + CLI

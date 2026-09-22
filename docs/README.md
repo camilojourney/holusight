@@ -1,4 +1,4 @@
-# docs - codesight
+# docs - holusight
 
 Project documentation index.
 

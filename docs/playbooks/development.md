@@ -8,7 +8,7 @@
 ## Setup
 
 ```bash
-cd codesight
+cd holusight
 pip install -e ".[dev]"
 # or with uv:
 uv sync --extra dev
@@ -18,34 +18,34 @@ uv sync --extra dev
 
 ```bash
 # Index a folder of documents
-python -m codesight index /path/to/documents
+python -m holusight index /path/to/documents
 
 # Search
-python -m codesight search "payment terms" /path/to/documents
+python -m holusight search "payment terms" /path/to/documents
 
 # Ask a question (requires ANTHROPIC_API_KEY)
-python -m codesight ask "What are the payment terms?" /path/to/documents
+python -m holusight ask "What are the payment terms?" /path/to/documents
 
 # Check index status
-python -m codesight status /path/to/documents
+python -m holusight status /path/to/documents
 
 # Launch the Streamlit demo UI
-uv run --extra demo python -m codesight demo
+uv run --extra demo python -m holusight demo
 # or directly:
 uv run --extra demo streamlit run demo/app.py
 
 # Production-shaped FastAPI server (requires API key unless unauthenticated dev)
-export CODESIGHT_API_KEY=dev-key
-export CODESIGHT_DOCUMENTS_DIR=./tests/fixtures/pilot_docs
-uv run --extra server python -m codesight serve ./tests/fixtures/pilot_docs
+export HOLUSIGHT_API_KEY=dev-key
+export HOLUSIGHT_DOCUMENTS_DIR=./tests/fixtures/pilot_docs
+uv run --extra server python -m holusight serve ./tests/fixtures/pilot_docs
 ```
 
 ## Python API
 
 ```python
-from codesight import CodeSight
+from holusight import Holusight
 
-engine = CodeSight("/path/to/documents")
+engine = Holusight("/path/to/documents")
 engine.index()
 results = engine.search("payment terms")
 answer = engine.ask("What are the payment terms?")
@@ -70,8 +70,8 @@ See `.env.example` for all configuration options.
 
 Key variables:
 - `ANTHROPIC_API_KEY` — required for `ask()` / Claude answer synthesis
-- `CODESIGHT_DATA_DIR` — index storage location (default: `~/.codesight/data/`)
-- `CODESIGHT_EMBEDDING_MODEL` — embedding model (default: `all-MiniLM-L6-v2`)
+- `HOLUSIGHT_DATA_DIR` — index storage location (default: `~/.holusight/data/`)
+- `HOLUSIGHT_EMBEDDING_MODEL` — embedding model (default: `all-MiniLM-L6-v2`)
 
 ## Directory Layout
 

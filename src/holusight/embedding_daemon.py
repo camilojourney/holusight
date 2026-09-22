@@ -41,12 +41,12 @@ from .config import DATA_DIR
 
 logger = logging.getLogger(__name__)
 
-DAEMON_DIR = Path(os.environ.get("CODESIGHT_DAEMON_DIR", DATA_DIR.parent / "daemon"))
+DAEMON_DIR = Path(os.environ.get("HOLUSIGHT_DAEMON_DIR", DATA_DIR.parent / "daemon"))
 SOCKET_PATH = DAEMON_DIR / "embed.sock"
 PID_PATH = DAEMON_DIR / "embed.pid"
 LOG_PATH = DAEMON_DIR / "embed.log"
 
-IDLE_TIMEOUT_SECONDS = int(os.environ.get("CODESIGHT_DAEMON_IDLE_TIMEOUT", "1800"))
+IDLE_TIMEOUT_SECONDS = int(os.environ.get("HOLUSIGHT_DAEMON_IDLE_TIMEOUT", "1800"))
 CONNECT_TIMEOUT_SECONDS = 0.5
 REQUEST_TIMEOUT_SECONDS = 120  # a single embed call, not the whole connection
 
@@ -209,7 +209,7 @@ def ensure_daemon_spawned() -> None:
         DAEMON_DIR.mkdir(parents=True, exist_ok=True)
         with open(LOG_PATH, "ab") as log_file:
             subprocess.Popen(  # noqa: S603 - fixed argv, no shell, no user input
-                [sys.executable, "-m", "codesight.embedding_daemon", "serve"],
+                [sys.executable, "-m", "holusight.embedding_daemon", "serve"],
                 stdin=subprocess.DEVNULL,
                 stdout=log_file,
                 stderr=log_file,

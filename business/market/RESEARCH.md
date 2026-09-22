@@ -65,7 +65,7 @@ Every query is permission-filtered before the LLM sees any content. The filter i
 Vector-only retrieval misses exact matches (document IDs, error codes, names). BM25-only misses semantic similarity. Best practice: hybrid retrieval with Reciprocal Rank Fusion (RRF).
 
 - **Azure AI Search** supports hybrid natively (vector + BM25 + semantic reranking)
-- **Qdrant + SQLite FTS5** for Mode A (same approach as codesight MCP server)
+- **Qdrant + SQLite FTS5** for Mode A (same approach as holusight MCP server)
 
 ### Embedding Models
 
@@ -204,7 +204,7 @@ Query arrives
 - JIT eliminates embedding pipeline maintenance for live data sources
 - Standard RAG sits in an awkward middle: slower than CAG for static, dumber than Agentic for complex
 
-CodeSight auto-picks the right strategy. No competitor does this.
+Holusight auto-picks the right strategy. No competitor does this.
 
 ## 10. Updated Competitive Landscape (2026-03)
 

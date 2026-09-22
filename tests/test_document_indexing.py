@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 from docx import Document
 
-from codesight import config as config_module
-from codesight.api import CodeSight
-from codesight.chunker import chunk_document
-from codesight.config import ServerConfig
-from codesight.parsers import extract_text
-from codesight.store import ChunkStore
+from holusight import config as config_module
+from holusight.api import Holusight
+from holusight.chunker import chunk_document
+from holusight.config import ServerConfig
+from holusight.parsers import extract_text
+from holusight.store import ChunkStore
 
 
 @pytest.mark.parametrize("layout", ["oversized", "short-paragraphs", "near-limit-overlap"])
@@ -17,8 +17,8 @@ def test_document_index_bounds_and_tail_citation(tmp_path, monkeypatch, layout):
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
     monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
     monkeypatch.setattr(config_module, "DATA_DIR", tmp_path / "data")
-    monkeypatch.setattr("codesight.indexer.VOYAGE_API_KEY", None)
-    monkeypatch.setattr("codesight.search.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.indexer.VOYAGE_API_KEY", None)
+    monkeypatch.setattr("holusight.search.VOYAGE_API_KEY", None)
     embedded = []
 
     class FakeEmbedder:
@@ -30,8 +30,8 @@ def test_document_index_bounds_and_tail_citation(tmp_path, monkeypatch, layout):
             return np.array([1.0, 0.0], dtype=np.float32)
 
     fake = FakeEmbedder()
-    monkeypatch.setattr("codesight.api.get_embedder", lambda *a, **kw: fake)
-    monkeypatch.setattr("codesight.indexer.get_embedder", lambda *a, **kw: fake)
+    monkeypatch.setattr("holusight.api.get_embedder", lambda *a, **kw: fake)
+    monkeypatch.setattr("holusight.indexer.get_embedder", lambda *a, **kw: fake)
     # Retain and close all test-owned stores, including the indexer's local store.
     stores = []
 
@@ -40,8 +40,8 @@ def test_document_index_bounds_and_tail_citation(tmp_path, monkeypatch, layout):
         stores.append(store)
         return store
 
-    monkeypatch.setattr("codesight.api.ChunkStore", make_store)
-    monkeypatch.setattr("codesight.indexer.ChunkStore", make_store)
+    monkeypatch.setattr("holusight.api.ChunkStore", make_store)
+    monkeypatch.setattr("holusight.indexer.ChunkStore", make_store)
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     path = corpus / "sample.docx"
@@ -65,7 +65,7 @@ def test_document_index_bounds_and_tail_citation(tmp_path, monkeypatch, layout):
         doc_chunk_max_chars=200, doc_chunk_overlap_chars=20,
         reranker=False, metadata_boost=False,
     )
-    engine = CodeSight(corpus, config=config)
+    engine = Holusight(corpus, config=config)
     try:
         stats = engine.index()
         assert stats.files_indexed == 1

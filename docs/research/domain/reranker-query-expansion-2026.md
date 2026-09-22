@@ -110,7 +110,7 @@ EVIDENCE: [VERIFIED] Multi-query fusion decreases Hit@10 in production (44-48% v
 
 DECISION_POINT: hyde_usage
 OPTIONS: A) HyDE as default B) HyDE as opt-in C) Skip HyDE
-RECOMMENDATION: B (opt-in via CODESIGHT_HYDE=true)
+RECOMMENDATION: B (opt-in via HOLUSIGHT_HYDE=true)
 CONFIDENCE: MEDIUM
 EVIDENCE: [VERIFIED] 19-26% lift on developer Q&A, fails 25% of concept queries — https://arxiv.org/html/2507.16754v1
 

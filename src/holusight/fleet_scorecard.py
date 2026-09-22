@@ -21,7 +21,7 @@ Two distinct outputs, matching two distinct consumers
 ------------------------------------------------------
 
 1. :func:`build_eval_scorecard` — a full ``fleet.eval_scorecard.v1.2``-shaped
-   document for one :class:`~codesight.consistency.ConsistencyReport`. This
+   document for one :class:`~holusight.consistency.ConsistencyReport`. This
    is Holusight's own, locally computed preview of what that report would
    look like normalized into Fleet's envelope. It is **not** what Fleet's
    ``run_repo_eval.py`` currently emits: as of the commit pinned above,
@@ -113,7 +113,7 @@ def _package_version() -> str:
     try:
         from importlib.metadata import version
 
-        return version("codesight")
+        return version("holusight")
     except Exception:  # pragma: no cover - defensive; package always installed in dev/test
         return "0.0.0-unknown"
 
@@ -191,7 +191,7 @@ def build_eval_scorecard(
         "input_hash": input_hash,
         "fixture_set_hash": fixture_set_hash,
         "result_hash": result_hash,
-        "evaluator_version": evaluator_version or f"codesight-consistency/{_package_version()}",
+        "evaluator_version": evaluator_version or f"holusight-consistency/{_package_version()}",
         "repo_commit": repo_commit,
         "environment": env,
         "cross_project_metrics": {
@@ -287,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv or argv[0] != "smoke":
         print(
-            "usage: python -m codesight.fleet_scorecard smoke",
+            "usage: python -m holusight.fleet_scorecard smoke",
             file=sys.stderr,
         )
         return 2

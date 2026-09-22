@@ -2,7 +2,7 @@
   "schema_version": "holusight-eval-suite/v1",
   "suite_id": "holusight-local-retrieval-v1",
   "status": "local_advisory_execution",
-  "runner": "python -m codesight.eval_suite run",
+  "runner": "python -m holusight.eval_suite run",
   "evaluator_execution": "local_visible_development_only",
   "promotion": "denied",
   "method_config_path": "tests/fixtures/eval_suites/holusight-local-retrieval-v1.method.json",
@@ -32,7 +32,7 @@
     "payload_present_in_repository": false
   },
   "identity_binding": {
-    "git_subject": "codesight.eval_pilot.EvaluationSubject (spec 021 / ADR-0017)",
+    "git_subject": "holusight.eval_pilot.EvaluationSubject (spec 021 / ADR-0017)",
     "corpus": "content-addressed included-path bytes for each named corpus at the bound Git subject or pinned public commit/tree",
     "evaluator": "independent G2 evaluator-subject pin; blocked_until_g2_trusted_sandbox in this slice",
     "configuration": "sha256 of the method/config manifest",

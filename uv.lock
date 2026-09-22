@@ -353,7 +353,7 @@ wheels = [
 ]
 
 [[package]]
-name = "codesight"
+name = "holusight"
 version = "0.3.0"
 source = { editable = "." }
 dependencies = [

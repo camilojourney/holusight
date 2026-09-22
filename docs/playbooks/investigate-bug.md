@@ -4,9 +4,9 @@
 
 ```bash
 # Isolate to a fresh data dir to avoid cache interference
-export CODESIGHT_DATA_DIR=/tmp/codesight-debug-$(date +%s)
-python -m codesight index /path/to/test-docs
-python -m codesight search "failing query" /path/to/test-docs
+export HOLUSIGHT_DATA_DIR=/tmp/holusight-debug-$(date +%s)
+python -m holusight index /path/to/test-docs
+python -m holusight search "failing query" /path/to/test-docs
 ```
 
 ## 2. Check Logs
@@ -14,7 +14,7 @@ python -m codesight search "failing query" /path/to/test-docs
 ```bash
 # Enable debug logging
 export LOG_LEVEL=DEBUG
-python -m codesight search "query" /path/to/docs
+python -m holusight search "query" /path/to/docs
 ```
 
 ## 3. Inspect State
@@ -22,7 +22,7 @@ python -m codesight search "query" /path/to/docs
 For index corruption issues:
 ```python
 import lancedb
-db = lancedb.connect("~/.codesight/data/<folder-hash>/lance")
+db = lancedb.connect("~/.holusight/data/<folder-hash>/lance")
 tbl = db.open_table("chunks")
 print(tbl.count_rows())
 ```
@@ -30,7 +30,7 @@ print(tbl.count_rows())
 For FTS issues:
 ```python
 import sqlite3
-conn = sqlite3.connect("~/.codesight/data/<folder-hash>/metadata.db")
+conn = sqlite3.connect("~/.holusight/data/<folder-hash>/metadata.db")
 print(conn.execute("SELECT count(*) FROM chunks_fts").fetchone())
 ```
 
@@ -38,7 +38,7 @@ print(conn.execute("SELECT count(*) FROM chunks_fts").fetchone())
 
 ```bash
 # Should find ZERO results — any write to folder_path is a bug
-grep -rn "open.*'w'" src/codesight/
+grep -rn "open.*'w'" src/holusight/
 ```
 
 ## 5. Write a Regression Test

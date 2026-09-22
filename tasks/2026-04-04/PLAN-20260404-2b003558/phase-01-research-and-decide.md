@@ -1,6 +1,6 @@
 # Phase 1: Research and Decide
 
-**Goal:** Know exactly which 2-3 retrieval techniques are worth implementing for CodeSight. Backed by 2026 literature and 3-specialist deliberation.
+**Goal:** Know exactly which 2-3 retrieval techniques are worth implementing for Holusight. Backed by 2026 literature and 3-specialist deliberation.
 
 **Done when:** Research doc exists with claim-tagged findings on 5+ techniques AND consult output has a ranked list of top 3 techniques with estimated MRR lift, effort, and implementation path.
 
@@ -47,12 +47,12 @@ INVOKE: Skill(skill="research", args="holusight two-part research question: (1) 
 
 ---
 
-### Step 2: Consult — which techniques to implement for CodeSight
+### Step 2: Consult — which techniques to implement for Holusight
 
 **Depends on:** Step 1 (research doc)
 
 ```
-INVOKE: Skill(skill="consult-engineering", args="holusight 3 specialists deliberate: given the research findings (known techniques AND novel ideas) in tasks/2026-04-04/PLAN-20260404-2b003558/results/phase-01-step-01-research.md, which 2-3 experiments should CodeSight run to push MRR from 0.793 to 0.85+? Current stack: AST chunking (tree-sitter), BM25+vector RRF, voyage-code-3 embeddings (1024d), voyage rerank-2, metadata filename boost, VPRF. Constraints: must be compatible with LanceDB schema, must not break 95 existing tests, prefer techniques that improve rank ordering (MRR) not just recall (hit rate is already 100%). Novel/unpublished experiments are welcome — we are not restricted to papers. Rank by: expected MRR lift x implementation effort x correctness risk.")
+INVOKE: Skill(skill="consult-engineering", args="holusight 3 specialists deliberate: given the research findings (known techniques AND novel ideas) in tasks/2026-04-04/PLAN-20260404-2b003558/results/phase-01-step-01-research.md, which 2-3 experiments should Holusight run to push MRR from 0.793 to 0.85+? Current stack: AST chunking (tree-sitter), BM25+vector RRF, voyage-code-3 embeddings (1024d), voyage rerank-2, metadata filename boost, VPRF. Constraints: must be compatible with LanceDB schema, must not break 95 existing tests, prefer techniques that improve rank ordering (MRR) not just recall (hit rate is already 100%). Novel/unpublished experiments are welcome — we are not restricted to papers. Rank by: expected MRR lift x implementation effort x correctness risk.")
 ```
 
 **What Claude Code does:**

@@ -6,7 +6,7 @@ Deploy Holusight as a single-team pilot on the customer's infrastructure.
 
 - Docker 24+ and Docker Compose v2
 - Read-only folder of documents (or git checkout mounted `:ro`)
-- API key for the deployment (`CODESIGHT_API_KEY`)
+- API key for the deployment (`HOLUSIGHT_API_KEY`)
 - Optional: LLM provider credentials for **Ask** mode (Search works without any LLM)
 
 The image downloads and caches the default local embedding model during the Docker build. Build it on a connected machine before moving it to an air-gapped environment. Cloud answer providers still require their network access; use Ollama for fully local answers.
@@ -17,9 +17,9 @@ The image downloads and caches the default local embedding model during the Dock
 git clone https://github.com/camilojourney/holusight.git
 cd holusight
 
-export CODESIGHT_API_KEY=$(openssl rand -hex 24)
-export CODESIGHT_DOCUMENTS_HOST_DIR=/path/to/customer/docs
-export CODESIGHT_LLM_BACKEND=claude   # or azure, openai, ollama
+export HOLUSIGHT_API_KEY=$(openssl rand -hex 24)
+export HOLUSIGHT_DOCUMENTS_HOST_DIR=/path/to/customer/docs
+export HOLUSIGHT_LLM_BACKEND=claude   # or azure, openai, ollama
 export ANTHROPIC_API_KEY=sk-ant-...   # if using Claude
 
 docker compose up --build -d
@@ -40,13 +40,13 @@ Open `http://<server>:8000`, enter the API key in the sidebar, click **Re-index*
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `CODESIGHT_API_KEY` | **Yes** (production) | Shared team API key |
-| `CODESIGHT_DOCUMENTS_HOST_DIR` | **Yes** (compose) | Host document directory mounted read-only at `/data` |
-| `CODESIGHT_DOCUMENTS_DIR` | `/data` | Read-only document root inside container |
-| `CODESIGHT_DATA_DIR` | Default `/index` | Persistent index volume |
-| `CODESIGHT_PRODUCTION` | `1` in image | Enforces API key |
-| `CODESIGHT_LLM_BACKEND` | For Ask | `claude`, `azure`, `openai`, `ollama` |
-| `CODESIGHT_ALLOW_UNAUTHENTICATED` | Dev only | Never use in customer production |
+| `HOLUSIGHT_API_KEY` | **Yes** (production) | Shared team API key |
+| `HOLUSIGHT_DOCUMENTS_HOST_DIR` | **Yes** (compose) | Host document directory mounted read-only at `/data` |
+| `HOLUSIGHT_DOCUMENTS_DIR` | `/data` | Read-only document root inside container |
+| `HOLUSIGHT_DATA_DIR` | Default `/index` | Persistent index volume |
+| `HOLUSIGHT_PRODUCTION` | `1` in image | Enforces API key |
+| `HOLUSIGHT_LLM_BACKEND` | For Ask | `claude`, `azure`, `openai`, `ollama` |
+| `HOLUSIGHT_ALLOW_UNAUTHENTICATED` | Dev only | Never use in customer production |
 
 ## Health & operations
 
@@ -55,10 +55,10 @@ Open `http://<server>:8000`, enter the API key in the sidebar, click **Re-index*
 curl -s http://localhost:8000/api/health | jq
 
 # Status (auth required)
-curl -s -H "X-API-Key: $CODESIGHT_API_KEY" http://localhost:8000/api/status | jq
+curl -s -H "X-API-Key: $HOLUSIGHT_API_KEY" http://localhost:8000/api/status | jq
 
 # Trigger re-index
-curl -s -X POST -H "X-API-Key: $CODESIGHT_API_KEY" \
+curl -s -X POST -H "X-API-Key: $HOLUSIGHT_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"force_rebuild":false}' \
   http://localhost:8000/api/index | jq
@@ -77,7 +77,7 @@ Restore by extracting into a new volume before starting the container.
 
 ## Rotate credentials
 
-1. Generate new `CODESIGHT_API_KEY`
+1. Generate new `HOLUSIGHT_API_KEY`
 2. Update compose env and `docker compose up -d`
 3. Distribute new key to team (browser session storage clears on new key entry)
 
@@ -103,17 +103,17 @@ Source documents on the host are untouched.
 
 | Symptom | Check |
 |---------|-------|
-| 401 on API | API key header; `CODESIGHT_PRODUCTION=1` requires key |
+| 401 on API | API key header; `HOLUSIGHT_PRODUCTION=1` requires key |
 | 503 on Ask | LLM env vars for chosen backend; Search still works |
 | Empty search results | Run `/api/index`; verify `/data` mount |
-| Container exits on start | Logs: missing `CODESIGHT_API_KEY` or `/data` not mounted |
+| Container exits on start | Logs: missing `HOLUSIGHT_API_KEY` or `/data` not mounted |
 
 ## Local dev (without Docker)
 
 ```bash
 pip install -e ".[server,dev]"
-export CODESIGHT_DOCUMENTS_DIR=./tests/fixtures/pilot_docs
-export CODESIGHT_API_KEY=dev-key
-export CODESIGHT_ALLOW_UNAUTHENTICATED=true  # local only
-python -m codesight serve ./tests/fixtures/pilot_docs
+export HOLUSIGHT_DOCUMENTS_DIR=./tests/fixtures/pilot_docs
+export HOLUSIGHT_API_KEY=dev-key
+export HOLUSIGHT_ALLOW_UNAUTHENTICATED=true  # local only
+python -m holusight serve ./tests/fixtures/pilot_docs
 ```

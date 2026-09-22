@@ -5,7 +5,7 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
 from pptx.util import Inches
 
-from codesight.parsers import DocumentPage, extract_text
+from holusight.parsers import DocumentPage, extract_text
 
 
 @pytest.mark.parametrize("placeholder", [True, False], ids=["placeholder", "textbox"])

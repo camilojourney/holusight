@@ -1,4 +1,4 @@
-"""CodeSight.search()'s auto_index parameter.
+"""Holusight.search()'s auto_index parameter.
 
 Default (auto_index=True) preserves the casual Python-API/CLI "just
 works" convenience: build the index if missing, refresh if stale, force
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from codesight.api import CodeSight
+from holusight.api import Holusight
 
 
 def _repo(tmp_path: Path) -> Path:
@@ -25,7 +25,7 @@ def _repo(tmp_path: Path) -> Path:
 class TestAutoIndex:
     def test_default_rebuilds_on_model_mismatch(self, tmp_path):
         repo = _repo(tmp_path)
-        engine = CodeSight(repo)
+        engine = Holusight(repo)
         engine.index()
         engine.store.fts.set_meta("embedding_model", "a-totally-different-model")
 
@@ -35,14 +35,14 @@ class TestAutoIndex:
 
     def test_auto_index_false_never_rebuilds_on_model_mismatch(self, tmp_path, monkeypatch):
         repo = _repo(tmp_path)
-        engine = CodeSight(repo)
+        engine = Holusight(repo)
         engine.index()
         engine.store.fts.set_meta("embedding_model", "a-totally-different-model")
 
         def _fail_if_called(*_a, **_k):
             raise AssertionError("index() must never be called when auto_index=False")
 
-        monkeypatch.setattr(CodeSight, "index", _fail_if_called)
+        monkeypatch.setattr(Holusight, "index", _fail_if_called)
 
         engine.search("hello", auto_index=False)  # must not raise, must not rebuild
 
@@ -55,7 +55,7 @@ class TestAutoIndex:
         result on a missing table rather than raising -- it must stay
         empty, and no index may appear as a side effect of this call."""
         repo = _repo(tmp_path)
-        engine = CodeSight(repo)
+        engine = Holusight(repo)
 
         results = engine.search("hello", auto_index=False)
 

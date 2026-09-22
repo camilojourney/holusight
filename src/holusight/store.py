@@ -703,7 +703,7 @@ class ChunkStore:
         re-embedded; the vector table itself, if one already existed, was
         left in place with whatever dimension it was originally created
         with. Inserting a different-dimension embedding (e.g. after
-        switching CODESIGHT_EMBEDDING_MODEL) into that stale schema fails
+        switching HOLUSIGHT_EMBEDDING_MODEL) into that stale schema fails
         with a LanceDB Arrow cast error instead of rebuilding cleanly --
         exactly the failure mode force_rebuild exists to avoid.
         """

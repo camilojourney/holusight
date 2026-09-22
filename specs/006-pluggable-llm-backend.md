@@ -20,7 +20,7 @@ The consultant must be able to configure the LLM backend per client without chan
 ## Goals
 
 - Support 4 LLM backends: Claude API, Azure OpenAI, OpenAI, Ollama (local)
-- Single env var (`CODESIGHT_LLM_BACKEND`) selects the backend
+- Single env var (`HOLUSIGHT_LLM_BACKEND`) selects the backend
 - `search()` remains 100% local — never touches the LLM
 - Same system prompt and answer format across all backends
 - Clear error messages when credentials are missing
@@ -77,21 +77,21 @@ No change to the Python API. Configuration is via environment variables.
 
 ```bash
 # Claude (default)
-CODESIGHT_LLM_BACKEND=claude
+HOLUSIGHT_LLM_BACKEND=claude
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Azure OpenAI (data stays in client's Azure tenant)
-CODESIGHT_LLM_BACKEND=azure
+HOLUSIGHT_LLM_BACKEND=azure
 AZURE_OPENAI_ENDPOINT=https://mycompany.openai.azure.com/
 AZURE_OPENAI_API_KEY=...
 AZURE_OPENAI_DEPLOYMENT=gpt-4o
 
 # OpenAI
-CODESIGHT_LLM_BACKEND=openai
+HOLUSIGHT_LLM_BACKEND=openai
 OPENAI_API_KEY=sk-...
 
 # Ollama (100% local, zero network)
-CODESIGHT_LLM_BACKEND=ollama
+HOLUSIGHT_LLM_BACKEND=ollama
 OLLAMA_MODEL=llama3.1           # optional, default: llama3.1
 OLLAMA_BASE_URL=http://localhost:11434  # optional
 ```
@@ -113,7 +113,7 @@ OLLAMA_BASE_URL=http://localhost:11434  # optional
 | Backend | Dependency | Status |
 |---------|-----------|--------|
 | Claude | `anthropic>=0.40` | Already installed |
-| Azure OpenAI | `openai>=1.0` | New — add as optional: `pip install codesight[azure]` |
+| Azure OpenAI | `openai>=1.0` | New — add as optional: `pip install holusight[azure]` |
 | OpenAI | `openai>=1.0` | Same package as Azure |
 | Ollama | `httpx` or `requests` | Already available (httpx via anthropic) |
 
@@ -133,9 +133,9 @@ OLLAMA_BASE_URL=http://localhost:11434  # optional
 
 | File | Change |
 |------|--------|
-| `src/codesight/llm.py` | NEW — `LLMBackend` protocol + 4 implementations |
-| `src/codesight/api.py` | Modify `_call_claude()` → `_call_llm()` using backend adapter |
-| `src/codesight/config.py` | Add `llm_backend`, Azure/Ollama env vars |
+| `src/holusight/llm.py` | NEW — `LLMBackend` protocol + 4 implementations |
+| `src/holusight/api.py` | Modify `_call_claude()` → `_call_llm()` using backend adapter |
+| `src/holusight/config.py` | Add `llm_backend`, Azure/Ollama env vars |
 | `pyproject.toml` | Add `[azure]` and `[openai]` optional dep groups |
 
 ## Alternatives Considered
@@ -161,7 +161,7 @@ Rejected because: Azure OpenAI is critical for enterprise clients who are alread
 - Ollama model not downloaded → clear error: "Model 'llama3.1' not found. Download it with: ollama pull llama3.1"
 - Azure deployment name wrong → surface Azure error with added context about checking deployment name
 - API rate limit → retry once with 2s delay, then raise with message suggesting reducing concurrent usage
-- Network timeout → 30s timeout, clear error: "LLM request timed out. Check network or try CODESIGHT_LLM_BACKEND=ollama for local inference"
+- Network timeout → 30s timeout, clear error: "LLM request timed out. Check network or try HOLUSIGHT_LLM_BACKEND=ollama for local inference"
 - Missing API key → clear error naming the exact env var needed for the selected backend
 - `search()` called with no backend configured → works fine (search never uses LLM)
 - `ask()` called with no backend configured → defaults to Claude, fails with clear API key error if missing
@@ -174,10 +174,10 @@ Rejected because: Azure OpenAI is critical for enterprise clients who are alread
 
 ## Acceptance Criteria
 
-- [ ] `CODESIGHT_LLM_BACKEND=claude` works with `ANTHROPIC_API_KEY` (existing behavior)
-- [ ] `CODESIGHT_LLM_BACKEND=azure` works with Azure OpenAI env vars
-- [ ] `CODESIGHT_LLM_BACKEND=openai` works with `OPENAI_API_KEY`
-- [ ] `CODESIGHT_LLM_BACKEND=ollama` works with local Ollama server
+- [ ] `HOLUSIGHT_LLM_BACKEND=claude` works with `ANTHROPIC_API_KEY` (existing behavior)
+- [ ] `HOLUSIGHT_LLM_BACKEND=azure` works with Azure OpenAI env vars
+- [ ] `HOLUSIGHT_LLM_BACKEND=openai` works with `OPENAI_API_KEY`
+- [ ] `HOLUSIGHT_LLM_BACKEND=ollama` works with local Ollama server
 - [ ] Invalid backend name raises `ValueError` listing valid options
 - [ ] Missing credentials produce error naming the exact env var required
 - [ ] `search()` works with no LLM backend configured (100% local)

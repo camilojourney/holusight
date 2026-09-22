@@ -1,4 +1,4 @@
-"""CodeSight -- AI Document Search Chat UI.
+"""Holusight -- AI Document Search Chat UI.
 
 Run with: streamlit run demo/app.py
 """
@@ -10,7 +10,7 @@ from pathlib import Path
 import streamlit as st
 
 st.set_page_config(
-    page_title="CodeSight",
+    page_title="Holusight",
     page_icon="🔍",
     layout="wide",
 )
@@ -33,8 +33,8 @@ st.markdown(
 
 @st.cache_resource
 def _get_engine(folder: str):
-    from codesight.api import CodeSight
-    return CodeSight(folder)
+    from holusight.api import Holusight
+    return Holusight(folder)
 
 
 def _render_sources(sources) -> list[dict]:
@@ -83,7 +83,7 @@ def _render_sources(sources) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 with st.sidebar:
-    st.title("CodeSight")
+    st.title("Holusight")
     st.caption("AI-powered document search")
 
     folder_path = st.text_input(
@@ -203,7 +203,7 @@ if not st.session_state.messages:
         with col_c:
             st.markdown("**Step 3**")
             st.markdown(
-                "Ask questions in natural language. CodeSight searches"
+                "Ask questions in natural language. Holusight searches"
                 " with hybrid BM25 + vector retrieval."
             )
         st.markdown("---")
