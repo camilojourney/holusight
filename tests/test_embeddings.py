@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
+
 import numpy as np
 
 from holusight import config as config_module
@@ -59,6 +62,32 @@ def test_long_text_is_segmented_and_character_batched_without_data_loss() -> Non
     )
     assert vectors.shape == (1, 2)
     np.testing.assert_allclose(np.linalg.norm(vectors, axis=1), [1.0])
+
+
+def test_memory_bounded_default_loads_on_cpu(monkeypatch) -> None:
+    calls = []
+
+    class FakeSentenceTransformer:
+        def __init__(self, model_name, **kwargs):
+            calls.append((model_name, kwargs))
+
+        def get_sentence_embedding_dimension(self):
+            return 1024
+
+    monkeypatch.setitem(
+        sys.modules,
+        "sentence_transformers",
+        SimpleNamespace(SentenceTransformer=FakeSentenceTransformer),
+    )
+    LocalEmbedder(model_name="Qwen/Qwen3-Embedding-0.6B", expected_dim=1024).model
+
+    assert calls == [("Qwen/Qwen3-Embedding-0.6B", {
+        "trust_remote_code": True,
+        "device": "cpu",
+    })]
+
+    LocalEmbedder(model_name="Qwen/Qwen3-Embedding-8B", expected_dim=4096).model
+    assert calls[1] == ("Qwen/Qwen3-Embedding-8B", {"trust_remote_code": True})
 
 
 def test_default_minilm_sized_text_remains_one_encode_input() -> None:

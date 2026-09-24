@@ -97,14 +97,13 @@ def resolve_embedding_dim(model_name: str) -> int:
 # When VOYAGE_API_KEY is set, default to voyage-code-3 for everything (single model, no dual-index).
 # Override via HOLUSIGHT_EMBEDDING_MODEL / HOLUSIGHT_EMBEDDING_BACKEND env vars.
 #
-# Local default is Qwen3-Embedding-8B, not all-MiniLM-L6-v2: it's the top
-# open-weight embedding model on MTEB retrieval as of writing (~70 vs
-# MiniLM's ~56), and LocalEmbedder applies its query/document asymmetric
-# prompting automatically. It's a real cost: an 8B-parameter model is slow
-# per embed relative to MiniLM, so this default assumes the operator has
-# the CPU/GPU/MPS to spare. HOLUSIGHT_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
-# or -4B trade quality back for speed on more constrained hardware -- see
-# all three registry entries below.
+# Local cold-index default is Qwen3-Embedding-0.6B. The 8B model is still
+# available and remains an explicit opt-in via HOLUSIGHT_EMBEDDING_MODEL.
+# This keeps the local-first default usable on laptops where loading 8B into
+# MPS can exhaust memory before the frozen retrieval evaluation completes.
+# LocalEmbedder applies Qwen's query/document asymmetric prompting
+# automatically. Operators with sufficient memory can opt into 4B or 8B via
+# HOLUSIGHT_EMBEDDING_MODEL; explicit model configuration is authoritative.
 def _resolve_default_embedding_model() -> str:
     """Fresh per-call resolution, unlike the DEFAULT_EMBEDDING_MODEL
     constant below (frozen at import time, kept only for other modules'
@@ -115,7 +114,7 @@ def _resolve_default_embedding_model() -> str:
     repo_data_dir() had for HOLUSIGHT_DATA_DIR."""
     return os.environ.get(
         "HOLUSIGHT_EMBEDDING_MODEL",
-        "voyage-code-3" if os.environ.get("VOYAGE_API_KEY") else "Qwen/Qwen3-Embedding-8B",
+        "voyage-code-3" if os.environ.get("VOYAGE_API_KEY") else "Qwen/Qwen3-Embedding-0.6B",
     )
 
 

@@ -4,7 +4,8 @@ or Voyage AI).
 Backend is selected via HOLUSIGHT_EMBEDDING_BACKEND env var:
   - local  (default) — runs on CPU/GPU/MPS, no API key, no data leaves.
              HOLUSIGHT_EMBEDDING_MODEL picks the model (default
-             Qwen/Qwen3-Embedding-8B; see config.EMBEDDING_MODEL_REGISTRY).
+             Qwen/Qwen3-Embedding-0.6B; larger Qwen models remain opt-in via
+             HOLUSIGHT_EMBEDDING_MODEL (see config.EMBEDDING_MODEL_REGISTRY).
   - api    — OpenAI text-embedding-3-large
   - voyage — Voyage AI voyage-code-3 (also the automatic default whenever
              VOYAGE_API_KEY is set, regardless of this env var)
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 # line cannot turn a local index into an unbounded tokenizer/attention workload.
 _MAX_EMBEDDING_TEXT_CHARS = 16_384
 _MAX_EMBEDDING_BATCH_CHARS = 16_384
+_MEMORY_BOUNDED_LOCAL_MODEL = "Qwen/Qwen3-Embedding-0.6B"
 
 
 def _bound_texts(texts: list[str]) -> list[str]:
@@ -91,7 +93,13 @@ class LocalEmbedder:
             logger.info("Loading embedding model: %s", self.model_name)
             from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self.model_name, trust_remote_code=True)
+            model_kwargs = {"trust_remote_code": True}
+            # Qwen's small model is the safe cold-index default. Keep it on
+            # CPU so a first local index cannot exhaust MPS unified memory;
+            # larger models remain explicit operator choices.
+            if self.model_name == _MEMORY_BOUNDED_LOCAL_MODEL:
+                model_kwargs["device"] = "cpu"
+            self._model = SentenceTransformer(self.model_name, **model_kwargs)
             actual_dim = self._model.get_sentence_embedding_dimension()
             if actual_dim != self.expected_dim:
                 logger.warning(
