@@ -32,6 +32,34 @@ from .types import SearchResult
 
 logger = logging.getLogger(__name__)
 
+# MCP/server callers keep an engine alive across searches. Cache only the base
+# query vector so repeated questions avoid another model/API round-trip while
+# VPRF can still derive a fresh enhanced vector for each search. The bound keeps
+# long-lived servers from retaining an unbounded history of user queries.
+_QUERY_VECTOR_CACHE_SIZE = 128
+
+
+def _embed_query_cached(embedder: Embedder, query: str) -> np.ndarray:
+    """Embed a query once per embedder/query pair in a bounded process cache."""
+    cache = getattr(embedder, "_holusight_query_cache", None)
+    if not isinstance(cache, dict):
+        cache = {}
+        try:
+            setattr(embedder, "_holusight_query_cache", cache)
+        except (AttributeError, TypeError):
+            # Some third-party/proxy embedders disallow attributes. They still
+            # work correctly, just without the optional cache.
+            return embedder.embed_query(query)
+
+    if query in cache:
+        return cache[query].copy()
+
+    vector = np.asarray(embedder.embed_query(query), dtype=np.float32)
+    if len(cache) >= _QUERY_VECTOR_CACHE_SIZE:
+        cache.pop(next(iter(cache)))
+    cache[query] = vector.copy()
+    return vector
+
 
 def vprf_enhance_query(
     query_vector: np.ndarray,
@@ -332,7 +360,7 @@ def hybrid_search(
     rrf_top = reranker_top_n if reranker_enabled else top_k
 
     # 1. Embed query
-    query_vector = embedder.embed_query(query)
+    query_vector = _embed_query_cached(embedder, query)
 
     # 2. Vector search
     vec_ids = store.vector_search(
@@ -355,7 +383,7 @@ def hybrid_search(
         code_embedder = get_embedder("voyage-code-3", 1024, backend="voyage")
 
     if source is None and code_embedder is not None and store.code_lance_table is not None:
-        code_query_vector = code_embedder.embed_query(query)
+        code_query_vector = _embed_query_cached(code_embedder, query)
         code_vec_ids = store.vector_search_code(
             code_query_vector,
             top_k=candidate_count,
