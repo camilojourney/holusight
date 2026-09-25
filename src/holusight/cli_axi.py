@@ -38,7 +38,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from . import axi_providers, consistency
+from . import axi_providers, consistency, local_usage_trace
 from .axi_schema import AXI_COMMANDS, AXI_SCHEMA_VERSION, AxiCommand, command_by_name
 from .control_storage import (
     RESULTS_ROOT,
@@ -1365,6 +1365,10 @@ def _dispatch(argv: list[str]) -> tuple[dict, str, int]:
     fmt = values.get("--format") or "toon"
     payload, exit_code = _HANDLERS[cmd_name](repo_root, values, positionals)
     payload.setdefault("schema_version", AXI_SCHEMA_VERSION)
+    # Local usage evidence is opt-out and content-minimized. The writer is
+    # best-effort so a read-only CLI operation never fails because local
+    # telemetry storage is unavailable.
+    local_usage_trace.record(cmd_name, payload, exit_code=exit_code)
     return payload, fmt, exit_code
 
 
