@@ -203,6 +203,16 @@ def test_consistency_provider_unavailable_before_first_refresh(tmp_path):
     assert result.state == axi_providers.ProviderState.UNAVAILABLE
 
 
+def test_consistency_evidence_exposes_provenance_identity(tmp_path):
+    repo = _minimal_repo(tmp_path)
+    consistency.refresh(repo)
+    result = axi_providers.consistency_provider(repo, "alpha")
+    assert result.state == axi_providers.ProviderState.OK
+    assert result.items[0].evidence_class == "declared"
+    assert result.items[0].source_hash
+    assert len(result.items[0].source_hash) == 16
+
+
 def test_providers_job_reports_unavailable_entries(tmp_path):
     repo = _minimal_repo(tmp_path)
     payload, _fmt, exit_code = _run(["providers"], repo)

@@ -76,6 +76,10 @@ def _minimal_repo(tmp_path: Path) -> Path:
          consistency.ArtifactAuthority.GENERATED),
         ("README.md", consistency.ArtifactKind.DOCUMENTATION,
          consistency.ArtifactAuthority.SUPPORTING),
+        ("AGENTS.md", consistency.ArtifactKind.GOVERNANCE,
+         consistency.ArtifactAuthority.CANONICAL),
+        (".claude/rules/workflow.md", consistency.ArtifactKind.GOVERNANCE,
+         consistency.ArtifactAuthority.CANONICAL),
         ("random-notes.txt", consistency.ArtifactKind.OTHER,
          consistency.ArtifactAuthority.SUPPORTING),
     ],
@@ -391,6 +395,47 @@ def test_refresh_flags_dangling_reference(tmp_path):
     assert any("src/pkg/missing.py" in f["detail"] for f in dangling_flags)
     assert any(f["flag_type"] == "STALE_RELATIONSHIP" for f in flags)
     assert all(f["evidence_class"] == "verified" for f in dangling_flags)
+
+
+def test_governance_rules_are_checked_and_identified_as_canonical(tmp_path):
+    _write(
+        tmp_path,
+        "AGENTS.md",
+        "# Rules\n\nImplemented by `src/pkg/mod.py`.\nSee `src/pkg/renamed.py`.\n",
+    )
+    _write(tmp_path, "src/pkg/mod.py", "VALUE = 1\n")
+    consistency.refresh(tmp_path)
+    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
+    try:
+        artifacts = store.all_artifacts()
+        flags = store.all_health_flags()
+    finally:
+        store.close()
+    assert artifacts["AGENTS.md"]["authority"] == "canonical"
+    assert any(
+        f["flag_type"] == "STALE_RELATIONSHIP"
+        and "AGENTS.md" in f["detail"]
+        and f["evidence_class"] == "verified"
+        for f in flags
+    )
+
+
+def test_refresh_identifies_deleted_or_renamed_cached_artifact(tmp_path):
+    _write(tmp_path, "AGENTS.md", "# Rules\n")
+    consistency.refresh(tmp_path)
+    (tmp_path / "AGENTS.md").rename(tmp_path / "CLAUDE.md")
+    consistency.refresh(tmp_path)
+    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
+    try:
+        flags = store.all_health_flags()
+    finally:
+        store.close()
+    assert any(
+        f["flag_type"] == "STALE_ARTIFACT"
+        and "AGENTS.md" in f["detail"]
+        and "deleted or renamed" in f["detail"]
+        for f in flags
+    )
 
 
 # ---------------------------------------------------------------------------
