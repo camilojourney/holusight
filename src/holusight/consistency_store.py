@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS edges (
     provider TEXT NOT NULL,
     confidence REAL NOT NULL,
     evidence TEXT NOT NULL,
+    evidence_class TEXT NOT NULL DEFAULT 'unknown',
     created_at TEXT NOT NULL,
     UNIQUE(from_ref, to_ref, relation, provider)
 );
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS claims (
     code_path TEXT NOT NULL,
     code_value TEXT,
     status TEXT NOT NULL,
+    evidence_class TEXT NOT NULL DEFAULT 'unknown',
     evaluated_at TEXT NOT NULL
 );
 
@@ -83,6 +85,7 @@ CREATE TABLE IF NOT EXISTS health_flags (
     concept_id TEXT,
     detail TEXT NOT NULL,
     severity TEXT NOT NULL,
+    evidence_class TEXT NOT NULL DEFAULT 'unknown',
     detected_at TEXT NOT NULL
 );
 """
@@ -129,6 +132,15 @@ class ConsistencyStore:
 
     def _init_schema(self) -> None:
         self.conn.executescript(_SCHEMA)
+        # Derived caches may predate evidence classification. Additive
+        # migrations keep those caches readable without treating old rows as
+        # verified evidence.
+        for table in ("edges", "claims", "health_flags"):
+            columns = {row[1] for row in self.conn.execute(f"PRAGMA table_info({table})")}
+            if "evidence_class" not in columns:
+                self.conn.execute(
+                    f"ALTER TABLE {table} ADD COLUMN evidence_class TEXT NOT NULL DEFAULT 'unknown'"
+                )
         self.conn.execute(
             "INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('schema_version', ?)",
             (SCHEMA_VERSION,),
@@ -244,9 +256,11 @@ class ConsistencyStore:
             self.conn.executemany(
                 """
                 INSERT OR IGNORE INTO edges
-                    (from_ref, to_ref, relation, provider, confidence, evidence, created_at)
+                    (from_ref, to_ref, relation, provider, confidence, evidence,
+                     evidence_class, created_at)
                 VALUES
-                    (:from_ref, :to_ref, :relation, :provider, :confidence, :evidence, :created_at)
+                    (:from_ref, :to_ref, :relation, :provider, :confidence, :evidence,
+                     :evidence_class, :created_at)
                 """,
                 edges,
             )
@@ -269,10 +283,10 @@ class ConsistencyStore:
                 """
                 INSERT INTO claims
                     (name, description, doc_path, doc_value, code_path, code_value,
-                     status, evaluated_at)
+                     status, evidence_class, evaluated_at)
                 VALUES
                     (:name, :description, :doc_path, :doc_value, :code_path, :code_value,
-                     :status, :evaluated_at)
+                     :status, :evidence_class, :evaluated_at)
                 """,
                 claims,
             )
@@ -293,8 +307,10 @@ class ConsistencyStore:
         if flags:
             self.conn.executemany(
                 """
-                INSERT INTO health_flags (flag_type, concept_id, detail, severity, detected_at)
-                VALUES (:flag_type, :concept_id, :detail, :severity, :detected_at)
+                INSERT INTO health_flags
+                    (flag_type, concept_id, detail, severity, evidence_class, detected_at)
+                VALUES
+                    (:flag_type, :concept_id, :detail, :severity, :evidence_class, :detected_at)
                 """,
                 flags,
             )
