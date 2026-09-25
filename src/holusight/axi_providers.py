@@ -81,6 +81,8 @@ class EvidenceItem(BaseModel):
     source: str
     location: str
     excerpt: str
+    evidence_class: str | None = None
+    source_hash: str | None = None
     excerpt_truncated: bool = False
     excerpt_total_chars: int | None = None
     confidence: float | None = None
@@ -359,6 +361,8 @@ def consistency_provider(
                 EvidenceItem(
                     provider="consistency",
                     source=c["canonical_path"],
+                    evidence_class="declared",
+                    source_hash=(store.get_artifact(c["canonical_path"]) or {}).get("content_hash"),
                     location=f"concept {c['concept_id']!r}",
                     excerpt=excerpt,
                     excerpt_truncated=truncated,

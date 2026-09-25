@@ -57,6 +57,7 @@ class ArtifactKind(str, Enum):
     REPORT = "report"
     BUSINESS = "business"
     DOCUMENTATION = "documentation"
+    GOVERNANCE = "governance"
     OTHER = "other"
 
 
@@ -257,6 +258,10 @@ def classify_artifact(rel_path: str) -> tuple[ArtifactKind, ArtifactAuthority]:
         return ArtifactKind.DEVLOG, ArtifactAuthority.HISTORICAL
     if p.startswith(".self-improvement/reports/"):
         return ArtifactKind.REPORT, ArtifactAuthority.GENERATED
+    if p in ("AGENTS.md", "CLAUDE.md") or (
+        p.startswith(".claude/rules/") and p.endswith(".md")
+    ):
+        return ArtifactKind.GOVERNANCE, ArtifactAuthority.CANONICAL
     if p.startswith("graphify-out/"):
         return ArtifactKind.REPORT, ArtifactAuthority.GENERATED
     if p.startswith("business/"):
@@ -293,7 +298,11 @@ def build_concepts(artifacts: dict[str, Artifact], repo_root: Path) -> list[Conc
     repo_root = Path(repo_root)
     concepts: list[Concept] = []
     for path, artifact in sorted(artifacts.items()):
-        if artifact.kind not in (ArtifactKind.SPECIFICATION, ArtifactKind.DECISION):
+        if artifact.kind not in (
+            ArtifactKind.SPECIFICATION,
+            ArtifactKind.DECISION,
+            ArtifactKind.GOVERNANCE,
+        ):
             continue
         try:
             text = (repo_root / path).read_text(encoding="utf-8", errors="replace")
@@ -325,6 +334,7 @@ _REFERABLE_KINDS = (
     ArtifactKind.SPECIFICATION,
     ArtifactKind.DECISION,
     ArtifactKind.ARCHITECTURE,
+    ArtifactKind.GOVERNANCE,
 )
 
 
@@ -743,9 +753,28 @@ def compute_health_flags(
     dangling_by_doc: dict[str, list[str]],
     structural_stale: bool,
     structural_commit: str | None,
+    removed_artifacts: list[str] | None = None,
 ) -> list[HealthFlag]:
     now = _now()
     flags: list[HealthFlag] = []
+
+    # A cache entry disappearing is actionable repository evidence, but not
+    # proof of a deletion versus a rename. Keep that distinction explicit so
+    # governance checks never overclaim what the filesystem can establish.
+    for path in sorted(removed_artifacts or []):
+        flags.append(
+            HealthFlag(
+                flag_type="STALE_ARTIFACT",
+                concept_id=path,
+                detail=(
+                    f"cached artifact {path!r} is absent from the current repository; "
+                    "it may have been deleted or renamed, so references require review"
+                ),
+                severity="warning",
+                detected_at=now,
+                evidence_class=EvidenceClass.VERIFIED,
+            )
+        )
 
     scopes: dict[str, list[str]] = {}
     for concept in concepts:
@@ -981,6 +1010,7 @@ def refresh(
                 rel_path, kind.value, authority.value, content_hash, classified_at
             )
 
+        removed_artifacts = sorted(set(cached) - set(artifacts))
         store.delete_artifacts_not_in(set(artifacts))
 
         concepts = build_concepts(artifacts, repo_root)
@@ -1015,7 +1045,13 @@ def refresh(
         store.replace_claims([_claim_to_row(c) for c in claims])
 
         health_flags = compute_health_flags(
-            concepts, claims, edges, dangling_by_doc, structural_stale, structural_commit
+            concepts,
+            claims,
+            edges,
+            dangling_by_doc,
+            structural_stale,
+            structural_commit,
+            removed_artifacts,
         )
         store.replace_health_flags([_flag_to_row(f) for f in health_flags])
 
