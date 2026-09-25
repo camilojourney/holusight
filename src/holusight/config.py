@@ -6,7 +6,7 @@ import hashlib
 import os
 from pathlib import Path
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # Auto-load .env from CWD or repo root if present
 try:
@@ -265,6 +265,32 @@ class ServerConfig(BaseModel):
     query_enhancement: bool = Field(default=DEFAULT_QUERY_ENHANCEMENT)
     metadata_boost: bool = Field(default=True)
     cnfb_alpha: float = Field(default=DEFAULT_CNFB_ALPHA)
+
+    @field_validator("chunk_max_lines")
+    @classmethod
+    def validate_chunk_max_lines(cls, value: int) -> int:
+        """Require a positive window so line chunking can advance."""
+        if value <= 0:
+            raise ValueError("chunk_max_lines must be greater than 0")
+        return value
+
+    @field_validator("chunk_overlap_lines")
+    @classmethod
+    def validate_chunk_overlap_lines(cls, value: int) -> int:
+        """Reject negative overlap before indexing begins."""
+        if value < 0:
+            raise ValueError("chunk_overlap_lines must be greater than or equal to 0")
+        return value
+
+    @model_validator(mode="after")
+    def validate_progressing_line_window(self) -> ServerConfig:
+        """Ensure each line window advances instead of repeating or moving backward."""
+        if self.chunk_overlap_lines >= self.chunk_max_lines:
+            raise ValueError(
+                "chunk_overlap_lines must be less than chunk_max_lines "
+                f"(got {self.chunk_overlap_lines} >= {self.chunk_max_lines})"
+            )
+        return self
 
     @field_validator("cnfb_alpha")
     @classmethod

@@ -172,6 +172,19 @@ def _make_context_header(file_path: str, scope: str, start_line: int, end_line: 
 # ---------------------------------------------------------------------------
 
 
+def _validate_line_window(max_lines: int, overlap_lines: int) -> None:
+    """Reject line-window parameters that cannot make forward progress."""
+    if max_lines <= 0:
+        raise ValueError("max_lines must be greater than 0")
+    if overlap_lines < 0:
+        raise ValueError("overlap_lines must be greater than or equal to 0")
+    if overlap_lines >= max_lines:
+        raise ValueError(
+            "overlap_lines must be less than max_lines "
+            f"(got {overlap_lines} >= {max_lines})"
+        )
+
+
 def _detect_language(file_path: str) -> str:
     """Detect language from file extension."""
     ext = Path(file_path).suffix.lower()
@@ -192,6 +205,7 @@ def chunk_file(
        we sub-split with overlapping windows).
     3. If no pattern is available, fall back to overlapping windows.
     """
+    _validate_line_window(max_lines, overlap_lines)
     if not content.strip():
         return []
 
@@ -229,6 +243,7 @@ def _split_by_boundaries(
     overlap_lines: int,
 ) -> list[Chunk]:
     """Split on regex-detected scope boundaries."""
+    _validate_line_window(max_lines, overlap_lines)
     # Find all boundary line indices
     boundary_indices = [0]  # always start at line 0
     for i, line in enumerate(lines):
@@ -281,6 +296,7 @@ def _split_by_windows(
     line_offset: int = 0,
 ) -> list[Chunk]:
     """Fall back to fixed-size overlapping windows."""
+    _validate_line_window(max_lines, overlap_lines)
     chunks: list[Chunk] = []
     i = 0
     while i < len(lines):
@@ -405,6 +421,7 @@ def chunk_file_ast(
 
     Falls back to chunk_file() if tree-sitter is unavailable or parsing fails.
     """
+    _validate_line_window(max_lines, 0)
     if not content.strip():
         return []
 

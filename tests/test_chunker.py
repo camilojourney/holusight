@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from unittest.mock import patch
 
 import pytest
 
-from holusight.chunker import _detect_language, _detect_scope, chunk_file, chunk_file_ast
+from holusight.chunker import (
+    _detect_language,
+    _detect_scope,
+    _split_by_boundaries,
+    _split_by_windows,
+    chunk_file,
+    chunk_file_ast,
+)
 
 
 class TestDetectLanguage:
@@ -121,6 +129,62 @@ class TestChunkFile:
         chunks = chunk_file(content, "data.txt", max_lines=20, overlap_lines=5)
         assert len(chunks) >= 2
 
+    @pytest.mark.parametrize(
+        ("max_lines", "overlap_lines", "message"),
+        [
+            (0, 0, "max_lines must be greater than 0"),
+            (-1, 0, "max_lines must be greater than 0"),
+            (2, -1, "overlap_lines must be greater than or equal to 0"),
+            (2, 2, "overlap_lines must be less than max_lines"),
+            (2, 3, "overlap_lines must be less than max_lines"),
+        ],
+    )
+    def test_invalid_windows_rejected_before_empty_or_ast_paths(
+        self, max_lines, overlap_lines, message
+    ):
+        with pytest.raises(ValueError, match=message):
+            chunk_file("", "empty.txt", max_lines=max_lines, overlap_lines=overlap_lines)
+
+        with patch("holusight.chunker.chunk_file_ast", return_value=[]) as ast_chunker:
+            with pytest.raises(ValueError, match=message):
+                chunk_file(
+                    "def safe_ast_path():\n    return True\n",
+                    "safe.py",
+                    max_lines=max_lines,
+                    overlap_lines=overlap_lines,
+                )
+            ast_chunker.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("max_lines", "overlap_lines"),
+        [(0, 0), (-1, 0), (2, -1), (2, 2), (2, 3)],
+    )
+    def test_direct_window_producers_reject_invalid_values(
+        self, max_lines, overlap_lines
+    ):
+        with pytest.raises(ValueError):
+            _split_by_windows([], "empty.txt", "unknown", max_lines, overlap_lines)
+
+        with pytest.raises(ValueError):
+            _split_by_boundaries(
+                [],
+                "empty.py",
+                "python",
+                re.compile(r"^def "),
+                max_lines,
+                overlap_lines,
+            )
+
+    def test_maximum_overlap_terminates_with_unchanged_coverage_and_anchors(self):
+        chunks = chunk_file("alpha\nbeta\ngamma", "sample.txt", max_lines=2, overlap_lines=1)
+
+        assert [chunk.content for chunk in chunks] == ["alpha\nbeta", "beta\ngamma", "gamma"]
+        assert [(chunk.start_line, chunk.end_line) for chunk in chunks] == [
+            (1, 2),
+            (2, 3),
+            (3, 3),
+        ]
+
 
 class TestContentHashDedup:
     def test_same_content_same_hash(self):
@@ -184,6 +248,11 @@ class TestChunkFileAST:
     def test_empty_content_returns_empty(self):
         chunks = chunk_file_ast("", "empty.py")
         assert chunks == []
+
+    @pytest.mark.parametrize("max_lines", [0, -1])
+    def test_direct_ast_boundary_rejects_invalid_maximum(self, max_lines):
+        with pytest.raises(ValueError, match="max_lines must be greater than 0"):
+            chunk_file_ast("", "empty.py", max_lines=max_lines)
 
     @pytestmark_ts
     def test_chunk_has_correct_file_path(self):
