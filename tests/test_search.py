@@ -9,6 +9,7 @@ import pytest
 
 from holusight.search import (
     _cnfb_boost,
+    _embed_query_cached,
     _reorder_by_filename_match,
     _rerank,
     rrf_merge,
@@ -68,6 +69,30 @@ def test_search_glob_reaches_semantic_target_beyond_decoys(tmp_path, monkeypatch
         assert [r.chunk_id for r in filtered] == ["target"]
         assert filtered[0].file_path == "src/target.py"
         assert (filtered[0].start_line, filtered[0].end_line) == (4, 5)
+
+
+class TestQueryEmbeddingCache:
+    def test_reuses_vector_for_repeated_query(self):
+        embedder = MagicMock()
+        embedder.embed_query.return_value = np.array([1.0, 2.0], dtype=np.float64)
+
+        first = _embed_query_cached(embedder, "same query")
+        second = _embed_query_cached(embedder, "same query")
+
+        assert embedder.embed_query.call_count == 1
+        np.testing.assert_array_equal(first, second)
+        assert first.dtype == np.float32
+
+    def test_cached_vector_is_not_mutated_by_caller(self):
+        embedder = MagicMock()
+        embedder.embed_query.return_value = np.array([1.0, 2.0], dtype=np.float32)
+
+        first = _embed_query_cached(embedder, "same query")
+        first[0] = 99.0
+        second = _embed_query_cached(embedder, "same query")
+
+        assert second[0] == 1.0
+        assert embedder.embed_query.call_count == 1
 
 
 class TestRRFMerge:
