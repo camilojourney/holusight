@@ -73,6 +73,15 @@ class ProviderKind(str, Enum):
     SEMANTIC = "semantic"
 
 
+class EvidenceClass(str, Enum):
+    """Strength of the repository evidence behind a recorded fact."""
+
+    VERIFIED = "verified"
+    DECLARED = "declared"
+    INFERRED = "inferred"
+    UNKNOWN = "unknown"
+
+
 class ClaimStatus(str, Enum):
     MATCH = "match"
     DRIFT = "drift"
@@ -116,6 +125,7 @@ class Edge(BaseModel):
     confidence: float
     evidence: dict = Field(default_factory=dict)
     created_at: str
+    evidence_class: EvidenceClass = EvidenceClass.UNKNOWN
 
 
 class Claim(BaseModel):
@@ -127,6 +137,7 @@ class Claim(BaseModel):
     code_value: str | None
     status: ClaimStatus
     evaluated_at: str
+    evidence_class: EvidenceClass = EvidenceClass.UNKNOWN
 
 
 class HealthFlag(BaseModel):
@@ -135,6 +146,7 @@ class HealthFlag(BaseModel):
     detail: str
     severity: str  # "info" | "warning" | "high"
     detected_at: str
+    evidence_class: EvidenceClass = EvidenceClass.UNKNOWN
 
 
 class RepoSnapshot(BaseModel):
@@ -381,6 +393,7 @@ def extract_exact_references(
                 confidence=1.0,
                 evidence={"pattern": "path-token", "raw_token": raw},
                 created_at=now,
+                evidence_class=EvidenceClass.VERIFIED,
             )
         )
 
@@ -492,6 +505,7 @@ def structural_edges_for(
                     "graph_stale": stale,
                 },
                 created_at=now,
+                evidence_class=EvidenceClass.INFERRED,
             )
         )
     return edges
@@ -577,6 +591,7 @@ def semantic_similarity_edges(
                     confidence=round(score, 4),
                     evidence={"embedding_threshold": threshold},
                     created_at=now,
+                    evidence_class=EvidenceClass.INFERRED,
                 )
             )
     return edges
@@ -693,6 +708,13 @@ def evaluate_known_claims(repo_root: Path) -> list[Claim]:
         else:
             status = ClaimStatus.DRIFT
 
+        evidence_class = (
+            EvidenceClass.VERIFIED
+            if doc_value is not None and code_value is not None
+            else EvidenceClass.DECLARED
+            if doc_value is not None
+            else EvidenceClass.UNKNOWN
+        )
         claims.append(
             Claim(
                 name=definition.name,
@@ -703,6 +725,7 @@ def evaluate_known_claims(repo_root: Path) -> list[Claim]:
                 code_value=code_value,
                 status=status,
                 evaluated_at=now,
+                evidence_class=evidence_class,
             )
         )
     return claims
@@ -739,6 +762,7 @@ def compute_health_flags(
                     ),
                     severity="warning",
                     detected_at=now,
+                    evidence_class=EvidenceClass.VERIFIED,
                 )
             )
 
@@ -753,6 +777,7 @@ def compute_health_flags(
                 ),
                 severity="info",
                 detected_at=now,
+                evidence_class=EvidenceClass.INFERRED,
             )
         )
 
@@ -773,6 +798,7 @@ def compute_health_flags(
                     ),
                     severity="info",
                     detected_at=now,
+                    evidence_class=EvidenceClass.VERIFIED,
                 )
             )
 
@@ -785,6 +811,21 @@ def compute_health_flags(
                     detail=f"{doc_path} references {token!r}, which does not resolve to a file",
                     severity="warning",
                     detected_at=now,
+                    evidence_class=EvidenceClass.VERIFIED,
+                )
+            )
+            flags.append(
+                HealthFlag(
+                    flag_type="STALE_RELATIONSHIP",
+                    concept_id=doc_path,
+                    detail=(
+                        f"relationship from {doc_path} to {token!r} is stale: "
+                        "the declared target is absent; exact evidence cannot distinguish "
+                        "deletion from rename"
+                    ),
+                    severity="warning",
+                    detected_at=now,
+                    evidence_class=EvidenceClass.VERIFIED,
                 )
             )
 
@@ -800,6 +841,7 @@ def compute_health_flags(
                     ),
                     severity="high",
                     detected_at=now,
+                    evidence_class=EvidenceClass.VERIFIED,
                 )
             )
         elif claim.status == ClaimStatus.UNKNOWN:
@@ -813,6 +855,7 @@ def compute_health_flags(
                     ),
                     severity="warning",
                     detected_at=now,
+                    evidence_class=claim.evidence_class,
                 )
             )
 
@@ -827,6 +870,7 @@ def compute_health_flags(
 def _edge_to_row(edge: Edge) -> dict:
     row = edge.model_dump()
     row["provider"] = edge.provider.value
+    row["evidence_class"] = edge.evidence_class.value
     row["evidence"] = json.dumps(edge.evidence, sort_keys=True)
     return row
 
@@ -840,12 +884,14 @@ def _row_to_edge(row: dict) -> Edge:
         confidence=row["confidence"],
         evidence=json.loads(row["evidence"]) if row["evidence"] else {},
         created_at=row["created_at"],
+        evidence_class=EvidenceClass(row.get("evidence_class", "unknown")),
     )
 
 
 def _claim_to_row(claim: Claim) -> dict:
     row = claim.model_dump()
     row["status"] = claim.status.value
+    row["evidence_class"] = claim.evidence_class.value
     return row
 
 
@@ -859,11 +905,14 @@ def _row_to_claim(row: dict) -> Claim:
         code_value=row["code_value"],
         status=ClaimStatus(row["status"]),
         evaluated_at=row["evaluated_at"],
+        evidence_class=EvidenceClass(row.get("evidence_class", "unknown")),
     )
 
 
 def _flag_to_row(flag: HealthFlag) -> dict:
-    return flag.model_dump()
+    row = flag.model_dump()
+    row["evidence_class"] = flag.evidence_class.value
+    return row
 
 
 def _row_to_flag(row: dict) -> HealthFlag:

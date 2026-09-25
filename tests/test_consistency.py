@@ -154,6 +154,7 @@ def test_extract_exact_references_resolves_real_file_and_flags_dangling(tmp_path
     assert edge.relation == "references"
     assert edge.provider == consistency.ProviderKind.EXACT
     assert edge.confidence == 1.0
+    assert edge.evidence_class == consistency.EvidenceClass.VERIFIED
 
     assert dangling == ["src/pkg/missing.py"]
 
@@ -290,6 +291,7 @@ def test_semantic_similarity_edges_thresholds_and_tags_provider(tmp_path):
     assert len(edges) == 1
     edge = edges[0]
     assert edge.provider == consistency.ProviderKind.SEMANTIC
+    assert edge.evidence_class == consistency.EvidenceClass.INFERRED
     assert edge.from_ref == "concept:specs/001-alpha.md"
     assert edge.to_ref == "artifact:specs/002-beta.md"
     assert edge.confidence == pytest.approx(1.0)
@@ -387,6 +389,37 @@ def test_refresh_flags_dangling_reference(tmp_path):
         store.close()
     dangling_flags = [f for f in flags if f["flag_type"] == "DANGLING_REFERENCE"]
     assert any("src/pkg/missing.py" in f["detail"] for f in dangling_flags)
+    assert any(f["flag_type"] == "STALE_RELATIONSHIP" for f in flags)
+    assert all(f["evidence_class"] == "verified" for f in dangling_flags)
+
+
+# ---------------------------------------------------------------------------
+# Evidence classification and persistence
+# ---------------------------------------------------------------------------
+
+
+def test_claim_drift_is_verified_and_missing_claim_is_unknown(tmp_path):
+    _write(tmp_path, "ARCHITECTURE.md", "RRF k=60 constant\n")
+    _write(tmp_path, "src/holusight/search.py", "def rrf_merge(\n k: int = 99,\n):\n pass\n")
+    claims = consistency.evaluate_known_claims(tmp_path)
+    rrf = next(c for c in claims if c.name == "rrf_k")
+    assert rrf.status == consistency.ClaimStatus.DRIFT
+    assert rrf.evidence_class == consistency.EvidenceClass.VERIFIED
+    unknown = next(c for c in claims if c.name == "ast_min_lines")
+    assert unknown.evidence_class == consistency.EvidenceClass.UNKNOWN
+
+
+def test_refresh_persists_evidence_class_without_promoting_inference(tmp_path):
+    _minimal_repo(tmp_path)
+    consistency.refresh(tmp_path)
+    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
+    try:
+        edges = store.all_edges()
+        flags = store.all_health_flags()
+    finally:
+        store.close()
+    assert any(e["evidence_class"] == "verified" for e in edges)
+    assert any(f["flag_type"] == "STALE_RELATIONSHIP" for f in flags)
 
 
 # ---------------------------------------------------------------------------
