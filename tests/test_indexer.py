@@ -72,6 +72,49 @@ def offline_index(tmp_path, monkeypatch):
         store.close()
 
 
+@pytest.mark.parametrize(
+    ("max_lines", "overlap_lines", "message"),
+    [
+        (0, 0, "chunk_max_lines must be greater than 0"),
+        (-1, 0, "chunk_max_lines must be greater than 0"),
+        (2, -1, "chunk_overlap_lines must be greater than or equal to 0"),
+        (2, 2, "chunk_overlap_lines must be less than chunk_max_lines"),
+        (2, 3, "chunk_overlap_lines must be less than chunk_max_lines"),
+    ],
+)
+def test_invalid_line_windows_fail_before_public_index_side_effects(
+    tmp_path, monkeypatch, max_lines, overlap_lines, message
+):
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    source = corpus / "sample.txt"
+    source.write_text("alpha\nbeta\ngamma", encoding="utf-8")
+    before = source.read_bytes()
+    index_dispatches = []
+
+    def unexpected_index_dispatch(*args, **kwargs):
+        index_dispatches.append((args, kwargs))
+        return None
+
+    monkeypatch.setattr(api, "index_repo", unexpected_index_dispatch)
+
+    with pytest.raises(ValueError, match=message):
+        invalid_config = ServerConfig(
+            embedding_model="synthetic",
+            embedding_backend="local",
+            embedding_dim=2,
+            chunk_max_lines=max_lines,
+            chunk_overlap_lines=overlap_lines,
+            reranker=False,
+            metadata_boost=False,
+            query_enhancement=False,
+        )
+        Holusight(corpus, invalid_config).index()
+
+    assert index_dispatches == []
+    assert source.read_bytes() == before
+
+
 def _input_snapshot(corpus):
     return {str(p.relative_to(corpus)): p.read_bytes() for p in corpus.rglob("*") if p.is_file()}
 
