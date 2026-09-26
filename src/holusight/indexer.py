@@ -240,6 +240,13 @@ def index_repo(
                 if chunks is not None and not chunks:
                     store.delete_file_chunks(rel_path)
 
+            # This reports discovered-file scan progress, including files that
+            # were read but yielded no chunks or could not be read.
+            if file_idx % 10 == 0 or file_idx == total_files:
+                _log_progress(file_idx, total_files, f"Processing: {rel_path}")
+                if progress_callback is not None:
+                    progress_callback(file_idx, total_files, rel_path)
+
             if not chunks:
                 continue
 
@@ -247,12 +254,6 @@ def index_repo(
             existing_hashes = store.fts.get_chunk_hashes(rel_path)
 
             total_files_indexed += 1
-
-            # Progress feedback every 10 files or at completion
-            if file_idx % 10 == 0 or file_idx == total_files:
-                _log_progress(file_idx, total_files, f"Processing: {rel_path}")
-                if progress_callback is not None:
-                    progress_callback(file_idx, total_files, rel_path)
 
             # Determine which chunks need (re-)embedding
             new_chunk_ids = {c.chunk_id for c in chunks}
