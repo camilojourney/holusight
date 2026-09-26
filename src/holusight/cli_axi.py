@@ -56,6 +56,7 @@ _JOB_NAMES = {
     "check",
     "status",
     "providers",
+    "usage-summary",
     "improve-status",
     "improve-intake",
     "improve-run",
@@ -1340,6 +1341,7 @@ _HANDLERS = {
     "check": _cmd_check,
     "status": _cmd_status,
     "providers": _cmd_providers,
+    "usage-summary": lambda repo_root, values, positionals: (local_usage_trace.summarize(), 0),
     "improve-status": _cmd_improve_status,
     "improve-intake": _cmd_improve_intake,
     "improve-run": _cmd_improve_run,
@@ -1368,7 +1370,7 @@ def _dispatch(argv: list[str]) -> tuple[dict, str, int]:
     # Local usage evidence is opt-out and content-minimized. The writer is
     # best-effort so a read-only CLI operation never fails because local
     # telemetry storage is unavailable.
-    local_usage_trace.record(cmd_name, payload, exit_code=exit_code)
+    local_usage_trace.record(cmd_name, payload, exit_code=exit_code, project_root=repo_root)
     return payload, fmt, exit_code
 
 
