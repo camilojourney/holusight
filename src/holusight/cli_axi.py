@@ -1138,7 +1138,15 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
             help_text=_command_help_text(cmd),
         )
 
-    _ensure_cache_bootstrapped(repo_root)
+    # Exact evidence is a read-only repository walk. Do not implicitly build
+    # the consistency cache for it: a routine `holus evidence --mode exact`
+    # must leave a fresh consumer repository byte-for-byte unchanged. Other
+    # modes retain the historical one-time bootstrap so their consistency
+    # provider can report a useful unavailable/current state. An explicit
+    # `--provider exact` is likewise cache-free.
+    provider_list = [provider_name] if provider_name else axi_providers.MODE_PROVIDERS[mode]
+    if provider_list != ["exact"]:
+        _ensure_cache_bootstrapped(repo_root)
     head, dirty = _snapshot(repo_root)
     start = time.monotonic()
 
@@ -1161,7 +1169,6 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
         }
         return _apply_fields(payload, values.get("--fields")), 0
 
-    provider_list = [provider_name] if provider_name else axi_providers.MODE_PROVIDERS[mode]
     results = [
         axi_providers.PROVIDERS[name](repo_root, question, full=full, allow_egress=allow_egress)
         for name in provider_list

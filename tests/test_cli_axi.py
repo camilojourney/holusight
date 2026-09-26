@@ -324,6 +324,63 @@ def test_evidence_truncates_display_but_reports_total(tmp_path):
     assert any("budget" in w for w in payload["warnings"])
 
 
+def test_exact_evidence_does_not_bootstrap_or_dirty_fresh_git_repo(tmp_path):
+    repo = _git_repo(tmp_path)
+    before_status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True
+    ).stdout
+    before_manifest = sorted(
+        str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
+    )
+
+    payload, _fmt, exit_code = _run(["evidence", "alpha", "--mode", "exact"], repo)
+
+    after_status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True
+    ).stdout
+    after_manifest = sorted(
+        str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
+    )
+    assert exit_code == 0
+    assert payload["providers_checked"] == [
+        {"provider": "exact", "state": "ok", "detail": payload["providers_checked"][0]["detail"]}
+    ]
+    assert before_status == after_status == ""
+    assert before_manifest == after_manifest
+    assert not consistency.consistency_db_path(repo).exists()
+
+
+def test_exact_evidence_preserves_warmed_legacy_consistency_db(tmp_path):
+    repo = _git_repo(tmp_path)
+    consistency.refresh(repo, run_semantic=False)
+    db_path = consistency.consistency_db_path(repo)
+    before_bytes = db_path.read_bytes()
+    before_manifest = sorted(
+        str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
+    )
+
+    _payload, _fmt, exit_code = _run(["evidence", "alpha", "--mode", "exact"], repo)
+
+    assert exit_code == 0
+    assert db_path.exists()
+    assert db_path.read_bytes() == before_bytes
+    assert sorted(
+        str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
+    ) == before_manifest
+    assert subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True
+    ).stdout == ""
+
+
+def test_explicit_exact_provider_is_also_cache_free(tmp_path):
+    repo = _git_repo(tmp_path)
+    _payload, _fmt, exit_code = _run(
+        ["evidence", "alpha", "--provider", "exact"], repo
+    )
+    assert exit_code == 0
+    assert not consistency.consistency_db_path(repo).exists()
+
+
 def test_full_flag_disables_excerpt_truncation(tmp_path):
     repo = _minimal_repo(tmp_path)
     long_line = "target " + ("x" * 900)
