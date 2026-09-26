@@ -372,6 +372,57 @@ def test_exact_evidence_preserves_warmed_legacy_consistency_db(tmp_path):
     ).stdout == ""
 
 
+def test_auto_evidence_does_not_bootstrap_or_dirty_fresh_git_repo(tmp_path):
+    repo = _git_repo(tmp_path)
+    before_status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True
+    ).stdout
+    before_manifest = sorted(
+        str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
+    )
+
+    payload, _fmt, exit_code = _run(["evidence", "alpha"], repo)
+
+    after_status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True
+    ).stdout
+    after_manifest = sorted(
+        str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
+    )
+    assert exit_code == 0
+    assert payload["answerable"] is True
+    assert any(
+        p["provider"] == "consistency" and p["state"] == "unavailable"
+        for p in payload["providers_checked"]
+    )
+    assert before_status == after_status == ""
+    assert before_manifest == after_manifest
+    assert not consistency.consistency_db_path(repo).exists()
+
+
+def test_auto_evidence_preserves_warmed_legacy_consistency_db(tmp_path):
+    repo = _git_repo(tmp_path)
+    consistency.refresh(repo, run_semantic=False)
+    db_path = consistency.consistency_db_path(repo)
+    before_bytes = db_path.read_bytes()
+    before_manifest = sorted(
+        str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
+    )
+
+    payload, _fmt, exit_code = _run(["evidence", "alpha"], repo)
+
+    assert exit_code == 0
+    assert payload["answerable"] is True
+    assert any(p["provider"] == "consistency" for p in payload["providers_checked"])
+    assert db_path.read_bytes() == before_bytes
+    assert sorted(
+        str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
+    ) == before_manifest
+    assert subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True
+    ).stdout == ""
+
+
 def test_explicit_exact_provider_is_also_cache_free(tmp_path):
     repo = _git_repo(tmp_path)
     _payload, _fmt, exit_code = _run(

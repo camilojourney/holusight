@@ -1138,15 +1138,11 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
             help_text=_command_help_text(cmd),
         )
 
-    # Exact evidence is a read-only repository walk. Do not implicitly build
-    # the consistency cache for it: a routine `holus evidence --mode exact`
-    # must leave a fresh consumer repository byte-for-byte unchanged. Other
-    # modes retain the historical one-time bootstrap so their consistency
-    # provider can report a useful unavailable/current state. An explicit
-    # `--provider exact` is likewise cache-free.
+    # Evidence is a read-only query. Never implicitly build the consistency
+    # cache here, including default `--mode auto`: a fresh consumer repository
+    # must remain byte-for-byte clean. An existing repo-local cache is still
+    # read by the consistency provider and is never migrated or modified.
     provider_list = [provider_name] if provider_name else axi_providers.MODE_PROVIDERS[mode]
-    if provider_list != ["exact"]:
-        _ensure_cache_bootstrapped(repo_root)
     head, dirty = _snapshot(repo_root)
     start = time.monotonic()
 
