@@ -119,12 +119,140 @@ def _input_snapshot(corpus):
     return {str(p.relative_to(corpus)): p.read_bytes() for p in corpus.rglob("*") if p.is_file()}
 
 
-def _index_read_only(engine):
+def _index_read_only(engine, **kwargs):
     before = _input_snapshot(engine.folder_path)
     try:
-        return engine.index()
+        return engine.index(**kwargs)
     finally:
         assert _input_snapshot(engine.folder_path) == before
+
+
+def _assert_complete_progress(events, total):
+    positions = [current for current, event_total, _ in events]
+    assert positions == sorted(positions)
+    assert len(positions) == len(set(positions))
+    assert all(0 <= current <= event_total == total for current, event_total, _ in events)
+    assert events[-1][:2] == (total, total)
+
+
+@pytest.mark.parametrize("skipped_content", ["", " \n\t\n  "])
+@pytest.mark.parametrize("skipped_last", [True, False])
+def test_public_index_progress_completion_is_independent_of_skipped_file_order(
+    offline_index, monkeypatch, skipped_content, skipped_last,
+):
+    engine, embedder = offline_index
+    good = engine.folder_path / "good.txt"
+    skipped = engine.folder_path / "skipped.txt"
+    good.write_text("needle good")
+    skipped.write_text(skipped_content)
+    files = [good, skipped] if skipped_last else [skipped, good]
+    monkeypatch.setattr(indexer, "walk_repo_files", lambda root: files)
+    events = []
+
+    stats = _index_read_only(engine, progress_callback=lambda *event: events.append(event))
+
+    assert stats.files_indexed == stats.chunks_created == stats.total_chunks == 1
+    assert events == [(2, 2, files[-1].name)]
+    _assert_complete_progress(events, total=2)
+    assert len(embedder.embedded) == 1
+    assert "needle good" in embedder.embedded[0]
+
+
+def test_public_index_progress_completes_for_all_empty_files(offline_index, monkeypatch):
+    engine, embedder = offline_index
+    files = []
+    for position in range(1, 4):
+        path = engine.folder_path / f"empty-{position}.txt"
+        path.write_text("")
+        files.append(path)
+    monkeypatch.setattr(indexer, "walk_repo_files", lambda root: files)
+    events = []
+
+    stats = _index_read_only(engine, progress_callback=lambda *event: events.append(event))
+
+    assert stats.files_indexed == stats.chunks_created == stats.total_chunks == 0
+    assert events == [(3, 3, files[-1].name)]
+    _assert_complete_progress(events, total=3)
+    assert embedder.embedded == []
+
+
+def test_public_index_progress_completes_for_final_read_failure(
+    offline_index, monkeypatch,
+):
+    engine, embedder = offline_index
+    good = engine.folder_path / "good.txt"
+    unreadable = engine.folder_path / "unreadable.txt"
+    good.write_text("needle good")
+    unreadable.write_text("synthetic unreadable input")
+    files = [good, unreadable]
+    monkeypatch.setattr(indexer, "walk_repo_files", lambda root: files)
+    read_text = Path.read_text
+
+    def fail_selected_read(path, *args, **kwargs):
+        if path == unreadable:
+            raise PermissionError("synthetic read failure")
+        return read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_selected_read)
+    events = []
+
+    stats = _index_read_only(engine, progress_callback=lambda *event: events.append(event))
+
+    assert stats.files_indexed == stats.chunks_created == stats.total_chunks == 1
+    assert events == [(2, 2, unreadable.name)]
+    _assert_complete_progress(events, total=2)
+    assert len(embedder.embedded) == 1
+    assert "needle good" in embedder.embedded[0]
+
+
+def test_public_index_progress_throttles_without_losing_skipped_positions(
+    offline_index, monkeypatch,
+):
+    engine, embedder = offline_index
+    files = []
+    for position in range(1, 13):
+        path = engine.folder_path / f"item-{position:02}.txt"
+        content = " \n\t" if position == 10 else "" if position == 12 else f"needle {position}"
+        path.write_text(content)
+        files.append(path)
+    monkeypatch.setattr(indexer, "walk_repo_files", lambda root: files)
+    events = []
+
+    stats = _index_read_only(engine, progress_callback=lambda *event: events.append(event))
+
+    assert stats.files_indexed == stats.chunks_created == stats.total_chunks == 10
+    assert events == [
+        (10, 12, files[9].name),
+        (12, 12, files[11].name),
+    ]
+    _assert_complete_progress(events, total=12)
+    assert len(embedder.embedded) == 10
+
+
+def test_public_index_exception_does_not_fabricate_completion(
+    offline_index, monkeypatch,
+):
+    engine, _ = offline_index
+    good = engine.folder_path / "good.txt"
+    broken = engine.folder_path / "broken.txt"
+    good.write_text("needle good")
+    broken.write_text("synthetic parse failure")
+    files = [good, broken]
+    monkeypatch.setattr(indexer, "walk_repo_files", lambda root: files)
+    real_chunk_file = indexer.chunk_file
+
+    def fail_selected_chunk(content, file_path, *args, **kwargs):
+        if file_path == broken.name:
+            raise RuntimeError("synthetic chunk failure")
+        return real_chunk_file(content, file_path, *args, **kwargs)
+
+    monkeypatch.setattr(indexer, "chunk_file", fail_selected_chunk)
+    events = []
+
+    with pytest.raises(RuntimeError, match="synthetic chunk failure"):
+        _index_read_only(engine, progress_callback=lambda *event: events.append(event))
+
+    assert events == []
 
 
 def _normalized_search_results(engine, query, **kwargs):
