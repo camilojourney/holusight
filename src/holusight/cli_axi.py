@@ -1138,7 +1138,11 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
             help_text=_command_help_text(cmd),
         )
 
-    _ensure_cache_bootstrapped(repo_root)
+    # Evidence is a read-only query. Never implicitly build the consistency
+    # cache here, including default `--mode auto`: a fresh consumer repository
+    # must remain byte-for-byte clean. An existing repo-local cache is still
+    # read by the consistency provider and is never migrated or modified.
+    provider_list = [provider_name] if provider_name else axi_providers.MODE_PROVIDERS[mode]
     head, dirty = _snapshot(repo_root)
     start = time.monotonic()
 
@@ -1161,7 +1165,6 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
         }
         return _apply_fields(payload, values.get("--fields")), 0
 
-    provider_list = [provider_name] if provider_name else axi_providers.MODE_PROVIDERS[mode]
     results = [
         axi_providers.PROVIDERS[name](repo_root, question, full=full, allow_egress=allow_egress)
         for name in provider_list
