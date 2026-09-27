@@ -10,7 +10,7 @@ description: >
 
 # holus - Holusight-AXI repository evidence CLI
 
-Schema version: `0.6.0` (generated from `src/holusight/axi_schema.py` - do not hand-edit the command reference below; run `python -m holusight.axi_skill_gen` after changing the schema).
+Schema version: `0.7.0` (generated from `src/holusight/axi_schema.py` - do not hand-edit the command reference below; run `python -m holusight.axi_skill_gen` after changing the schema).
 
 ## When to use this
 
@@ -101,6 +101,19 @@ Examples:
 ```
 holus providers
 python -m holusight.cli_axi providers
+```
+
+### `holus usage-summary`
+
+Summarize local content-minimized usage events, coverage, measured deltas, and feedback outcomes.
+
+Flags:
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus usage-summary --format json
+python -m holusight.cli_axi usage-summary --format json
 ```
 
 ### `holus improve-status`

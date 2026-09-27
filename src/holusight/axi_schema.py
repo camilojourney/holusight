@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-AXI_SCHEMA_VERSION = "0.6.0"
+AXI_SCHEMA_VERSION = "0.7.0"
 
 # The five stable jobs, per specs/011-holusight-product-architecture-research.md
 # ("holus-axi: smallest stable command surface") and
@@ -222,6 +222,16 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
         examples=("holus providers",),
     ),
     AxiCommand(
+        name="usage-summary",
+        usage="holus usage-summary",
+        description=(
+            "Summarize local content-minimized usage events, coverage, measured "
+            "deltas, and feedback outcomes."
+        ),
+        flags=(_FORMAT_FLAG, _HELP_FLAG),
+        examples=("holus usage-summary --format json",),
+    ),
+    AxiCommand(
         name="improve-status",
         usage="holus improve-status",
         description=(
@@ -353,9 +363,7 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
             "review. It never changes a case, threshold, evaluator, or authority."
         ),
         flags=(_VARIATION_SIGNAL_FLAG, _VARIATION_COUNT_FLAG, _FORMAT_FLAG, _HELP_FLAG),
-        examples=(
-            "holus improve-variation-feedback --signal failure_case --count 2",
-        ),
+        examples=("holus improve-variation-feedback --signal failure_case --count 2",),
     ),
     AxiCommand(
         name="improve-review",
