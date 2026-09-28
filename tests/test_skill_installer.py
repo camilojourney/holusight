@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from holusight import skill_installer
 
 
@@ -34,6 +36,52 @@ def test_install_is_idempotent(tmp_path, monkeypatch):
     # symlink churn is reported for links that already point correctly.
     linked_lines = [line for line in second if line.startswith("linked ")]
     assert linked_lines == []
+
+
+def test_project_local_install_is_missing_only_and_does_not_touch_home(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(skill_installer.Path, "home", classmethod(lambda cls: home))
+
+    first = skill_installer.install_project_local()
+    skill = project / ".agents" / "skills" / "holusight" / "SKILL.md"
+    assert skill.exists()
+    assert not (home / ".claude").exists()
+    original = skill.read_text(encoding="utf-8")
+
+    skill.write_text("project-owned", encoding="utf-8")
+    second = skill_installer.install_project_local()
+    assert second == [f"skipped {skill.parent}: project-local skill already exists"]
+    assert skill.read_text(encoding="utf-8") == "project-owned"
+    assert any("wrote" in line for line in first)
+    assert original.startswith("---\nname: holusight\n")
+
+
+def test_project_local_cli_installs_fresh_project(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(skill_installer.Path, "home", classmethod(lambda cls: tmp_path / "home"))
+    monkeypatch.setattr("sys.argv", ["holusight-install-skill", "--project-local"])
+
+    assert skill_installer.main() == 0
+    assert (project / ".agents" / "skills" / "holusight" / "SKILL.md").is_file()
+    assert not (tmp_path / "home").exists()
+
+
+def test_project_local_install_rejects_escaping_symlink(tmp_path):
+    project = tmp_path / "project"
+    outside = tmp_path / "outside"
+    project.mkdir()
+    outside.mkdir()
+    (project / ".agents").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="escapes project root"):
+        skill_installer.install_project_local(project)
+    assert not (outside / "skills").exists()
 
 
 def test_install_refuses_to_clobber_a_real_directory(tmp_path, monkeypatch):

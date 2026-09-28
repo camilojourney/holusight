@@ -18,7 +18,15 @@ holusight-install-skill
 
 That's it. `holus`, `holusight-install-skill`, and every other `[project.scripts]` entry this package ships land on your `PATH` (`uv tool install` puts them in `~/.local/bin` -- make sure that's on `PATH`). Step 2 writes one real copy to `~/.claude/skills/holusight/SKILL.md` and symlinks `~/.codex`, `~/.cursor`, `~/.gemini`, `~/.agents` to it, exactly like graphify's own skill layout.
 
-From then on, in **any** project, either run `holus` directly or invoke `/holusight` from an agent using one of those harnesses:
+From then on, in **any** project, either run `holus` directly or invoke `/holusight` from an agent using one of those harnesses. On first invocation, `/holusight` also creates a project-local copy at `.agents/skills/holusight/` when it is missing. This is missing-only and preserves an existing project copy; it never writes a global skill directory as a substitute.
+
+To install that project-local skill explicitly from a checkout or an installed CLI:
+
+```bash
+holusight-install-skill --project-local
+```
+
+The project-local destination is validated against the current project root and symlink escapes are rejected.
 
 ```bash
 cd ~/some/other/project   # a repo holusight has never seen
