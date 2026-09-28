@@ -39,7 +39,9 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import signal
+import subprocess
 from contextlib import contextmanager
 from enum import Enum
 from pathlib import Path
@@ -88,6 +90,7 @@ class EvidenceItem(BaseModel):
     excerpt: str
     evidence_class: str | None = None
     source_hash: str | None = None
+    freshness: str | None = None
     excerpt_truncated: bool = False
     excerpt_total_chars: int | None = None
     confidence: float | None = None
@@ -229,6 +232,50 @@ def exact_provider(
 # ---------------------------------------------------------------------------
 
 
+def _ensure_structural_graph(
+    repo_root: Path, index: object, *, allow_egress: bool = False
+) -> tuple[object, str | None]:
+    """Build a missing/stale graph through the installed Graphify CLI only.
+
+    Evidence reads remain read-only when the builder is absent or fails. The
+    executable is discovered from PATH, never through a machine-specific path.
+    """
+    stale = not getattr(index, "available", False)
+    if not stale:
+        stale, _ = consistency.structural_graph_freshness(index, repo_root)
+    if not stale:
+        return index, None
+
+    executable = shutil.which("graphify")
+    if executable is None:
+        return index, "Graphify builder unavailable on PATH"
+    try:
+        builder_env = os.environ.copy()
+        if not allow_egress:
+            builder_env = {
+                key: value
+                for key, value in builder_env.items()
+                if not key.endswith("_API_KEY")
+            }
+        result = subprocess.run(
+            [executable, "update", "."],
+            cwd=str(repo_root),
+            env=builder_env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return index, f"Graphify builder failed: {exc.__class__.__name__}"
+    if result.returncode != 0:
+        return index, f"Graphify builder failed with exit code {result.returncode}"
+    refreshed = consistency._load_structural_index(repo_root)
+    if not refreshed.available:
+        return refreshed, "Graphify builder produced no readable graph"
+    return refreshed, None
+
+
 def structural_provider(
     repo_root: Path, question: str, *, full: bool = False, allow_egress: bool = False
 ) -> ProviderResult:
@@ -242,15 +289,27 @@ def structural_provider(
         )
 
     index = consistency._load_structural_index(repo_root)
+    index, builder_error = _ensure_structural_graph(
+        repo_root, index, allow_egress=allow_egress
+    )
     if not index.available:
         return ProviderResult(
             provider="structural",
             state=ProviderState.UNAVAILABLE,
-            detail="graphify-out/graph.json not found; run `graphify update .` to build it",
-            route_reason="attempted: no tracked structural graph on disk",
+            detail=(
+                "graphify-out/graph.json not found; "
+                + (builder_error or "Graphify builder did not produce a graph")
+            ),
+            route_reason="attempted: no readable structural graph after Graphify build",
         )
 
     stale, built_at_commit = consistency.structural_graph_freshness(index, repo_root)
+    graph_path = repo_root / "graphify-out" / "graph.json"
+    try:
+        graph_hash = consistency._content_hash(graph_path)
+    except OSError:
+        graph_hash = None
+    freshness = "stale" if stale else "current"
 
     items: list[EvidenceItem] = []
     seen_paths: set[str] = set()
@@ -273,6 +332,9 @@ def structural_provider(
                 source=path,
                 location=f"{len(node_ids)} graph node(s)",
                 excerpt=excerpt,
+                evidence_class="inferred",
+                source_hash=graph_hash,
+                freshness=freshness,
                 excerpt_truncated=truncated,
                 excerpt_total_chars=total if truncated else None,
                 confidence=0.5,
@@ -286,10 +348,16 @@ def structural_provider(
     detail_suffix = (
         f" (graph built_at_commit={built_at_commit!r}, {'stale' if stale else 'current'})"
     )
+    if builder_error:
+        detail_suffix += f"; {builder_error}"
     if budget_hit:
         return ProviderResult(
             provider="structural",
-            state=ProviderState.BUDGET_EXCEEDED,
+            state=(
+                ProviderState.UNAVAILABLE
+                if builder_error and stale
+                else ProviderState.BUDGET_EXCEEDED
+            ),
             detail=f"stopped after {len(items)} matches (match budget reached)" + detail_suffix,
             route_reason="attempted: path/node-id token match over tracked graph, hit budget",
             items=items,
@@ -297,7 +365,11 @@ def structural_provider(
     if not items:
         return ProviderResult(
             provider="structural",
-            state=ProviderState.NO_EVIDENCE if not stale else ProviderState.STALE,
+            state=(
+                ProviderState.UNAVAILABLE
+                if builder_error and stale
+                else ProviderState.NO_EVIDENCE if not stale else ProviderState.STALE
+            ),
             detail=(
                 f"no path/node-id match for {tokens!r} in the tracked graph" + detail_suffix
             ),
@@ -305,7 +377,11 @@ def structural_provider(
         )
     return ProviderResult(
         provider="structural",
-        state=ProviderState.STALE if stale else ProviderState.OK,
+        state=(
+            ProviderState.UNAVAILABLE
+            if builder_error and stale
+            else ProviderState.STALE if stale else ProviderState.OK
+        ),
         detail=f"{len(items)} file(s) matched" + detail_suffix,
         route_reason="attempted: path/node-id token match over tracked graph",
         items=items,
