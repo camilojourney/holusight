@@ -63,8 +63,45 @@ def install(harnesses: tuple[str, ...]) -> list[str]:
     return changes
 
 
+def install_project_local(project_root: Path | None = None) -> list[str]:
+    """Install the skill into one project's ``.agents`` directory only.
+
+    Existing local skills are never replaced.  The destination and every
+    existing parent are resolved before writing so a symlink cannot redirect
+    this operation outside the project root.
+    """
+    root = (project_root or Path.cwd()).resolve()
+    destination = root / ".agents" / "skills" / SKILL_NAME
+    resolved_destination = destination.resolve(strict=False)
+    try:
+        resolved_destination.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("project-local skill destination escapes project root") from exc
+
+    if destination.is_symlink():
+        raise ValueError("project-local skill destination must not be a symlink")
+    if destination.exists():
+        return [f"skipped {destination}: project-local skill already exists"]
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    # Re-check after creating parents: a concurrently-created symlink must not
+    # turn the final write into an escape.
+    if destination.is_symlink() or destination.exists():
+        if destination.is_symlink():
+            raise ValueError("project-local skill destination must not be a symlink")
+        return [f"skipped {destination}: project-local skill already exists"]
+    destination.mkdir()
+    write_distribution_skill(destination / "SKILL.md")
+    return [f"wrote {destination / 'SKILL.md'}"]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--project-local",
+        action="store_true",
+        help="install only into .agents/skills/holusight in the current project",
+    )
     parser.add_argument(
         "--harness",
         default=",".join(ALL_HARNESSES),
@@ -75,6 +112,16 @@ def main() -> int:
 
     if args.print:
         print(render_distribution_skill())
+        return 0
+
+    if args.project_local:
+        try:
+            changes = install_project_local()
+        except (OSError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        for line in changes:
+            print(line)
         return 0
 
     harnesses = tuple(h.strip() for h in args.harness.split(",") if h.strip())

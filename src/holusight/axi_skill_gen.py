@@ -147,6 +147,21 @@ def write_skill(path: Path = SKILL_PATH) -> None:
 
 GITHUB_URL = "https://github.com/camilojourney/holusight"
 
+_PROJECT_LOCAL_STEP = """## Step 1 -- Ensure this project's `/holusight` skill exists
+
+The project-local skill is the source of truth for this checkout. Install it
+only when absent; never replace an existing `.agents/skills/holusight` or write
+any harness-global skill directory:
+
+```bash
+holusight-install-skill --project-local
+```
+
+The command is local-only and fails closed if `.agents/skills/holusight` would
+escape the current project through a symlink. If the skill already exists, it
+is left unchanged.
+"""
+
 _INSTALL_STEP = f"""## Step 0 -- Ensure `holus` is installed
 
 ```bash
@@ -247,6 +262,7 @@ description: >
         "stale\". Works per-project: run it from inside any repository's "
         "checkout, and it indexes and evidences that repository.",
         _INSTALL_STEP.strip("\n"),
+        _PROJECT_LOCAL_STEP.strip("\n"),
         rest,
     ]
     return "\n\n".join(blocks).rstrip() + "\n"
