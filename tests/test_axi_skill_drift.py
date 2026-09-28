@@ -61,3 +61,10 @@ def test_distribution_skill_carries_the_same_command_reference():
     generated = render_distribution_skill()
     for usage in ("holus\n", "holus evidence", "holus check", "holus status", "holus providers"):
         assert usage in generated, f"distribution skill is missing a reference to {usage!r}"
+
+
+def test_distribution_skill_bootstraps_local_skill_without_path_refresh():
+    generated = render_distribution_skill()
+    assert 'holus_python="$(cat .holusight/.holusight_python' in generated
+    assert '"$holus_python" -m holusight.skill_installer --project-local' in generated
+    assert "never replace an existing `.agents/skills/holusight`" in generated

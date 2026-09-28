@@ -154,12 +154,19 @@ only when absent; never replace an existing `.agents/skills/holusight` or write
 any harness-global skill directory:
 
 ```bash
-holusight-install-skill --project-local
+holus_python="$(cat .holusight/.holusight_python 2>/dev/null || echo python3)"
+if command -v holusight-install-skill >/dev/null 2>&1; then
+    holusight-install-skill --project-local
+else
+    "$holus_python" -m holusight.skill_installer --project-local
+fi
 ```
 
-The command is local-only and fails closed if `.agents/skills/holusight` would
-escape the current project through a symlink. If the skill already exists, it
-is left unchanged.
+This uses the interpreter bootstrapped in Step 0 when the command is not yet
+on `PATH`, so a fresh invocation does not depend on a machine-wide skill or a
+new shell. The command is local-only and fails closed if
+`.agents/skills/holusight` would escape the current project through a symlink.
+If the skill already exists, it is left unchanged.
 """
 
 _INSTALL_STEP = f"""## Step 0 -- Ensure `holus` is installed
