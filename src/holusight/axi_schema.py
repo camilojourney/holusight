@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-AXI_SCHEMA_VERSION = "0.7.0"
+AXI_SCHEMA_VERSION = "0.8.0"
 
 # The five stable jobs, per specs/011-holusight-product-architecture-research.md
 # ("holus-axi: smallest stable command surface") and
@@ -174,6 +174,29 @@ AXI_COMMANDS: tuple[AxiCommand, ...] = (
             'holus evidence "where is retry policy enforced?"',
             'holus evidence "where is retry policy enforced?" --mode exact',
             'holus evidence "<question>" --fields snapshot,evidence.source,evidence.location',
+        ),
+    ),
+    AxiCommand(
+        name="research-urls",
+        usage=(
+            'holus research-urls "<question>" --url <https-url> --url <https-url> '
+            "[--url <https-url>] --allow-egress"
+        ),
+        description=(
+            "Fetch 2-3 supplied public HTTPS pages for one question; write a dated "
+            "Markdown report and JSON receipt to gitignored derived state. "
+            "Claims are exact verified excerpts, not inferred facts."
+        ),
+        positional=("question",),
+        flags=(
+            AxiFlag("--url", "Public HTTPS source URL (repeat 2-3 times)."),
+            AxiFlag("--allow-egress", "Explicitly permit public HTTPS fetches.", takes_value=False),
+            _FORMAT_FLAG,
+            _HELP_FLAG,
+        ),
+        examples=(
+            'holus research-urls "What does the policy say?" --url https://example.org/a '
+            "--url https://example.org/b --allow-egress",
         ),
     ),
     AxiCommand(
