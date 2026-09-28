@@ -28,6 +28,16 @@ python -m holusight index . && holus evidence "how does X work?"   # add semanti
 
 `/holusight`'s own `SKILL.md` also self-bootstraps `holus` the first time it's invoked from an agent in a fresh project that doesn't have it yet, the same way graphify's skill bootstraps `graphify`. There is nothing to configure per-project: `holus` always operates on the current working directory, and its index lives outside the indexed folder in `~/.holusight/data/` (see Configuration below), keyed by that folder's path -- never written where it reads.
 
+### Bounded public URL research
+
+```bash
+holus research-urls "What does the policy require?" \
+  --url https://example.org/policy --url https://example.net/guide \
+  --allow-egress --format json
+```
+
+Supply one question and 2-3 distinct public HTTPS URLs. Without `--allow-egress`, no DNS lookup or fetch occurs. Redirects and non-public addresses are refused. The command writes a dated Markdown report and JSON receipt under the current project's gitignored `.holusight/public-research/`, never to the private search index. Its reported claims are only verbatim, citation-verified excerpts; it does not synthesize an answer or validate source truth. An empty match is explicitly unanswered, and failed verification exits nonzero. Keep sensitive questions and URLs out of public requests.
+
 Useful variations:
 
 ```bash

@@ -10,7 +10,7 @@ description: >
 
 # holus - Holusight-AXI repository evidence CLI
 
-Schema version: `0.7.0` (generated from `src/holusight/axi_schema.py` - do not hand-edit the command reference below; run `python -m holusight.axi_skill_gen` after changing the schema).
+Schema version: `0.8.0` (generated from `src/holusight/axi_schema.py` - do not hand-edit the command reference below; run `python -m holusight.axi_skill_gen` after changing the schema).
 
 ## When to use this
 
@@ -55,6 +55,21 @@ holus evidence "where is retry policy enforced?" --mode exact
 python -m holusight.cli_axi evidence "where is retry policy enforced?" --mode exact
 holus evidence "<question>" --fields snapshot,evidence.source,evidence.location
 python -m holusight.cli_axi evidence "<question>" --fields snapshot,evidence.source,evidence.location
+```
+
+### `holus research-urls "<question>" --url <https-url> --url <https-url> [--url <https-url>] --allow-egress`
+
+Fetch 2-3 supplied public HTTPS pages for one question; write a dated Markdown report and JSON receipt to gitignored derived state. Claims are exact verified excerpts, not inferred facts.
+
+Flags:
+- `--url` - Public HTTPS source URL (repeat 2-3 times).
+- `--allow-egress` - Explicitly permit public HTTPS fetches.
+- `--format` (toon/json/text) [default: toon] - Output encoding.
+
+Examples:
+```
+holus research-urls "What does the policy say?" --url https://example.org/a --url https://example.org/b --allow-egress
+python -m holusight.cli_axi research-urls "What does the policy say?" --url https://example.org/a --url https://example.org/b --allow-egress
 ```
 
 ### `holus check [scope]`

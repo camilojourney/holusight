@@ -38,7 +38,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from . import axi_providers, consistency, local_usage_trace
+from . import axi_providers, consistency, local_usage_trace, public_research
 from .axi_schema import AXI_COMMANDS, AXI_SCHEMA_VERSION, AxiCommand, command_by_name
 from .control_storage import (
     RESULTS_ROOT,
@@ -53,6 +53,7 @@ logger = logging.getLogger(__name__)
 _JOB_NAMES = {
     "",
     "evidence",
+    "research-urls",
     "check",
     "status",
     "providers",
@@ -152,7 +153,12 @@ def _parse_command_args(cmd: AxiCommand, argv: list[str]) -> tuple[dict[str, Any
                     f"invalid value {value!r} for {name}; choices: {', '.join(flag.choices)}",
                     help_text=_command_help_text(cmd),
                 )
-            values[name] = value
+            if name == "--url" and cmd.name == "research-urls":
+                if values[name] is None:
+                    values[name] = []
+                values[name].append(value)
+            else:
+                values[name] = value
             continue
         positionals.append(tok)
         i += 1
@@ -1338,8 +1344,24 @@ def _cmd_check(repo_root: Path, values: dict, positionals: list[str]) -> tuple[d
     return _apply_fields(payload, values.get("--fields")), 0
 
 
+def _cmd_research_urls(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
+    cmd = command_by_name("research-urls")
+    if len(positionals) != 1:
+        raise UsageError("expected one question for `holus research-urls`", _command_help_text(cmd))
+    try:
+        return public_research.run(
+            positionals[0], values.get("--url") or [],
+            allow_egress=values["--allow-egress"], repo_root=repo_root,
+        )
+    except public_research.ResearchError as exc:
+        return _error_payload("PUBLIC_RESEARCH_BLOCKED", str(exc)), 1
+    except UnsafeStoragePath as exc:
+        return _error_payload("UNSAFE_OUTPUT_PATH", str(exc)), 1
+
+
 _HANDLERS = {
     "": _cmd_home,
+    "research-urls": _cmd_research_urls,
     "evidence": _cmd_evidence,
     "check": _cmd_check,
     "status": _cmd_status,
