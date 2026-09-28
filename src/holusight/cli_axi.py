@@ -1186,8 +1186,24 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
     states = [r.state for r in results]
     hit_budget = any(s == axi_providers.ProviderState.BUDGET_EXCEEDED for s in states)
     egress_occurred = any(r.egress for r in results)
+    semantic_result = next((r for r in results if r.provider == "semantic"), None)
+    semantic_blocked = semantic_result is not None and semantic_result.state in {
+        axi_providers.ProviderState.UNAVAILABLE,
+        axi_providers.ProviderState.DENIED,
+        axi_providers.ProviderState.STALE,
+        axi_providers.ProviderState.BUDGET_EXCEEDED,
+        axi_providers.ProviderState.UNSUPPORTED,
+    }
 
-    if all_items:
+    # Auto evidence promises conceptual coverage, so an exact hit cannot be
+    # promoted to a successful answer while the required local semantic index
+    # or model is unavailable. Explicit exact-only queries remain deterministic
+    # and successful, preserving their established offline contract.
+    if semantic_blocked:
+        answerable = False
+        coverage = "unknown"
+        reason = "semantic_unavailable"
+    elif all_items:
         answerable = True
         reason = None
         coverage = "partial" if (hit_budget or list_truncated) else "sufficient"
@@ -1224,6 +1240,11 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
             f"showing {len(displayed)} of {total_items} evidence items; "
             "narrow the question or pass --provider to see more of one provider"
         )
+    if semantic_blocked and semantic_result is not None:
+        warnings.append(
+            "semantic evidence is required for a successful auto query; "
+            f"{semantic_result.detail}"
+        )
 
     payload = {
         "schema_version": AXI_SCHEMA_VERSION,
@@ -1247,7 +1268,7 @@ def _cmd_evidence(repo_root: Path, values: dict, positionals: list[str]) -> tupl
         "latency_ms": round((time.monotonic() - start) * 1000, 1),
         "warnings": warnings,
     }
-    return _apply_fields(payload, values.get("--fields")), 0
+    return _apply_fields(payload, values.get("--fields")), 1 if semantic_blocked else 0
 
 
 def _cmd_check(repo_root: Path, values: dict, positionals: list[str]) -> tuple[dict, int]:
@@ -1271,8 +1292,12 @@ def _cmd_check(repo_root: Path, values: dict, positionals: list[str]) -> tuple[d
             payload = {
                 "schema_version": AXI_SCHEMA_VERSION,
                 "scope": scope,
-                "status": "unknown_concept",
-                "notes": "no cached concept matches this scope; run `holus check --refresh` first",
+                "status": "indeterminate",
+                "reason": "unknown_concept",
+                "notes": (
+                    "no cached concept matches this scope; governance drift cannot "
+                    "be determined; run `holus check --refresh` first"
+                ),
                 "candidates": candidates[:10],
                 "help": (
                     [f'Run `holus check "{candidates[0]}"` - closest cached concept match.']
@@ -1280,7 +1305,7 @@ def _cmd_check(repo_root: Path, values: dict, positionals: list[str]) -> tuple[d
                     else ["Run `holus check` with no scope to list every tracked concept."]
                 ),
             }
-            return _apply_fields(payload, values.get("--fields")), 0
+            return _apply_fields(payload, values.get("--fields")), 1
 
         report = consistency.check_consistency(repo_root, concept_id)
         payload = {
@@ -1298,10 +1323,14 @@ def _cmd_check(repo_root: Path, values: dict, positionals: list[str]) -> tuple[d
             "concepts_checked": 0,
             "summary": {},
             "concepts": [],
-            "reason": "no_evidence",
-            "notes": "consistency cache has never been refreshed",
+            "reason": "governance_unavailable",
+            "status": "unavailable",
+            "notes": (
+                "no cached governance concepts; run `holus check --refresh` "
+                "before evaluating drift"
+            ),
         }
-        return _apply_fields(payload, values.get("--fields")), 0
+        return _apply_fields(payload, values.get("--fields")), 1
 
     from .consistency_store import ConsistencyStore
 
@@ -1310,6 +1339,21 @@ def _cmd_check(repo_root: Path, values: dict, positionals: list[str]) -> tuple[d
         concepts = store.all_concepts()
     finally:
         store.close()
+
+    if not concepts:
+        payload = {
+            "schema_version": AXI_SCHEMA_VERSION,
+            "concepts_checked": 0,
+            "summary": {},
+            "concepts": [],
+            "reason": "governance_unavailable",
+            "status": "unavailable",
+            "notes": (
+                "governance cache contains zero concepts; run `holus check --refresh` "
+                "before evaluating drift"
+            ),
+        }
+        return _apply_fields(payload, values.get("--fields")), 1
 
     reports = [consistency.check_consistency(repo_root, c["concept_id"]) for c in concepts]
     summary: dict[str, int] = {}
