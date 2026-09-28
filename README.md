@@ -4,21 +4,17 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 
 The live public site is [holusight.com](https://holusight.com/). That is Holusight's public marketing site; document indexing stays local-first, so indexed files are not published there and do not leave your environment by default.
 
-## Install anywhere (two commands)
+## Install anywhere
 
-Distributed the same way `graphify` is: one global CLI, plus a `/holusight` skill that installs once and is available in every AI coding harness on your machine (Claude Code, Codex, Cursor, Gemini, Agents). Requires [`uv`](https://docs.astral.sh/uv/).
+Install the CLI globally, then bootstrap the skill in each project that uses it. The skill bootstrap is project-local and missing-only: it writes only `.agents/skills/holusight/` and preserves an existing project copy. It does not require or create a machine-wide skill directory. Requires [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-# 1. Install the CLI, globally, from anywhere
 uv tool install git+https://github.com/camilojourney/holusight
-
-# 2. Distribute the /holusight skill to every AI harness on this machine
-holusight-install-skill
+cd ~/some/project
+holusight-install-skill --project-local
 ```
 
-That's it. `holus`, `holusight-install-skill`, and every other `[project.scripts]` entry this package ships land on your `PATH` (`uv tool install` puts them in `~/.local/bin` -- make sure that's on `PATH`). Step 2 writes one real copy to `~/.claude/skills/holusight/SKILL.md` and symlinks `~/.codex`, `~/.cursor`, `~/.gemini`, `~/.agents` to it, exactly like graphify's own skill layout.
-
-From then on, in **any** project, either run `holus` directly or invoke `/holusight` from an agent using one of those harnesses. On first invocation, `/holusight` also creates a project-local copy at `.agents/skills/holusight/` when it is missing. This is missing-only and preserves an existing project copy; it never writes a global skill directory as a substitute.
+`holus`, `holusight-install-skill`, and the other `[project.scripts]` entries land on your `PATH` (`uv tool install` puts them in `~/.local/bin` -- make sure that's on `PATH`). From then on, invoke `/holusight` inside that project.
 
 To install that project-local skill explicitly from a checkout or an installed CLI:
 
@@ -34,7 +30,7 @@ holus                      # exact + structural + consistency evidence, no setup
 python -m holusight index . && holus evidence "how does X work?"   # add semantic search
 ```
 
-`/holusight`'s own `SKILL.md` also self-bootstraps `holus` the first time it's invoked from an agent in a fresh project that doesn't have it yet, the same way graphify's skill bootstraps `graphify`. There is nothing to configure per-project: `holus` always operates on the current working directory, and its index lives outside the indexed folder in `~/.holusight/data/` (see Configuration below), keyed by that folder's path -- never written where it reads.
+`/holusight`'s own `SKILL.md` bootstraps `holus` and then the project-local skill on first invocation. If the freshly installed command is not yet on `PATH`, it invokes the module through the interpreter recorded by the bootstrap, so no new shell or global skill directory is needed. `holus` always operates on the current working directory, and its index lives outside the indexed folder in `~/.holusight/data/` (see Configuration below), keyed by that folder's path -- never written where it reads.
 
 ### Bounded public URL research
 
@@ -54,10 +50,7 @@ uv tool install --upgrade git+https://github.com/camilojourney/holusight
 
 # From a local checkout instead of GitHub (e.g. while developing this repo)
 uv tool install --editable .
-holusight-install-skill
-
-# Only link specific harnesses
-holusight-install-skill --harness claude,codex
+holusight-install-skill --project-local
 
 # Preview the generated skill without writing anything
 holusight-install-skill --print
@@ -66,7 +59,7 @@ holusight-install-skill --print
 uv tool uninstall holusight
 ```
 
-Uninstalling the skill itself is a plain `rm`: remove `~/.claude/skills/holusight/` (the real copy) and the four symlinks it created (`~/.codex/skills/holusight`, `~/.cursor/skills/holusight`, `~/.gemini/skills/holusight`, `~/.agents/skills/holusight`).
+The project-local skill can be removed with `rm -rf .agents/skills/holusight` when the project no longer needs it.
 
 ## Quick Start
 
