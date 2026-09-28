@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import os
 import re
+import signal
 from contextlib import contextmanager
 from enum import Enum
 from pathlib import Path
@@ -56,6 +57,10 @@ _EXACT_SCAN_FILE_BUDGET = 400
 _EXACT_MATCH_BUDGET = 30
 _STRUCTURAL_MATCH_BUDGET = 30
 _SEMANTIC_TOP_K = 5
+# A read-only evidence command must not wait on a cold/missing local model or
+# a contended embedding daemon indefinitely. This is deliberately bounded and
+# only covers the query phase; indexing remains an explicit operator action.
+_SEMANTIC_QUERY_TIMEOUT_SECONDS = 30
 _EXCERPT_TRUNCATE_CHARS = 500
 
 _STOPWORDS = {
@@ -450,6 +455,17 @@ def semantic_provider(
         )
 
     is_stale = engine._is_stale()
+    if is_stale:
+        return ProviderResult(
+            provider="semantic",
+            state=ProviderState.UNAVAILABLE,
+            detail=(
+                "semantic index is incomplete or stale for this repository; "
+                "run `python -m holusight index .` (or `--force`) before "
+                "querying it"
+            ),
+            route_reason="skipped: local semantic index is not complete",
+        )
 
     try:
         with _no_egress_env() if not allow_egress else _noop_ctx():
@@ -464,7 +480,22 @@ def semantic_provider(
             # changed. Suppressing that too would mean a doc edit never
             # shows up in search results until someone remembers to run
             # `index` by hand, which defeats the point of a search tool.
-            results = engine.search(question, top_k=_SEMANTIC_TOP_K)
+            # AXI evidence is read-only: never let a stale index trigger a
+            # synchronous refresh, which can take minutes and then look like
+            # a successful exact-only answer. Completeness was checked above.
+            with _semantic_query_timeout(_SEMANTIC_QUERY_TIMEOUT_SECONDS):
+                results = engine.search(question, top_k=_SEMANTIC_TOP_K, auto_index=False)
+    except TimeoutError:
+        return ProviderResult(
+            provider="semantic",
+            state=ProviderState.UNAVAILABLE,
+            detail=(
+                "semantic query timed out after "
+                f"{_SEMANTIC_QUERY_TIMEOUT_SECONDS}s; verify the local embedding "
+                "model is cached and retry offline"
+            ),
+            route_reason="failed: bounded local semantic query timeout",
+        )
     except Exception as exc:  # noqa: BLE001 - never leak a raw dependency traceback
         return ProviderResult(
             provider="semantic",
@@ -511,6 +542,39 @@ def semantic_provider(
 @contextmanager
 def _noop_ctx():
     yield
+
+
+@contextmanager
+def _semantic_query_timeout(seconds: int):
+    """Bound local model/daemon waits without touching the shared daemon.
+
+    AXI calls run on the CLI's main thread on supported Unix hosts. If signal
+    timers are unavailable (for example, a library caller uses a worker
+    thread), the ordinary exception path still reports dependency failures;
+    the CLI path gets a hard wall-clock bound.
+    """
+    if not hasattr(signal, "SIGALRM"):
+        yield
+        return
+    try:
+        previous_handler = signal.getsignal(signal.SIGALRM)
+        previous_timer = signal.setitimer(signal.ITIMER_REAL, 0)
+
+        def _timeout_handler(_signum, _frame):
+            raise TimeoutError("semantic query timed out")
+
+        signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+    except (ValueError, OSError):
+        yield
+        return
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+        if previous_timer != (0.0, 0.0):
+            signal.setitimer(signal.ITIMER_REAL, *previous_timer)
 
 
 PROVIDERS = {

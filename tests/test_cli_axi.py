@@ -163,9 +163,9 @@ def test_e2e_home_view_runs(tmp_path):
 def test_no_evidence_is_definitive_not_an_error(tmp_path):
     repo = _minimal_repo(tmp_path)
     payload, _fmt, exit_code = _run(["evidence", "zzzznonexistentzzzz"], repo)
-    assert exit_code == 0
+    assert exit_code == 1
     assert payload["answerable"] is False
-    assert payload["reason"] == "no_matching_evidence"
+    assert payload["reason"] == "semantic_unavailable"
     assert payload["evidence"] == []
     assert payload["evidence_total"] == 0
 
@@ -195,6 +195,52 @@ def test_semantic_provider_unavailable_without_index(tmp_path):
     result = axi_providers.semantic_provider(repo, "alpha")
     assert result.state == axi_providers.ProviderState.UNAVAILABLE
     assert "not indexed" in result.detail
+
+
+def test_explicit_semantic_missing_index_is_non_success(tmp_path):
+    repo = _minimal_repo(tmp_path)
+    payload, _fmt, exit_code = _run(["evidence", "alpha", "--mode", "semantic"], repo)
+    assert exit_code == 1
+    assert payload["answerable"] is False
+    assert payload["reason"] == "semantic_unavailable"
+    assert "index" in payload["warnings"][0]
+
+
+def test_auto_exact_match_cannot_mask_missing_embedding_model(tmp_path, monkeypatch):
+    repo = _minimal_repo(tmp_path)
+
+    def unavailable(*args, **kwargs):
+        return axi_providers.ProviderResult(
+            provider="semantic",
+            state=axi_providers.ProviderState.UNAVAILABLE,
+            detail="local embedding model is unavailable; install it offline and re-index",
+            route_reason="skipped: local model unavailable",
+        )
+
+    monkeypatch.setitem(axi_providers.PROVIDERS, "semantic", unavailable)
+    payload, _fmt, exit_code = _run(["evidence", "alpha"], repo)
+    assert exit_code == 1
+    assert payload["answerable"] is False
+    assert payload["evidence"]
+    assert payload["reason"] == "semantic_unavailable"
+
+
+def test_auto_partial_semantic_index_cannot_look_successful(tmp_path, monkeypatch):
+    repo = _minimal_repo(tmp_path)
+
+    def partial(*args, **kwargs):
+        return axi_providers.ProviderResult(
+            provider="semantic",
+            state=axi_providers.ProviderState.STALE,
+            detail="semantic index is incomplete or stale",
+            route_reason="skipped: local semantic index is not complete",
+        )
+
+    monkeypatch.setitem(axi_providers.PROVIDERS, "semantic", partial)
+    payload, _fmt, exit_code = _run(["evidence", "alpha"], repo)
+    assert exit_code == 1
+    assert payload["answerable"] is False
+    assert payload["reason"] == "semantic_unavailable"
 
 
 def test_consistency_provider_unavailable_before_first_refresh(tmp_path):
@@ -389,8 +435,9 @@ def test_auto_evidence_does_not_bootstrap_or_dirty_fresh_git_repo(tmp_path):
     after_manifest = sorted(
         str(path.relative_to(repo)) for path in repo.rglob("*") if ".git" not in path.parts
     )
-    assert exit_code == 0
-    assert payload["answerable"] is True
+    assert exit_code == 1
+    assert payload["answerable"] is False
+    assert payload["reason"] == "semantic_unavailable"
     assert any(
         p["provider"] == "consistency" and p["state"] == "unavailable"
         for p in payload["providers_checked"]
@@ -411,8 +458,9 @@ def test_auto_evidence_preserves_warmed_legacy_consistency_db(tmp_path):
 
     payload, _fmt, exit_code = _run(["evidence", "alpha"], repo)
 
-    assert exit_code == 0
-    assert payload["answerable"] is True
+    assert exit_code == 1
+    assert payload["answerable"] is False
+    assert payload["reason"] == "semantic_unavailable"
     assert any(p["provider"] == "consistency" for p in payload["providers_checked"])
     assert db_path.read_bytes() == before_bytes
     assert sorted(
@@ -623,7 +671,9 @@ def test_evidence_auto_mode_quota_prevents_single_provider_starvation(tmp_path):
     consistency.refresh(repo, run_semantic=False)
 
     payload, _fmt, exit_code = _run(["evidence", "widget", "--mode", "auto"], repo)
-    assert exit_code == 0
+    assert exit_code == 1
+    assert payload["answerable"] is False
+    assert payload["reason"] == "semantic_unavailable"
 
     ok_providers = {
         p["provider"]
@@ -737,6 +787,30 @@ def test_semantic_provider_denies_voyage_index_without_allow_egress(tmp_path, mo
     assert allowed.state != axi_providers.ProviderState.DENIED
 
 
+def test_semantic_provider_times_out_contended_local_model(tmp_path, monkeypatch):
+    import time
+
+    from holusight.api import Holusight
+
+    repo = _minimal_repo(tmp_path)
+    engine = Holusight(repo)
+    engine.index()
+
+    def slow_search(*_args, **_kwargs):
+        time.sleep(2)
+        return []
+
+    monkeypatch.setattr(Holusight, "search", slow_search)
+    monkeypatch.setattr(axi_providers, "_SEMANTIC_QUERY_TIMEOUT_SECONDS", 1)
+    started = time.monotonic()
+    result = axi_providers.semantic_provider(repo, "alpha")
+
+    assert time.monotonic() - started < 2
+    assert result.state == axi_providers.ProviderState.UNAVAILABLE
+    assert "timed out" in result.detail
+    assert "cached" in result.detail
+
+
 def test_semantic_provider_never_rebuilds_on_model_mismatch(tmp_path, monkeypatch):
     """Regression: semantic_provider must report UNAVAILABLE and never
     silently trigger Holusight.search()'s auto-rebuild-on-model-change
@@ -793,8 +867,9 @@ def test_semantic_provider_still_picks_up_a_doc_edit_via_cheap_staleness_refresh
 
     result = axi_providers.semantic_provider(repo, "unique-marker-xyz")
 
-    assert result.state != axi_providers.ProviderState.UNAVAILABLE
-    assert any("002-beta.md" in item.source for item in result.items)
+    assert result.state == axi_providers.ProviderState.UNAVAILABLE
+    assert "incomplete or stale" in result.detail
+    assert result.items == []
 
 
 def test_evidence_default_mode_never_reports_egress_without_flag(tmp_path, monkeypatch):
@@ -841,6 +916,25 @@ def test_holusight_cache_rebuild_is_equivalent(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+def test_check_without_concepts_is_unavailable_and_non_success(tmp_path):
+    repo = _git_repo(tmp_path)
+    (repo / "specs" / "001-alpha.md").unlink()
+    payload, _fmt, exit_code = _run(["check"], repo)
+    assert exit_code == 1
+    assert payload["status"] == "unavailable"
+    assert payload["concepts_checked"] == 0
+    assert payload["reason"] == "governance_unavailable"
+
+
+def test_check_unmatched_natural_language_scope_is_indeterminate(tmp_path):
+    repo = _minimal_repo(tmp_path)
+    consistency.refresh(repo, run_semantic=False)
+    payload, _fmt, exit_code = _run(["check", "what governs the moon colony"], repo)
+    assert exit_code == 1
+    assert payload["status"] == "indeterminate"
+    assert payload["reason"] == "unknown_concept"
+
+
 def test_check_never_silently_resets_baseline(tmp_path):
     repo = _git_repo(tmp_path)
     consistency.refresh(repo, run_semantic=False)
@@ -876,8 +970,9 @@ def test_check_unknown_scope_suggests_candidates(tmp_path):
     repo = _git_repo(tmp_path)
     consistency.refresh(repo, run_semantic=False)
     payload, _fmt, exit_code = _run(["check", "001-alp"], repo)
-    assert exit_code == 0
-    assert payload["status"] == "unknown_concept"
+    assert exit_code == 1
+    assert payload["status"] == "indeterminate"
+    assert payload["reason"] == "unknown_concept"
     assert any("001-alpha" in c for c in payload["candidates"])
 
 

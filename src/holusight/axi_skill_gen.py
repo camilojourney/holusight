@@ -231,6 +231,24 @@ holus_python="$(cat .holusight/.holusight_python 2>/dev/null || echo python3)"
 Re-run this after substantial content changes (`--force` to rebuild from
 scratch). Skip it entirely for a quick first look -- `holus evidence`
 already works without it, just without the semantic provider.
+
+## Required semantic evidence and governance checks
+
+The default `holus evidence` route requires a complete, local semantic index.
+If the index or configured local embedding model is missing, stale, partial,
+or unavailable, it reports `answerable: false`, includes an offline recovery
+diagnostic, and exits nonzero even when exact text found a partial match. A
+cold or contended local model query is bounded and likewise fails with an
+actionable timeout instead of hanging. Do
+not promote those exact citations to an answer. Use
+`holus evidence "<question>" --mode exact` when exact-only evidence is the
+explicitly intended successful path. Do not use `--allow-egress` for this
+local-only workflow.
+
+`holus check` is a governance operation, not a search fallback. A missing,
+empty, or unmatched concept registry is `unavailable`/`indeterminate`, not a
+clean drift result, and exits nonzero. Refresh the cache explicitly before
+retrying: `holus check --refresh`.
 """
 
 
