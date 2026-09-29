@@ -272,15 +272,132 @@ def test_providers_job_reports_unavailable_entries(tmp_path):
 def test_structural_graph_stale_is_reported_not_hidden(tmp_path):
     repo = _minimal_repo(tmp_path)
     # A graph claiming to be built at a commit this repo never had.
-    graph = {"built_at_commit": "0000000000000000000000000000000000dead", "nodes": [], "links": []}
+    graph = {
+        "built_at_commit": "0000000000000000000000000000000000dead",
+        "nodes": [{"id": "src_pkg_mod", "source_file": "src/pkg/mod.py"}],
+        "links": [],
+    }
     _write(repo, "graphify-out/graph.json", json.dumps(graph))
-    result = axi_providers.structural_provider(repo, "alpha")
-    # No matching nodes either way, but staleness must still be visible via
-    # the detail string (never silently swallowed).
-    assert "stale" in result.detail or result.state in (
-        axi_providers.ProviderState.NO_EVIDENCE,
-        axi_providers.ProviderState.STALE,
+    result = axi_providers.structural_provider(repo, "pkg mod")
+    assert result.state == axi_providers.ProviderState.UNAVAILABLE
+    assert result.items[0].freshness == "stale"
+    assert "stale" in result.detail
+
+
+def test_structural_graph_builder_fake_is_called_for_missing_graph(tmp_path, monkeypatch):
+    repo = _git_repo(tmp_path / "builder")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake = fake_bin / "graphify"
+    script = (
+        "#!/bin/sh\n"
+        "mkdir -p graphify-out\n"
+        "head=$(git rev-parse HEAD)\n"
+        "printf '{\\\"built_at_commit\\\":\\\"%s\\\","
+        "\\\"nodes\\\":[' \"$head\" > graphify-out/graph.json\n"
+        "printf '{\\\"id\\\":\\\"src_pkg_mod\\\","
+        "\\\"source_file\\\":\\\"src/pkg/mod.py\\\"}],"
+        "\\\"links\\\":[]}' >> graphify-out/graph.json\n"
     )
+    fake.write_text(script, encoding="utf-8")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}:{__import__('os').environ['PATH']}")
+
+    result = axi_providers.structural_provider(repo, "pkg mod")
+    assert result.state == axi_providers.ProviderState.OK
+    assert result.items[0].freshness == "current"
+    assert (repo / "graphify-out" / "graph.json").exists()
+
+
+def test_one_evidence_response_combines_exact_local_semantic_and_graphify(
+    tmp_path, monkeypatch
+):
+    repo = _git_repo(tmp_path / "combined")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake = fake_bin / "graphify"
+    builder_script = (
+        "#!/bin/sh\n"
+        "if [ -n \"${VOYAGE_API_KEY:-}${OPENAI_API_KEY:-}${ANTHROPIC_API_KEY:-}\" ]; then "
+        "touch builder-leaked-credential; exit 91; fi\n"
+        "mkdir -p graphify-out\n"
+        "head=$(git rev-parse HEAD)\n"
+        "printf '{\\\"built_at_commit\\\":\\\"%s\\\","
+        "\\\"nodes\\\":[' \"$head\" > graphify-out/graph.json\n"
+        "printf '{\\\"id\\\":\\\"alpha_structural\\\","
+        "\\\"source_file\\\":\\\"src/pkg/mod.py\\\"}],"
+        "\\\"links\\\":[]}' >> graphify-out/graph.json\n"
+    )
+    fake.write_text(builder_script, encoding="utf-8")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}:{__import__('os').environ['PATH']}")
+    monkeypatch.setenv("VOYAGE_API_KEY", "must-not-reach-builder")
+    monkeypatch.setenv("OPENAI_API_KEY", "must-not-reach-builder")
+
+    def local_semantic(repo_root, question, *, full=False, allow_egress=False):
+        return axi_providers.ProviderResult(
+            provider="semantic",
+            state=axi_providers.ProviderState.OK,
+            detail="1 local fixture result",
+            route_reason="synthetic local embedding fixture",
+            items=[
+                axi_providers.EvidenceItem(
+                    provider="semantic",
+                    source="src/pkg/mod.py",
+                    location="lines 1-1",
+                    excerpt="local embedding fixture",
+                    evidence_class="verified",
+                    source_hash="local-fixture",
+                )
+            ],
+        )
+
+    monkeypatch.setitem(axi_providers.PROVIDERS, "semantic", local_semantic)
+    payload, _fmt, exit_code = _run(["evidence", "alpha", "--mode", "auto"], repo)
+
+    assert exit_code == 0
+    assert payload["answerable"] is True
+    cited = {item["provider"] for item in payload["evidence"]}
+    assert {"exact", "semantic", "structural"}.issubset(cited)
+    assert not (repo / "builder-leaked-credential").exists()
+    structural = next(item for item in payload["evidence"] if item["provider"] == "structural")
+    assert structural["freshness"] == "current"
+    assert structural["evidence_class"] == "inferred"
+
+
+def test_structural_graph_fixture_states_are_explicit_and_cited(tmp_path):
+    """End-user-shaped offline probe for present, absent, and stale graphs."""
+    repo = _git_repo(tmp_path / "present")
+    head = consistency.current_commit(repo)
+    graph = {
+        "built_at_commit": head,
+        "nodes": [{"id": "src_pkg_mod", "source_file": "src/pkg/mod.py"}],
+        "links": [],
+    }
+    _write(repo, "graphify-out/graph.json", json.dumps(graph))
+    present = axi_providers.structural_provider(repo, "pkg mod")
+    assert present.state == axi_providers.ProviderState.OK
+    assert present.items[0].freshness == "current"
+    assert present.items[0].source_hash
+
+    missing = axi_providers.structural_provider(tmp_path / "missing", "pkg mod")
+    assert missing.state == axi_providers.ProviderState.UNAVAILABLE
+    assert not missing.items
+
+    stale_repo = _git_repo(tmp_path / "stale")
+    _write(
+        stale_repo,
+        "graphify-out/graph.json",
+        json.dumps({
+            "built_at_commit": "not-the-current-head",
+            "nodes": [{"id": "src_pkg_mod", "source_file": "src/pkg/mod.py"}],
+            "links": [],
+        }),
+    )
+    stale = axi_providers.structural_provider(stale_repo, "pkg mod")
+    assert stale.state == axi_providers.ProviderState.UNAVAILABLE
+    assert stale.items[0].freshness == "stale"
+    assert stale.items[0].source_hash != present.items[0].source_hash
 
 
 def test_consistency_freshness_detects_stale_after_new_commit(tmp_path):
@@ -680,7 +797,8 @@ def test_evidence_auto_mode_quota_prevents_single_provider_starvation(tmp_path):
         for p in payload["providers_checked"]
         if p["state"] in ("ok", "budget_exceeded", "stale")
     }
-    assert {"exact", "structural", "consistency"}.issubset(ok_providers)
+    assert {"exact", "consistency"}.issubset(ok_providers)
+    assert any(p["provider"] == "structural" for p in payload["providers_checked"])
 
     counts = Counter(item["provider"] for item in payload["evidence"])
     assert len(payload["evidence"]) == cli_axi._MAX_DISPLAY_ITEMS
