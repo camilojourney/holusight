@@ -1,77 +1,13 @@
-# Specs — holusight
+# Holusight specifications
 
-Feature specifications for holusight.
+**Current operational contract:** [028 — Graphify consistency helper](028-graphify-consistency-helper.md). It supersedes the retrieval, cached evidence, web, and evaluation command surfaces described by earlier specs. The old status labels and command examples below are historical records, not current release claims.
 
-## Feature Specs
+- 001–022: historical feature specifications for the retired search/evaluation product.
+- [023 — Doc/code consistency for agents](023-doc-code-consistency-for-agents.md): protected local report, preserved.
+- [024 — Agent context efficiency](024-agent-context-efficiency.md): preserved research.
+- [025 — Consistency engine audit](025-consistency-engine-audit.md): preserved research.
+- [026 — Drift detection prior art](026-drift-detection-prior-art.md): preserved research.
+- [027 — Graphify integration audit](027-graphify-integration-audit.md): preserved research.
+- [028 — Graphify consistency helper](028-graphify-consistency-helper.md): supported product and local-work disposition.
 
-| # | Spec | Status | Phase |
-|---|------|--------|-------|
-| 000 | [Template](000-template.md) | — | — |
-| 001 | [Core Search Engine](001-core-search-tools.md) | Implemented | v0.1 + v0.2 |
-| 002 | [Embedding Model Config](002-embedding-model-config.md) | Implemented | v0.3 |
-| 003 | [Incremental Refresh](003-incremental-refresh.md) | Planned | v0.5 |
-| 004 | [Tree-sitter Chunking](004-tree-sitter-chunking.md) | Planned | Future |
-| 005 | [Automatic Re-indexing](005-watch-unwatch-tools.md) | Deprecated | — |
-| 006 | [Pluggable LLM Backend](006-pluggable-llm-backend.md) | Implemented | v0.3 |
-| 007 | [Cross-Encoder Reranking](007-cross-encoder-reranking.md) | Implemented | v0.3 |
-| 008 | [Docker + FastAPI Deployment](008-docker-deployment-fastapi.md) | Implemented (single-team) | v0.5 |
-| 009 | [CNFB — Multiplicative Filename Boost](009-cnfb-multiplicative-filename-boost.md) | Approved | v0.5 |
-| 010 | [Capability Truth Inventory](010-capability-inventory.md) | Implemented | v0.5 |
-| 011 | [Holusight Product Architecture Research](011-holusight-product-architecture-research.md) | Research/reference | Not implementation authorization |
-| 012 | [Holusight Overnight Benchmark & Continuous Evaluation Research](012-holusight-overnight-benchmark-continuous-evaluation-research.md) | Research/reference | Not implementation authorization |
-| 013 | [Holusight-AXI Documentation-Code Consistency Architecture](013-holusight-axi-consistency-architecture.md) | Phase 1 implemented | Direct-PR |
-| 014 | [Retrieval Evaluation Harness Expansion](014-retrieval-evaluation-harness-expansion.md) | Vertical slice implemented | Direct-PR |
-| 015 | [Holusight-AXI Command Surface](015-holusight-axi-command-surface.md) | Phase 1 implemented | Direct-PR |
-| 016 | [Fleet v1.2 Protocol Pilot](016-fleet-v1.2-protocol-pilot.md) | Pilot implemented | Direct-PR |
-| 017 | [Holusight Safe Continuous Evaluation Pilot](017-holusight-safe-continuous-evaluation-pilot.md) | Pilot implemented | Direct-PR |
-| 018 | [Holusight Continuous Improvement Loop](018-holusight-continuous-improvement-loop.md) | Implemented | Direct-PR |
-| 019 | [Research to Improvement Control Plane](019-research-to-improvement-control-plane.md) | Implemented | Direct-PR |
-| 020 | [Controlled Retrieval Variation Program](020-controlled-retrieval-variation-program.md) | Implemented | Direct-PR |
-| 021 | [Holusight Evidence Subject Binding](021-holusight-evidence-subject-binding.md) | Implemented | Direct-PR |
-| 022 | [Holusight Versioned Suite Fixtures](022-holusight-versioned-suite-fixtures.md) | Dataset foundation implemented | Direct-PR |
-
-## Evaluation readiness (local/advisory) — 2026-09-16
-
-**Captain decision (ADR-0019):** local/advisory evaluator; **promotion denied**.
-
-| Surface | Status | How to run |
-|---------|--------|------------|
-| Fleet protocol pilot (spec 016) | Ready on `master` | `just fleet-smoke` |
-| Safe continuous-eval pilot (spec 017) | Ready on `master` | `just eval-pilot` |
-| Advisory proper-eval orchestration | Ready on `master` | `just proper-eval` (suite bind + smoke + pilot; promotion denied) |
-| Improve-iterate measurement loop | Ready on this branch | `just improve-iterate` (compare+record; promotion denied) |
-| Agent-focus orientation harness | Ready on this branch | `just agent-focus` (deterministic council + context pack; promotion denied) |
-| Consistency / AXI / improvement / fixtures (013–015, 018–022) | Implemented on `master` | see each spec |
-| Overnight AVO / G2 external acceptance (PR #32+) | **Deferred** — not required for local-eval readiness | preserve custody; do not treat as blocker |
-
-Verdicts are advisory for humans only. No autonomous promote / merge / deploy / retrain from gates.
-
-See [ADR-0019](../docs/decisions/0019-local-advisory-evaluator-promotion-denied.md).
-
-## Implementation History
-
-### v0.1 — Hybrid Code Search (completed)
-Hybrid BM25 + vector + RRF search engine. Language-aware chunking for 10 languages. Local embeddings. Content hash deduplication. See [Spec 001](001-core-search-tools.md).
-
-### v0.2 — Enterprise Document Search (completed)
-Major pivot from MCP code search server to enterprise document search engine:
-- Package renamed `semantic_search_mcp` → `holusight`
-- MCP layer removed, Python API created (`Holusight` class)
-- Document parsers: PDF, DOCX, PPTX
-- Claude answer synthesis via Anthropic API
-- Streamlit web chat UI + CLI
-- See [Spec 001](001-core-search-tools.md) (updated to cover v0.2)
-
-### v0.3 — Pluggable LLM + Better Embeddings + Reranking (completed)
-- Pluggable LLM backend: Claude, Azure OpenAI, OpenAI, Ollama — [Spec 006](006-pluggable-llm-backend.md)
-- Configurable embedding model + optional API embeddings (OpenAI) — [Spec 002](002-embedding-model-config.md)
-- Optional cross-encoder reranking after RRF for better precision — [Spec 007](007-cross-encoder-reranking.md)
-
-### v0.5 — Single-team Docker + FastAPI pilot (implemented)
-- Dockerfile, FastAPI server, API-key auth, browser UI — [Spec 008](008-docker-deployment-fastapi.md)
-- Capability inventory and citation contract — [Spec 010](010-capability-inventory.md)
-- **Not claimed:** 50+ concurrent users, SSO, M365 connectors
-
-> For design decisions (why LanceDB, why hybrid RRF, etc.), see `docs/decisions/`.
-> For project roadmap, see `docs/roadmap.md`.
-> For client pitch preparation, see `docs/playbooks/client-pitch.md`.
+Accepted ADRs are immutable historical rationale. Use the current README and architecture for commands and availability.

@@ -1,0 +1,17 @@
+# 028 — Graphify consistency helper (superseding operational contract)
+
+Status: implemented. Supersedes the retrieval and cache/evidence/semantic-provider command contracts in specs 001–022 for the current product. Earlier accepted ADRs remain historical decisions, not instructions to invoke removed commands.
+
+## Mission and boundary
+
+Agents need a small tool to find verifiable errors and mismatches between Graphify's existing graph and current repository source. The checker is offline and read-only. It does not run Graphify, refresh historical graph data, fetch models/dependencies, claim semantic prose correctness, or expose full source files. Agents use Graphify itself for traversal and inspect cited source for proof.
+
+The report distinguishes unavailable graph, unknown provenance, stale graph, current graph, and detected errors. A matched edge alone never establishes truth. `built_at_commit` equal to HEAD plus clean working tree is the only current proof; otherwise the report cannot issue a clean/current verdict. Graph anomalies include dangling endpoints, missing/unsafe cited files, out-of-range lines, and missing explicit repository paths cited by graph-backed Markdown. Reports cap displayed findings but preserve total counts. Unreadable or oversized source evidence is counted as unverified and prevents a clean verdict. CLI and API share the same check; non-current and erroneous outcomes exit nonzero.
+
+## Protected local refactor disposition
+
+The isolated branch incorporated the three protected local commits `30d44ca`, `b7f7424`, and `b7d8fdf` by cherry-pick onto newer upstream `13ad0f8` (resulting commits `afbe98c`, `85b42d3`, `945ea73`). A conflict in `axi_providers.py` retained the newer upstream semantic function temporarily; the final product retires this entire provider module. The protected `AGENTS.md` unstaged host-specific path substitution was **not** copied: it is not portable or part of the product. The protected unstaged `axi_providers.py` rewrite was examined: its intent to drop semantic retrieval and use local Graphify data was incorporated in the smaller checker, but its unconditional `current`/`OK` judgments and unbounded graph path assumptions were not. The protected staged 20-file deletion proposal was not replayed blindly: the six retired source files and retrieval tests were removed only after the remaining public interfaces and consumers were retired. The deleted `tests/test_security.py` consistency-cache symlink case is replaced by a direct graph and source symlink boundary test; the old SQLite cache itself is retired. Research/report files introduced in the commits were moved intact to numbered specs 023–027, preserving their content in the allowed location. All dispositions remain traceable in Git history; the protected checkout was not modified.
+
+## Limits
+
+There is no independent Graphify execution or semantic cross-document reasoning. An absent source path or contradictory line reference is direct evidence; graph freshness alone is provenance, not a score of accuracy. A tracked graph often records a build commit older than the commit that checked it in, so its result may remain stale until rebuilt under an externally verified workflow. No implicit refresh occurs.

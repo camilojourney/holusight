@@ -1,63 +1,25 @@
 # Holusight
 
-Holusight is a local-first repository-evidence tool for agents. It answers questions about a project with bounded exact, structural, consistency, and optional semantic evidence, while reporting provenance, freshness, and whether an evidence provider is unavailable. It does not turn a partial result into a successful answer. The project website is [holusight.com](https://holusight.com/); this README makes no claim about that site's product behavior.
+Holusight is a small **read-only consistency helper for agents**. It checks an existing Graphify `graphify-out/graph.json` against the repository the graph describes. It reports graph integrity errors, missing source paths/lines, and explicit repository-path references in graph-backed Markdown that no longer exist. It does **not** build the graph, index documents, search, synthesize answers, claim prose is true from graph edges, or call a model/network service.
 
-## Install anywhere
+## Run
 
-Install the CLI globally, then bootstrap the skill in each project that uses it. The skill bootstrap is project-local and missing-only: it writes only `.agents/skills/holusight/` and preserves an existing project copy. It does not require or create a machine-wide skill directory. Requires [`uv`](https://docs.astral.sh/uv/).
-
-```bash
-uv tool install git+https://github.com/camilojourney/holusight
-cd ~/some/project
-holusight-install-skill --project-local
+```sh
+uv run --offline python -m holusight check [repo-path]
+uv run --offline python -m holusight check [repo-path] --scope docs/guide.md
+uv run --offline python -m holusight status [repo-path]
+# after installation: holus check [repo-path]
 ```
 
-`holus`, `holusight-install-skill`, and the other `[project.scripts]` entries land on your `PATH` (`uv tool install` puts them in `~/.local/bin` - make sure that's on `PATH`). From then on, invoke `/holusight` inside that project.
+Output is JSON. `status` is `current` only when `built_at_commit` is a full SHA equal to Git HEAD **and** the working tree is clean. A missing or invalid commit is `unknown`, a mismatch or dirty tree is `stale`, and missing/malformed graph data is `unavailable`. Graphify's historical graph in this repository is intentionally **not refreshed** during checks; expect `stale` until an operator rebuilds it independently and proves its provenance. A scope not represented by graph-backed source evidence is `unknown`, not a clean pass. Exit code 0 means a current graph with no detected errors or unverified checks; exit code 1 covers errors, stale, unknown, or unavailable. Error findings in stale graphs are useful leads, not a current clean bill of health.
 
-For a checkout or installed CLI:
+Graph integrity and literal source/path evidence are bounded checks, not semantic doc/code verification. Agents should inspect cited source lines and use Graphify directly for traversal. No source or graph files are written by `check`.
 
-```bash
-holusight-install-skill --project-local
+## Development
+
+```sh
+uv run --offline --extra dev pytest tests/ -q
+uv run --offline --extra dev ruff check src/ tests/
 ```
 
-The project-local destination is validated against the current project root and symlink escapes are rejected.
-
-## Repository evidence
-
-```bash
-cd ~/some/project
-holus                                      # repository snapshot and provider health
-holus evidence "where is retry policy enforced?"
-holus evidence "how does X work?" --mode structure
-holus providers                            # availability and freshness
-```
-
-Exact, structural, and consistency evidence work without an embedding index. Structural evidence consumes `graphify-out/graph.json`; when it is missing or older than HEAD, Holusight invokes the installed `graphify` executable with `update .` and then reads the result. Its citation is marked current only when the graph's `built_at_commit` matches repository HEAD. A missing graph or failed builder is unavailable, and an unreadable or stale result is never presented as current. Builder discovery uses `PATH`, not a machine-specific script path.
-
-Semantic evidence requires an explicit index build:
-
-```bash
-python -m holusight index .
-holus evidence "how does X work?" --mode semantic
-```
-
-A missing, incomplete, or stale embedding index is a failure, not a successful partial answer. Exact matches cannot mask unavailable semantic evidence. Queries are local by default; external embedding access requires an explicit egress opt-in.
-
-## Project-local skill controls
-
-```bash
-holusight-install-skill --print       # preview without writing
-uv tool install --editable .          # develop from a local checkout
-uv tool install --upgrade git+https://github.com/camilojourney/holusight
-uv tool uninstall holusight
-```
-
-The installed skill records its interpreter in project-local derived state when needed. Holusight's search data is kept outside the indexed folder, keyed by that folder's path, and is never written into the repository being searched.
-
-## Evidence contract
-
-Every provider reports an explicit state such as `ok`, `no_evidence`, `unavailable`, `stale`, or `budget_exceeded`. Evidence items include their source and location, and available providers attach provenance and freshness. If the required provider is unavailable or stale, the command exits nonzero and reports that state instead of presenting a partial answer as authoritative.
-
-No public hosting or deployment behavior is implied by this repository README. The supported product surface described here is the local CLI and its project-local skill.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) and the numbered specifications in [specs/](specs/) for implementation detail.
+See `ARCHITECTURE.md` and `specs/028-graphify-consistency-helper.md` for the supported contract and migration disposition. Earlier numbered specs and accepted decisions are historical context for the retired retrieval product, not current interfaces.

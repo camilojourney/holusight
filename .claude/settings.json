@@ -19,7 +19,7 @@
     "TaskCompleted": [
       {
         "type": "command",
-        "command": "cd /Users/mini/.openclaw/workspace/github/holusight && pytest tests/ -q --tb=no 2>/dev/null || true",
+        "command": "uv run --offline --extra dev pytest tests/ -q --tb=no",
         "description": "Run tests before marking task complete"
       }
     ]

@@ -3,12 +3,12 @@
 
 # Holusight
 
-AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with pluggable LLM answer synthesis.
+Read-only Graphify graph/source consistency helper for agents; no indexing, search, model, or automatic graph rebuild.
 
 ## Structure
 
 > WHERE things go in this repo. Read before creating or moving any file.
-> Type D -- Spec-Only repo with demo code (CLI code search tool).
+> Type D -- small CLI consistency helper with historical specifications.
 
 ### Root Level
 
@@ -23,9 +23,7 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `landing/` | Static public site for holusight.com (Vercel `outputDirectory`). |
 | `vercel.json` | Vercel static deploy config; must point at a directory with `index.html`. |
 | `pyproject.toml` | Python package config and dependencies (uv). |
-| `.env.example` | Environment variable template. Never `.env` itself. |
 | `src/` | Core Python library (`src/holusight/`). |
-| `demo/` | Demo application (app.py + requirements.txt). |
 | `specs/` | Numbered feature specifications. |
 | `docs/` | Structured documentation (four categories only). |
 | `tests/` | pytest test suite. |
@@ -33,8 +31,6 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 | `tasks/` | Temporary session task files (delete when done). |
 | `.claude/` | Claude Code configuration, rules, agents. |
 | `.self-improvement/` | Autonomous improvement system. |
-| `.holusight/` | Gitignored derived state, never canonical truth. See the authoritative storage and rebuild rules in `.claude/rules/structure.md`. |
-| `agentic/` | Fleet repository-evaluation-adapter manifest (`fleet.repo_agent_manifest.v1.2`) and memory policy (`fleet.memory_policy.v1.1`). Committed, Holusight-owned data conforming to schemas owned by the Fleet repository, not vendored here. See spec 016. |
 
 **Never create files at root** unless they are one of the above.
 
@@ -42,47 +38,10 @@ AI-powered document search engine — hybrid BM25 + vector + RRF retrieval with 
 
 | Module | Purpose |
 |--------|---------|
-| `src/holusight/__main__.py` | CLI entry point. |
-| `src/holusight/api.py` | API layer. |
-| `src/holusight/chunker.py` | Code chunking logic. |
-| `src/holusight/config.py` | Configuration loading. |
-| `src/holusight/embeddings.py` | Embedding model interface. |
-| `src/holusight/embedding_daemon.py` | Persistent local embedding daemon (`holusight-embedding-daemon`): keeps a large local model warm across stateless `holus` CLI invocations. |
-| `src/holusight/git_utils.py` | Git repository utilities. |
-| `src/holusight/indexer.py` | Code indexing engine. |
-| `src/holusight/llm.py` | LLM backend interface. |
-| `src/holusight/parsers.py` | Language parsers (tree-sitter). |
-| `src/holusight/search.py` | Search and retrieval. |
-| `src/holusight/store.py` | Vector store (LanceDB). |
-| `src/holusight/consistency.py` | Holusight-AXI documentation-code consistency engine (Phase 1). See spec 013. |
-| `src/holusight/consistency_store.py` | SQLite storage for `.holusight/consistency.db`. |
-| `src/holusight/axi_schema.py` | Versioned `holus` command/output schema - single source of truth for the CLI and the generated skill. See spec 015. |
-| `src/holusight/axi_providers.py` | `holus` evidence providers (exact/structural/consistency/semantic) - thin wrappers over `consistency.py` and `search.py`. |
-| `src/holusight/cli_axi.py` | `holus` CLI entry point (`[project.scripts] holus`). Also hosts the `improve-*` continuous-improvement loop and repository-placement guard. See spec 018. |
-| `src/holusight/axi_skill_gen.py` | Generates `.claude/skills/holus/SKILL.md` from `axi_schema.py`, plus the general, install-anywhere `/holusight` distribution skill variant. |
-| `src/holusight/skill_installer.py` | `holusight-install-skill` console script: writes the distribution skill to `~/.claude/skills/holusight/` and symlinks it into every other supported harness, mirroring how `graphify` is distributed. See README.md "Install anywhere". |
-| `src/holusight/toon.py` | Compact TOON output encoder (agent-facing projection boundary only; JSON stays canonical). |
-| `src/holusight/fleet_scorecard.py` | Bridges `consistency.py`'s `ConsistencyReport` to Fleet `eval-scorecard.v1.2`-shaped documents; `agentic/manifest.yaml`'s `eval_entrypoint` runner. Local, no-spend. See spec 016. |
-| `src/holusight/eval_pilot.py` | Safe continuous-evaluation pilot: frozen case corpus runner, candidate lineage, status-quo comparison, Fleet aggregate export (additive, not the declared `eval_entrypoint`). Every result binds to an immutable Git commit/tree subject. Local, no-spend, advisory only. See specs 017, 018, and 021. |
-| `src/holusight/eval_suite.py` | Versioned local-evaluation suite, method/config, and hidden-holdout hash-manifest schemas. Dataset foundation only; no runner, no holdout access path. See spec 022. |
-| `src/holusight/proper_eval.py` | Advisory named-suite orchestration (ADR-0019). Loads suite identity, binds `EvaluationSubject`, runs fleet-smoke + eval-pilot. Hidden holdout not scored. Promotion always denied. |
-| `src/holusight/agent_focus.py` | Deterministic agent-focus harness: context pack + fixed alignment council (no LLM). Helps agents orient before changing Holusight. Promotion always denied. |
-| `src/holusight/improve_iterate.py` | Iterative measurement loop over `proper_eval.py`: compares each run to the previous local receipt and emits `progress` (baseline/improved/stagnated/regressed/blocked) + `next_action`. Promotion always denied (ADR-0019). |
-| `src/holusight/improvement_control.py` | Deterministic validator and opt-in derived-record writer for the existing `holus improve-*` loop. It verifies tracked manifests, links, hashes, stages, promotion blockers, and (for pilot results) recomputed Git-subject applicability, without egress or canonical writes. See specs 019 and 021. |
-| `src/holusight/retrieval_variation.py` | Fixed, local evidence-display baseline/candidate evaluator. Content-addresses benchmark and lineage, separates hard constraints from reward, and only permits independent human review. See spec 020. |
-| `src/holusight/spec_duplication.py` | Advisory nearest-neighbor similarity report over `specs/NNN-*.md`, so a new spec can be checked against existing ones before it's created. Ranked, not pass/fail -- see the module docstring for why a hard similarity threshold isn't used. |
-| `src/holusight/types.py` | Shared type definitions. |
-| `src/holusight/web/server.py` | FastAPI server and authenticated browser API. |
-| `src/holusight/web/static/` | Browser UI assets for the FastAPI pilot server. |
-
-### Demo (`demo/`)
-
-| File | Purpose |
-|------|---------|
-| `demo/app.py` | Demo application showcasing holusight capabilities. |
-| `demo/requirements.txt` | Demo-specific dependencies (separate from main pyproject.toml). |
-
-Demo is self-contained. It does not import from `src/holusight/` at runtime.
+| `src/holusight/__main__.py` | `python -m holusight` CLI entry point. |
+| `src/holusight/api.py` | Read-only Python API. |
+| `src/holusight/consistency.py` | Graphify graph/source checker and provenance verification. |
+| `src/holusight/cli_axi.py` | `holus` console-script alias. |
 
 ### Docs (`docs/`)
 
@@ -109,10 +68,6 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 | Path | Purpose |
 |------|---------|
 | `tests/test_*.py` | Test files matching source modules. |
-| `tests/fixtures/*.jsonl` | Frozen case corpora (e.g. the eval-pilot corpus, spec 017/018). Human-reviewed admission only -- see `docs/playbooks/eval-pilot-case-admission.md`. |
-| `tests/fixtures/eval_suites/` | Versioned suite and method/config manifests (spec 022). |
-| `tests/fixtures/eval_holdout/` | Hidden-holdout hash-manifests only; payloads are not stored or loaded (spec 022). |
-| `tests/fixtures/` (other) | Other test fixtures (synthetic docs, eval query sets). |
 
 ### `.claude/` -- Claude Code Configuration
 
@@ -122,7 +77,6 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 | `.claude/rules/*.md` | Behavioral rules (structure, workflow). |
 | `.claude/agents/*.md` | Agent definitions. |
 | `.claude/agent-memory/<agent>/` | Per-agent runtime memory (gitignored). |
-| `.claude/skills/holus/SKILL.md` | Generated `/holus` agent skill (see `src/holusight/axi_skill_gen.py`, spec 015). Do not hand-edit - regenerate via `python -m holusight.axi_skill_gen`. |
 
 ### `.self-improvement/`
 
@@ -145,7 +99,6 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 | Operational guide | `docs/playbooks/name.md` |
 | New source module | `src/holusight/{name}.py` |
 | Unit test | `tests/test_{module}.py` |
-| Demo code | `demo/` |
 | Dev session notes | `devlog/YYYY-MM-DD.md` |
 | Agent priorities | `.self-improvement/NEXT.md` |
 | Worker reports | `.self-improvement/reports/<worker>/YYYY-MM-DD.md` |
@@ -155,36 +108,22 @@ Numbered feature specs: `specs/NNN-name.md`. Flat structure only. No subdirector
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
-- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- When Graphify is installed with proven no-network isolation, query its worktree-local graph first; otherwise inspect source and report graph traversal unavailable.
+- Before editing a source file, surface callers and dependents from a safe local graph query when available; otherwise inspect local imports and tests.
 - Do not re-read multiple source files after a good query unless the user asks for line-level proof.
 - Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
-- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- Do not auto-refresh the historical Graphify graph during Holusight checks; a separately authorized, no-network build is required.
 - In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
 <!-- graphify:end -->
 
 ## Commands
 
-- Run demo: `uv run --extra demo python -m holusight demo`
-- CLI: `python -m holusight index /path/to/docs`
+- CLI: `python -m holusight check /path/to/repo`
 - Test: `uv run --extra dev pytest tests/ -x -v`
 - Lint: `uv run --extra dev ruff check src/ tests/`
 - Install: `pip install -e ".[dev]"`
-- Retrieval eval: `just eval` (20q, hybrid only) or `just eval-taxonomy` (85q
-  taxonomy across hybrid/bm25/exact/graphify baselines). See
-  `specs/014-retrieval-evaluation-harness-expansion.md` and
-  `docs/playbooks/run-retrieval-eval.md`. The `graphify`/`fleet_graphify.py`/
-  `agy` tooling this file references elsewhere is not present on every
-  execution host — code that depends on it (the eval harness's Graphify
-  baseline, `consistency.py`'s structural provider) must degrade to an
-  explicit "unavailable" result rather than fail, and does.
-- Fleet v1.2 protocol pilot smoke suite: `just fleet-smoke` (20 tasks,
-  exact + structural providers only, no network, no spend). This is
-  `agentic/manifest.yaml`'s declared `eval_entrypoint`. See
-  `specs/016-fleet-v1.2-protocol-pilot.md`.
 
 ## Parallelism & Skills
 
@@ -212,7 +151,7 @@ Rules:
 ## Agent Authority Matrix
 
 ### Autonomous — No confirmation needed
-- Bug fixes in chunker, embedder, search, parsers that don't touch security boundaries
+- Bug fixes in the consistency checker that do not touch security boundaries
 - Adding tests, updating docs, improving comments
 - Reading any file in the repo
 - Running lint and tests (`uv run --extra dev ruff check`, `uv run --extra dev pytest`)
@@ -220,15 +159,14 @@ Rules:
 
 ### Ask First — Propose, wait for approval
 - New dependencies in `pyproject.toml`
-- Changes to the `Holusight` public API (`index`, `search`, `ask`, `status`)
-- Changes to the data directory path or index schema
+- Changes to the `Holusight` public API (`check`, `status`)
 - New config environment variables
 - Changes to the Claude system prompt in `api.py`
 
 ### Never — Hard stop, escalate immediately
-- Writing to or deleting files in any indexed folder
+- Writing to or deleting files in a repository being checked
 - Allowing `folder_path` inputs that traverse outside a validated root
-- Returning full file contents from search (chunks + line ranges only)
+- Returning full file contents from a check (paths and line evidence only)
 - Committing secrets or API keys
 
 ## Workers
@@ -244,9 +182,9 @@ Rules:
 
 ## Role
 
-holusight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
+Holusight is a read-only Graphify graph/source consistency helper. Agents use the CLI or Python API to inspect source-backed errors; Graphify traversal remains external.
 
-**Primary concerns:** retrieval quality, document parsing accuracy, answer quality with source citations.
+**Primary concerns:** graph provenance, precise source evidence, safe path handling, and honest unavailable/stale/unknown states.
 
 ## Memory
 
@@ -266,14 +204,13 @@ When the user types `/graphify`, invoke the graphify skill before doing anything
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
-- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- When Graphify is installed with proven no-network isolation, query its worktree-local graph first; otherwise inspect source and report graph traversal unavailable.
+- Before editing a source file, surface callers and dependents from a safe local graph query when available; otherwise inspect local imports and tests.
 - Do not re-read multiple source files after a good query unless the user asks for line-level proof.
 - Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
-- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- Do not auto-refresh the historical Graphify graph during Holusight checks; a separately authorized, no-network build is required.
 - In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
 <!-- graphify:end -->
 
@@ -289,10 +226,9 @@ Rules:
 
 ## IMPORTANT Rules
 
-- **Read-only invariant** — the engine NEVER writes to indexed folders. It only reads files to build the index. Violating this is the most critical bug possible.
+- **Read-only invariant** — the checker NEVER writes to the repository it inspects. It only reads the graph and source evidence.
 - **Path traversal prevention** — all `folder_path` inputs must be validated against a whitelist or resolved to real paths before use. Never allow `../` escapes.
-- **Content hash guard** — always check `sha256(chunk_content)[:16]` before re-embedding. Never embed unchanged content.
-- **No full file exposure** — search returns chunks with line ranges, never entire file contents.
+- **No full file exposure** — findings report paths and line evidence, never entire file contents.
 
 @import .claude/rules/workflow.md
 
@@ -302,36 +238,22 @@ Rules:
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
-- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- When Graphify is installed with proven no-network isolation, query its worktree-local graph first; otherwise inspect source and report graph traversal unavailable.
+- Before editing a source file, surface callers and dependents from a safe local graph query when available; otherwise inspect local imports and tests.
 - Do not re-read multiple source files after a good query unless the user asks for line-level proof.
 - Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
-- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- Do not auto-refresh the historical Graphify graph during Holusight checks; a separately authorized, no-network build is required.
 - In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
 <!-- graphify:end -->
 
 ## Commands
 
-- Run demo: `uv run --extra demo python -m holusight demo`
-- CLI: `python -m holusight index /path/to/docs`
+- CLI: `python -m holusight check /path/to/repo`
 - Test: `uv run --extra dev pytest tests/ -x -v`
 - Lint: `uv run --extra dev ruff check src/ tests/`
 - Install: `pip install -e ".[dev]"`
-- Retrieval eval: `just eval` (20q, hybrid only) or `just eval-taxonomy` (85q
-  taxonomy across hybrid/bm25/exact/graphify baselines). See
-  `specs/014-retrieval-evaluation-harness-expansion.md` and
-  `docs/playbooks/run-retrieval-eval.md`. The `graphify`/`fleet_graphify.py`/
-  `agy` tooling this file references elsewhere is not present on every
-  execution host — code that depends on it (the eval harness's Graphify
-  baseline, `consistency.py`'s structural provider) must degrade to an
-  explicit "unavailable" result rather than fail, and does.
-- Fleet v1.2 protocol pilot smoke suite: `just fleet-smoke` (20 tasks,
-  exact + structural providers only, no network, no spend). This is
-  `agentic/manifest.yaml`'s declared `eval_entrypoint`. See
-  `specs/016-fleet-v1.2-protocol-pilot.md`.
 
 ## Parallelism & Skills
 
@@ -359,7 +281,7 @@ Rules:
 ## Agent Authority Matrix
 
 ### Autonomous — No confirmation needed
-- Bug fixes in chunker, embedder, search, parsers that don't touch security boundaries
+- Bug fixes in the consistency checker that do not touch security boundaries
 - Adding tests, updating docs, improving comments
 - Reading any file in the repo
 - Running lint and tests (`uv run --extra dev ruff check`, `uv run --extra dev pytest`)
@@ -367,15 +289,14 @@ Rules:
 
 ### Ask First — Propose, wait for approval
 - New dependencies in `pyproject.toml`
-- Changes to the `Holusight` public API (`index`, `search`, `ask`, `status`)
-- Changes to the data directory path or index schema
+- Changes to the `Holusight` public API (`check`, `status`)
 - New config environment variables
 - Changes to the Claude system prompt in `api.py`
 
 ### Never — Hard stop, escalate immediately
-- Writing to or deleting files in any indexed folder
+- Writing to or deleting files in a repository being checked
 - Allowing `folder_path` inputs that traverse outside a validated root
-- Returning full file contents from search (chunks + line ranges only)
+- Returning full file contents from a check (paths and line evidence only)
 - Committing secrets or API keys
 
 ## Workers
@@ -391,9 +312,9 @@ Rules:
 
 ## Role
 
-holusight is an AI-powered document search engine. It indexes folders of documents (PDF, DOCX, PPTX, code, text) and provides hybrid BM25 + vector search with Claude answer synthesis. Users interact via a Streamlit web chat UI, CLI, or the Python API.
+Holusight is a read-only Graphify graph/source consistency helper. Agents use the CLI or Python API to inspect source-backed errors; Graphify traversal remains external.
 
-**Primary concerns:** retrieval quality, document parsing accuracy, answer quality with source citations.
+**Primary concerns:** graph provenance, precise source evidence, safe path handling, and honest unavailable/stale/unknown states.
 
 ## Memory
 
@@ -413,14 +334,13 @@ When the user types `/graphify`, invoke the graphify skill before doing anything
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
-- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- When Graphify is installed with proven no-network isolation, query its worktree-local graph first; otherwise inspect source and report graph traversal unavailable.
+- Before editing a source file, surface callers and dependents from a safe local graph query when available; otherwise inspect local imports and tests.
 - Do not re-read multiple source files after a good query unless the user asks for line-level proof.
 - Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
-- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- Do not auto-refresh the historical Graphify graph during Holusight checks; a separately authorized, no-network build is required.
 - In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
 <!-- graphify:end -->
 
@@ -436,10 +356,9 @@ Rules:
 
 ## IMPORTANT Rules
 
-- **Read-only invariant** — the engine NEVER writes to indexed folders. It only reads files to build the index. Violating this is the most critical bug possible.
+- **Read-only invariant** — the checker NEVER writes to the repository it inspects. It only reads the graph and source evidence.
 - **Path traversal prevention** — all `folder_path` inputs must be validated against a whitelist or resolved to real paths before use. Never allow `../` escapes.
-- **Content hash guard** — always check `sha256(chunk_content)[:16]` before re-embedding. Never embed unchanged content.
-- **No full file exposure** — search returns chunks with line ranges, never entire file contents.
+- **No full file exposure** — findings report paths and line evidence, never entire file contents.
 
 @import .claude/rules/workflow.md
 
@@ -452,14 +371,13 @@ When the user types `/graphify`, invoke the graphify skill before doing anything
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- When `graphify-out/graph.json` exists and the user asks how code is structured, wired, called, or where behavior lives, first run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py query "<question>"`. Use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py path "<A>" "<B>"` for relationships and `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py explain "<concept>"` for focused concepts. Answer from query output; read at most one source file only if the query is thin or missing a named symbol.
-- Before editing a source file, run the traceable `fleet_graphify.py query` or `fleet_graphify.py path` wrapper to surface dependents/callers/importers. Include connected files in the change set or explicitly call out what else must change.
+- When Graphify is installed with proven no-network isolation, query its worktree-local graph first; otherwise inspect source and report graph traversal unavailable.
+- Before editing a source file, surface callers and dependents from a safe local graph query when available; otherwise inspect local imports and tests.
 - Do not re-read multiple source files after a good query unless the user asks for line-level proof.
 - Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code files in this session, run `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py update .` to keep the graph current (AST-only, no API cost).
-- After modifying docs, notes, images, `AGENTS.md`, `CLAUDE.md`, or `ai-instructions/`, use `python3 /Users/mini/.openclaw/workspace/github/~fleet-system/system/shared/scripts/fleet_graphify.py . --update` or the installed AGY semantic hook wrapper. Fleet default semantic runner is `agy --model "Gemini 3.5 Flash (Medium)"`.
+- Do not auto-refresh the historical Graphify graph during Holusight checks; a separately authorized, no-network build is required.
 - In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
 <!-- graphify:end -->
 
