@@ -1,7 +1,26 @@
 # Architecture -- Holusight
 
 > Guided tour of the codebase. WHY things are built, not just WHAT.
-> **Last Updated:** 2026-08-23
+> **Last Updated:** 2026-09-29
+
+---
+
+## Phase 1-2 Refactor (2026-09-29)
+
+Holusight is now a thin consistency checker on top of Graphify:
+
+- **Graphify** provides: code structure, call graphs, doc→code edges (349 md→py edges, 2.4s rebuild)
+- **Holusight** provides: drift detection (doc claims still match code?)
+- **Agents use**: Graphify for "what calls this?", Holusight for "did docs break?"
+
+Deleted: ~3,300 lines (embeddings, LanceDB, chunking, parsing, searching, reranking)
+Kept: ~150 lines (consistency checker, value claims, Graphify integration)
+
+Commands:
+- `holus check` - detect doc-code drift
+- `holus evidence "<question>"` - routed evidence packet
+- `holus status` - show repository status
+- `holus providers` - check provider availability
 
 ---
 

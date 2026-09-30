@@ -27,6 +27,8 @@ data/
 # truth. Safe to delete; rebuilt via `python -m holusight consistency refresh`.
 # See specs/013-holusight-axi-consistency-architecture.md.
 .holusight/
+# Project-local Holusight skill installed only for this local evaluation
+.agents/skills/holusight/
 
 # OS
 .DS_Store

@@ -657,18 +657,15 @@ PROVIDERS = {
     "exact": exact_provider,
     "structural": structural_provider,
     "consistency": consistency_provider,
-    "semantic": semantic_provider,
 }
 
 # Which providers each --mode value runs. "auto" runs every provider cheap
 # enough to attempt unconditionally (exact/structural/consistency are all
-# local, deterministic, sub-second); semantic only actually does work in
-# auto mode when a local index already exists (see semantic_provider).
+# local, deterministic, sub-second).
 MODE_PROVIDERS: dict[str, list[str]] = {
     "exact": ["exact"],
-    "semantic": ["semantic"],
     "structure": ["structural"],
-    "auto": ["exact", "structural", "consistency", "semantic"],
+    "auto": ["exact", "structural", "consistency"],
 }
 
 
