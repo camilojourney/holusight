@@ -20,9 +20,7 @@ more false positives than true ones. Ranking is honest about what the
 signal actually supports; a human still makes the call.
 
 Advisory only, same posture as the rest of the improvement control plane
-(ADR-0019): this module never edits, blocks, or merges anything. It reuses
-the existing local-embedding similarity machinery in ``consistency.py``
-rather than introducing a second embedding path.
+(ADR-0019): this module never edits, blocks, or merges anything.
 """
 
 from __future__ import annotations
@@ -32,9 +30,37 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
-from .consistency import EmbedFn, _cosine, _default_local_embed_fn
+
+class EmbedFn(Protocol):
+    def __call__(self, texts: list[str]) -> list[list[float]]: ...
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(y * y for y in b) ** 0.5
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def _default_local_embed_fn() -> EmbedFn:
+    """Return a local embedding function using sentence-transformers."""
+    try:
+        from sentence_transformers import SentenceTransformer
+    except ImportError as exc:
+        raise RuntimeError(
+            "sentence-transformers is required for spec-duplication; "
+            "install it with: pip install sentence-transformers"
+        ) from exc
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    def _embed(texts: list[str]) -> list[list[float]]:
+        return model.encode(texts, show_progress_bar=False).tolist()
+
+    return _embed
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -162,6 +188,37 @@ def run(
             "reason": "ADR-0019 local/advisory evaluator; no autonomous promote/merge/deploy",
         },
     }
+
+
+def find_similar_to_query(
+    query: str,
+    repo_root: Path | None = None,
+    top_k: int = 5,
+    embed_fn: EmbedFn | None = None,
+) -> list[dict[str, Any]]:
+    """Return the top_k specs most similar to an arbitrary query string.
+
+    Embeds the query alongside all specs and ranks by cosine similarity.
+    Returns a list of dicts with 'spec', 'similarity', 'declared_relationship'."""
+    root = repo_root or REPO_ROOT
+    paths = _spec_paths(root)
+    if not paths:
+        return []
+
+    embed = embed_fn or _default_local_embed_fn()
+    texts = {p: p.read_text(encoding="utf-8", errors="replace") for p in paths}
+    ordered = sorted(texts)
+    all_texts = [query] + [texts[p] for p in ordered]
+    vectors = embed(all_texts)
+    query_vec = vectors[0]
+    spec_vecs = {p: vectors[i + 1] for i, p in enumerate(ordered)}
+
+    results = []
+    for path in paths:
+        sim = _cosine(query_vec, spec_vecs[path])
+        results.append({"spec": path.name, "similarity": round(sim, 4)})
+    results.sort(key=lambda r: -r["similarity"])
+    return results[:top_k]
 
 
 def main(argv: list[str] | None = None) -> int:
