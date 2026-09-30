@@ -24,16 +24,19 @@ class Finding(NamedTuple):
 
 
 def load_graph(repo_path: str | Path) -> dict[str, Any]:
-    """Load graphify-out/graph.json if it exists."""
+    """Load graphify-out/graph.json if it exists.
+
+    Returns dict with "nodes" (list or dict) and "links" (list).
+    """
     repo = Path(repo_path)
     graph_file = repo / "graphify-out" / "graph.json"
     if not graph_file.exists():
-        return {"nodes": {}, "edges": []}
+        return {"nodes": [], "links": []}
     try:
         with open(graph_file) as f:
             return json.load(f)
     except Exception:
-        return {"nodes": {}, "edges": []}
+        return {"nodes": [], "links": []}
 
 
 def extract_exact_references(text: str) -> list[str]:
@@ -47,17 +50,28 @@ def extract_exact_references(text: str) -> list[str]:
 
 
 def resolve_against_graph(mention: str, graph: dict[str, Any]) -> bool:
-    """Check if a symbol exists in the Graphify graph."""
-    nodes = graph.get("nodes", {})
+    """Check if a symbol exists in the Graphify graph.
 
-    # Check if mention is a node ID or node name
-    for node_id, node_data in nodes.items():
-        if isinstance(node_data, dict):
-            if node_id == mention or node_data.get("name") == mention:
-                return True
-            # Also check if it's in the ID path
-            if mention in node_id:
-                return True
+    Handles both list and dict formats for nodes.
+    """
+    nodes = graph.get("nodes", [])
+
+    if isinstance(nodes, list):
+        # Graphify v1.2 format: nodes is a list of dicts with "id" and "label"
+        for node in nodes:
+            if isinstance(node, dict):
+                node_id = node.get("id", "")
+                label = node.get("label", "")
+                if node_id == mention or label == mention or mention in node_id:
+                    return True
+    elif isinstance(nodes, dict):
+        # Fallback for dict format
+        for node_id, node_data in nodes.items():
+            if isinstance(node_data, dict):
+                if node_id == mention or node_data.get("name") == mention:
+                    return True
+                if mention in node_id:
+                    return True
 
     return False
 

@@ -36,19 +36,28 @@ class Holusight:
         from .consistency import load_graph
 
         graph = load_graph(self.folder_path)
-        has_graph = bool(graph.get("nodes"))
+        nodes = graph.get("nodes", [])
+        has_graph = bool(nodes)
+
+        # Extract unique files from node IDs (format: "path/to/file.py:symbol")
+        files_indexed = set()
+        if isinstance(nodes, list):
+            for node in nodes:
+                if isinstance(node, dict) and "id" in node:
+                    file_path = node["id"].split(":")[0]
+                    if file_path:
+                        files_indexed.add(file_path)
+        elif isinstance(nodes, dict):
+            for node_id in nodes.keys():
+                file_path = node_id.split(":")[0]
+                if file_path:
+                    files_indexed.add(file_path)
 
         return RepoStatus(
             repo_path=str(self.folder_path),
             indexed=has_graph,
-            chunk_count=len(graph.get("nodes", {})),
-            files_indexed=len(
-                set(
-                    node_id.split(":")[0]
-                    for node_id in graph.get("nodes", {}).keys()
-                    if ":" in node_id
-                )
-            ),
+            chunk_count=len(nodes) if isinstance(nodes, list) else len(nodes),
+            files_indexed=len(files_indexed),
             last_commit=None,
             last_indexed_at=None,
             stale=False,
