@@ -16,7 +16,9 @@ from typing import Any
 _GRAPH = Path("graphify-out/graph.json")
 _LINE = re.compile(r"^L([1-9][0-9]*)(?:-L?([1-9][0-9]*))?$")
 _PATH = re.compile(
-    r"(?:^|\s|[`(])((?:src|tests|specs|docs)/[\w./-]+\.[a-zA-Z0-9]+)(?:[:#][^\s`)]+)?"
+    r"(?:^|\s|[`(])((?:(?:src|tests|specs|docs|business|\.claude|\.github)/"
+    r"[\w./-]+\.[a-zA-Z0-9]+|(?:README|ARCHITECTURE|AGENTS|CLAUDE|COMPARISON)\.md))"
+    r"(?=[:#\s`)]|$)"
 )
 
 
@@ -173,6 +175,16 @@ def check(
             return
         if isinstance(location, str) and (match := _LINE.fullmatch(location)):
             lineno = int(match.group(1))
+            end_line = int(match.group(2) or match.group(1))
+            if end_line < lineno:
+                record(
+                    "invalid_line_range",
+                    file,
+                    lineno,
+                    "Graph source line range is reversed",
+                    evidence,
+                )
+                return
             # Source-location checks are factual even for stale graphs; an edge
             # relation's semantic truth is not inferred from the line.
             if path not in line_counts:
@@ -187,11 +199,11 @@ def check(
             if line_counts[path] is None:
                 unverified += 1
                 return
-            if lineno > line_counts[path]:
+            if end_line > line_counts[path]:
                 record(
                     "missing_line",
                     file,
-                    lineno,
+                    end_line,
                     "Graph source line is beyond end of current file",
                     evidence,
                 )

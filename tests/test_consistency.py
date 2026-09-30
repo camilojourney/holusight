@@ -168,6 +168,19 @@ def test_graph_source_symlink_escape_is_reported_without_reading(tmp_path):
     assert "SECRET_DO_NOT_EXPOSE" not in json.dumps(result)
 
 
+def test_range_end_line_is_checked_for_node_and_edge(tmp_path):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["nodes"][0]["source_location"] = "L1-L999"
+    graph["links"][0]["source_location"] = "L1-L999"
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    assert result["status"] == "error"
+    assert result["error_types"]["missing_line"] == 2
+    assert all(f["line"] == 999 for f in result["findings"])
+
+
 def test_malformed_edge_does_not_crash_or_escape(tmp_path):
     repo = _repo(tmp_path)
     graph_path = repo / "graphify-out/graph.json"
@@ -185,6 +198,38 @@ def test_scoped_path_cannot_escape_repository(tmp_path):
         check(repo, scope="/etc/passwd")
     assert check(repo, refresh=True)["status"] == "unavailable"
     assert check(repo, scope="src/not-in-graph.py")["status"] == "unknown"
+
+
+def test_root_business_and_dot_directory_path_claims(tmp_path):
+    repo = _repo(tmp_path)
+    (repo / "docs").mkdir()
+    (repo / "docs/guide.md").write_text(
+        "See `ARCHITECTURE.md`, `business/missing.md`, and `.claude/rules/missing.md`.\n"
+    )
+    subprocess.run(["git", "-C", str(repo), "add", "docs/guide.md"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "docs"], check=True)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["built_at_commit"] = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    graph["nodes"].append(
+        {
+            "id": "guide",
+            "file_type": "document",
+            "source_file": "docs/guide.md",
+            "source_location": "L1",
+        }
+    )
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    claims = [f for f in result["findings"] if f["type"] == "missing_path_claim"]
+    assert len(claims) == 3
+    assert {f["evidence"] for f in claims} == {
+        "path:ARCHITECTURE.md",
+        "path:business/missing.md",
+        "path:.claude/rules/missing.md",
+    }
 
 
 def test_explicit_path_claim_and_missing_line(tmp_path):
