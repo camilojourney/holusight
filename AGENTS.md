@@ -53,7 +53,7 @@ Read-only Graphify graph/source consistency helper for agents; no indexing, sear
 | `docs/vision.md` | Product vision. Update at most yearly. |
 | `docs/roadmap.md` | Now/Next/Later feature plan. |
 | `docs/decisions/NNNN-*.md` | ADRs -- immutable once accepted. |
-| `docs/playbooks/*.md` | Step-by-step operational guides. |
+| `docs/playbooks/*.md` | Current development guide and marked historical playbooks. |
 
 **NEVER create** ad-hoc files in `docs/`. Architecture goes in `ARCHITECTURE.md` (root). Specs go in `specs/`. Research and market analysis go in `specs/` as numbered specs, NOT as standalone files in `docs/`.
 
