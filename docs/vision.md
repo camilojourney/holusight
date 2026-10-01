@@ -1,5 +1,5 @@
 # Vision — Holusight
 
-Holusight helps agents spot verifiable Graphify graph errors and mismatches against the repository it describes. It is deliberately small: it reads an existing graph, checks paths, line locations, edge integrity, and explicit path claims, and gives source-backed evidence with honest provenance state. It does not replace direct source inspection or Graphify traversal, and it does not assert semantic truth from a graph edge.
+Holusight helps agents find repository alignment problems quickly. Graphify supplies the navigation map; Holusight checks its integrity and provenance, rescans Python and Markdown for duplication candidates, and compares explicitly linked scalar facts across code and documentation. Findings cite source locations and content hashes. Agents inspect, repair and rerun to see what changed. The tool does not infer arbitrary prose meaning, prove behavioral equivalence, or replace source inspection and tests. It uses no LLMs or embeddings.
 
 The previous enterprise knowledge-search vision is historical; see earlier specs and decisions for that record. The current tool never writes source folders or fetches models as part of a check.

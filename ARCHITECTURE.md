@@ -1,6 +1,6 @@
 # Holusight architecture — Graphify consistency helper
 
-Holusight now has one job: read an existing Graphify graph and compare verifiable graph claims with repository source. It is not a search/index/LLM application. `src/holusight/consistency.py` is the checker, `api.py` exposes `Holusight.check/status`, and `__main__.py` plus `cli_axi.py` expose the same command as `python -m holusight` and `holus`.
+Holusight helps agents inspect Graphify/source integrity plus duplication and explicit alignment. It is not a search/index/LLM application. `src/holusight/consistency.py` checks the graph; `alignment.py` detects source duplication candidates and shared-fact contradictions. `api.py` exposes `Holusight.check/status/align`; `__main__.py` plus `cli_axi.py` expose the same operations as `python -m holusight` and `holus`.
 
 ## Data and trust boundary
 
@@ -15,5 +15,14 @@ For each graph node and edge, the checker verifies cited source paths exist and 
 - `holus check [repo] [--scope <relative-source-path>]` / `python -m holusight check`: JSON report; exit 0 only for current and no errors.
 - `holus status [repo]`: JSON provenance/counts, no mutation.
 - `Holusight(repo).check(scope=None)` and `.status()` return the same data.
+- `holus align [repo] [--scope <file>] [--against <repo-relative-report>]` and `Holusight(repo).align()` rescan current source and compare explicit declarations/duplicate candidates.
+
+## Deterministic source checks and refresh
+
+The scanner inventories Git tracked/unignored `.py`/`.md` files (or walks a non-Git directory), excluding derived/dependency and private runtime directories. Source symlinks are refused. Python functions with at least three statements and 20 AST nodes are fingerprinted without docstrings/function name; optional local-renaming candidates preserve literals, operators, external identifiers, defaults, decorators and annotations. These are structural candidates, not proven behavioral equivalence. Markdown paragraphs need 30 words; exact whitespace-normalized duplicates and >=0.85 five-word-shingle Jaccard matches are advisory. A shingle index avoids comparing unrelated paragraphs. Graph IDs are attached as navigation hints only, with independent graph snapshot/provenance.
+
+Explicit `holus:fact` markers link JSON scalar declarations in Markdown to unambiguous top-level Python scalar literal declarations by a shared key. Disagreeing values produce code/code, docs/docs or docs/code mismatch evidence. Dynamic declarations, malformed markers and ambiguous bindings prevent a complete verdict. Imports/eval/doctests/project functions are never executed; markers inside Python strings or Markdown code examples are not contracts. This does not validate arbitrary prose or runtime behavior.
+
+Every run re-reads source; SHA-256 manifests, rule/Python version and scope bind the report. Rechecking bytes/inventory/graph at completion detects concurrent edits. No cache invalidation or watch service is needed. Matching complete saved reports produce new/persisting/resolved IDs and changed/deleted source paths, without interpreting resolution as functional correctness. Limits: 500 files, 256 KB/file, 10 MB total bytes, 2000 units, 1000 facts and 5000 candidate paragraph comparisons. Truncation and unverified coverage are explicit; incomplete scans cannot establish resolved findings. Receipt/source/graph files are never written by the tool.
 
 `--scope` accepts only paths contained inside the repository. The old index/search/ask/serve/demo, semantic evidence, web UI, embedding daemon, and autonomous evaluation surfaces are retired. Historical specs/ADRs remain as provenance; `specs/028-graphify-consistency-helper.md` supersedes their operational contracts.

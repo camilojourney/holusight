@@ -23,9 +23,8 @@ env/
 # Data (index databases — never commit these)
 data/
 
-# Holusight-AXI consistency cache — gitignored derived state, never canonical
-# truth. Safe to delete; rebuilt via `python -m holusight consistency refresh`.
-# See specs/013-holusight-axi-consistency-architecture.md.
+# Local checker receipts and isolated proof artifacts, never canonical source.
+# Created explicitly by operators; the checker itself writes nothing.
 .holusight/
 # Project-local Holusight skill installed only for this local evaluation
 .agents/skills/holusight/
@@ -61,6 +60,8 @@ graphify-out/*.graphml
 graphify-out/.graphify_labels.json
 graphify-out/.graphify_root
 graphify-out/cache/
+# Isolated source-only experiments are not the canonical whole-repo graph.
+graphify-out/graph-counterfactual-*/
 graphify-out/wiki/
 graphify-out/GRAPH_REPORT.md
 graphify-out/cypher.txt

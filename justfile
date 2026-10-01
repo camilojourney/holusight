@@ -8,6 +8,10 @@ inspect:
 check-graph:
     uv run --offline python -m holusight check
 
+# Rescan source for duplication candidates and explicitly linked fact mismatches.
+align:
+    uv run --offline holus align .
+
 lint:
     uv run --offline --extra dev ruff check src/ tests/
 

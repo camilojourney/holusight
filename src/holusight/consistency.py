@@ -25,7 +25,7 @@ _PATH = re.compile(
 def _git(repo: Path, *args: str) -> str | None:
     try:
         result = subprocess.run(
-            ["git", "-C", str(repo), *args],
+            ["git", "--no-optional-locks", "-c", "core.fsmonitor=false", "-C", str(repo), *args],
             capture_output=True,
             text=True,
             check=False,

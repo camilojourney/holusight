@@ -19,6 +19,12 @@ class Holusight:
     def check(self, scope: str | None = None) -> dict[str, Any]:
         return check(self.folder_path, scope=scope)
 
+    def align(self, scope: str | None = None, against: str | None = None) -> dict[str, Any]:
+        """Rescan current source for duplication candidates and explicit fact drift."""
+        from .alignment import align
+
+        return align(self.folder_path, scope=scope, against=against)
+
     def status(self) -> dict[str, Any]:
         try:
             graph = load_graph(self.folder_path)

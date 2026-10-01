@@ -1,6 +1,6 @@
 # Holusight specifications
 
-**Current operational contract:** [028 — Graphify consistency helper](028-graphify-consistency-helper.md). It supersedes the retrieval, cached evidence, web, and evaluation command surfaces described by earlier specs. The old status labels and command examples below are historical records, not current release claims.
+**Current operational contracts:** [028 — Graphify consistency helper](028-graphify-consistency-helper.md) and [029 — Deterministic duplication and explicit alignment](029-deterministic-duplication-alignment.md). It supersedes the retrieval, cached evidence, web, and evaluation command surfaces described by earlier specs. The old status labels and command examples below are historical records, not current release claims.
 
 - 001–022: historical feature specifications for the retired search/evaluation product.
 - [023 — Doc/code consistency for agents](023-doc-code-consistency-for-agents.md): protected local report, preserved.
@@ -9,5 +9,6 @@
 - [026 — Drift detection prior art](026-drift-detection-prior-art.md): preserved research.
 - [027 — Graphify integration audit](027-graphify-integration-audit.md): preserved research.
 - [028 — Graphify consistency helper](028-graphify-consistency-helper.md): supported product and local-work disposition.
+- [029 — Deterministic duplication and explicit alignment](029-deterministic-duplication-alignment.md): primary-source research, bounded detectors and source-change receipts.
 
 Accepted ADRs are immutable historical rationale. Use the current README and architecture for commands and availability.
