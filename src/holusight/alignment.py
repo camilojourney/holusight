@@ -353,7 +353,7 @@ def _markdown(name: str, text: str, digest: str) -> tuple[list[dict], list[dict]
                     "occurrence": _occurrence(name, line, line, digest, f"fact:{key}"),
                 }
             )
-        elif "holus:fact" in value:
+        elif re.match(r"^<!--\s*holus:fact\b", stripped):
             flush()
             skipped.append({"file": name, "line": line, "reason": "invalid fact marker"})
         elif not stripped or stripped.startswith(("#", "<!--", "|")):

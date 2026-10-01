@@ -143,6 +143,17 @@ def test_unlinked_constant_names_and_arbitrary_prose_are_not_invented_claims(tmp
     assert not report["findings"]
 
 
+def test_fact_marker_mentions_are_prose_not_malformed_contracts(tmp_path):
+    repo = _repo(tmp_path, {"guide.md": "Use `holus:fact` markers for explicit scalar facts.\n"})
+    result = alignment.align(repo)
+    assert result["status"] == "ok"
+    assert result["coverage"]["facts"] == result["skipped_count"] == 0
+    (repo / "guide.md").write_text("<!-- holus:fact broken = [1, 2] -->\n")
+    result = alignment.align(repo)
+    assert result["status"] == "partial"
+    assert result["skipped_count"] == 1
+
+
 def test_dynamic_values_not_executed_and_comment_inside_string_not_a_fact(tmp_path):
     repo = _repo(
         tmp_path,

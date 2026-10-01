@@ -46,7 +46,7 @@ Public-command fixtures must demonstrate duplicates with renamed locals, changed
 
 ## Observed proof (isolated worker, 2026-10-01)
 
-The full suite passed **54 tests**, including public Python-module commands for each of the three fact-pair families, baseline comparison after edits/deletions, changed-literal/default/external-call negative controls, ignored/private derived inputs, ambiguous values and concurrent-edit invalidation. Ruff lint and formatting passed. Reproduce the portable checks with `uv run --offline --extra dev pytest tests/test_alignment.py -q` (and the full `tests/` suite for graph and CLI regressions).
+The full suite passed **55 tests**, including public Python-module commands for each of the three fact-pair families, baseline comparison after edits/deletions, changed-literal/default/external-call negative controls, ignored/private derived inputs, ambiguous values and concurrent-edit invalidation. Ruff lint and formatting passed. Reproduce the portable checks with `uv run --offline --extra dev pytest tests/test_alignment.py -q` (and the full `tests/` suite for graph and CLI regressions).
 
 A separate five-source synthetic repository exercised the installed `holus` console command with operating-system network and filesystem-write denial (except `/dev/null` for Git). The parent proof script created the fixture and applied repairs; the checker never edited it. Every command preserved input hashes:
 
