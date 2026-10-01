@@ -31,7 +31,7 @@ MAX_RETRIES = 3
 <!-- holus:fact retry-limit = 5 -->
 ```
 
-Different declarations of that key produce a mismatch with source hashes and locations. This works for code/code, docs/docs, and docs/code. It compares declarations, not the surrounding prose; nonliteral/ambiguous Python values are unverified rather than executed. Source results and Graphify freshness are separate: a source scan can finish while the graph remains stale.
+Different declarations of that key produce a mismatch with source hashes and locations. This works for code/code, docs/docs, and docs/code. It compares declarations, not the surrounding prose; nonliteral/ambiguous Python bindings, syntactic rebinding and wildcard imports are unverified rather than executed. Python markers must be module-level: standalone at column zero or inline with a top-level declaration, never inside functions/classes. Markdown fences respect delimiter type/length and closing syntax; indented example lines are excluded. These bounded rules are not a complete Markdown renderer or runtime interpreter. Source results and Graphify freshness are separate: a source scan can finish while the graph remains stale. Missing/empty graph source fields are unavailable evidence, not repository escapes. HEAD is sampled around Git status; `check` rechecks inspected bytes, paths, graph and provenance at completion. Detected changes return `unknown`, not false `current`. These are bounded observations, not locks or a guarantee against every concurrent edit.
 
 Agents can inspect findings, edit the cited source, and rerun:
 
@@ -42,7 +42,7 @@ holus align . > .holusight/before.json  # exit 1 for explicit mismatch/incomplet
 holus align . --against .holusight/before.json > .holusight/after.json
 ```
 
-Reports include content hashes and `delta.new/resolved/persisting` IDs plus changed/deleted source paths. A resolved ID means no longer detected by these rules, not that a refactor is behaviorally correct. Comparison refuses incompatible or incomplete baselines. `--scope <file>` focuses findings involving that file while still scanning comparison partners. Duplicate-only `review` is advisory (exit 0); `mismatch`, `partial`, `unknown` and `unavailable` exit 1. Budgets/coverage are explicit. There is no automatic skill selection or background Graphify refresh.
+Reports include content hashes and `delta.new/resolved/persisting` IDs plus changed/deleted source paths. A resolved ID means no longer detected by these rules, not that a refactor is behaviorally correct. Comparison refuses incompatible or incomplete baselines. Corrected fact/example rules use `holus-alignment/v2`; v1 receipts are not comparable. `--scope <file>` focuses findings involving that file while still scanning comparison partners. Duplicate-only `review` is advisory (exit 0); `mismatch`, `partial`, `unknown` and `unavailable` exit 1. Budgets/coverage are explicit. There is no automatic skill selection or background Graphify refresh.
 
 ## Development
 

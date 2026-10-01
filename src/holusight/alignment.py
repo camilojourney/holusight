@@ -20,9 +20,9 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
-from .consistency import _safe_path, load_graph, provenance
+from .consistency import _markdown_lines, _repo_path, _safe_path, load_graph, provenance
 
-RULES = "holus-alignment/v1"
+RULES = "holus-alignment/v2"
 SCHEMA = "holus-alignment-report/v1"
 MAX_FILES = 500
 MAX_BYTES = 256_000
@@ -101,7 +101,7 @@ def _inventory(repo: Path) -> list[str]:
             for n in names
             if Path(n).suffix in {".py", ".md"}
             and not set(Path(n).parts) & _EXCLUDED
-            and ((repo / n).is_file() or (repo / n).is_symlink())
+            and ((repo / n).is_symlink() or (repo / n).is_file())
         },
         key=lambda n: (0 if n.startswith("src/") else 1 if "/" not in n else 2, n),
     )
@@ -136,37 +136,66 @@ def _scalar(node: ast.AST | None) -> Any:
     raise ValueError("only scalar literal declarations can be verified")
 
 
+def _written_names(node: ast.AST | None) -> set[str]:
+    """Conservative syntactic binding invalidation, never data-flow execution."""
+    if node is None:
+        return set()
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        names = {node.name}
+        headers = [*node.decorator_list, *getattr(node, "type_params", [])]
+        if isinstance(node, ast.ClassDef):
+            headers.extend([*node.bases, *node.keywords])
+        else:
+            headers.append(node.args)
+            if node.returns:
+                headers.append(node.returns)
+        for header in headers:
+            names |= _written_names(header)
+        # Local bodies do not bind module names, but declared global mutation
+        # makes those names unverifiable even if we never execute the function.
+        for child in ast.walk(node):
+            if isinstance(child, ast.Global):
+                names.update(child.names)
+        return names
+    names = set()
+    if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+        names.add(node.id)
+    elif isinstance(node, ast.alias):
+        names.add(node.asname or node.name.split(".")[0])  # '*' invalidates all facts
+    elif isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)) and node.name:
+        names.add(node.name)
+    elif isinstance(node, ast.MatchMapping) and node.rest:
+        names.add(node.rest)
+    for child in ast.iter_child_nodes(node):
+        names |= _written_names(child)
+    return names
+
+
 def _bindings(tree: ast.Module) -> dict[str, tuple[Any, int] | None]:
-    """Top-level unambiguous scalar declarations, not runtime interpretation."""
+    """Only direct, unrebound module scalar declarations are supported."""
     result: dict[str, tuple[Any, int] | None] = {}
+    invalid = set()
     for item in tree.body:
         if isinstance(item, (ast.Assign, ast.AnnAssign)):
             targets = item.targets if isinstance(item, ast.Assign) else [item.target]
             for target in targets:
-                if not isinstance(target, ast.Name):
-                    for sub in ast.walk(target):
-                        if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store):
-                            result[sub.id] = None
                 if isinstance(target, ast.Name):
                     try:
                         value = (_scalar(item.value), item.lineno)
                     except (ValueError, RecursionError):
                         value = None
-                    result[target.id] = None if target.id in result else value
-        # Every other module-level binding or control-flow write invalidates
-        # certainty. Function-local bindings aren't module assignments.
-        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            result[item.name] = None
-            for node in ast.walk(item):
-                if isinstance(node, ast.Global):
-                    for name in node.names:
-                        result[name] = None
-        elif not isinstance(item, (ast.Assign, ast.AnnAssign)):
-            for node in ast.walk(item):
-                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-                    result[node.id] = None
-                if isinstance(node, ast.alias):
-                    result[node.asname or node.name.split(".")[0]] = None
+                    if target.id in result:
+                        invalid.add(target.id)
+                    result[target.id] = value
+                else:
+                    invalid |= _written_names(target)
+            invalid |= _written_names(item.value)
+            if isinstance(item, ast.AnnAssign):
+                invalid |= _written_names(item.annotation)
+        else:
+            invalid |= _written_names(item)
+    for name in set(result) if "*" in invalid else invalid:
+        result[name] = None
     return result
 
 
@@ -258,6 +287,17 @@ def _python(name: str, text: str, digest: str) -> tuple[list[dict], list[dict], 
                     ),
                 }
             )
+    source_lines = text.splitlines()
+    nonmodule_ranges = [
+        (node.lineno, node.end_lineno or node.lineno)
+        for node in nodes
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+    ]
+    module_declarations = [
+        (node.lineno, node.end_lineno or node.lineno)
+        for node in tree.body
+        if isinstance(node, (ast.Assign, ast.AnnAssign))
+    ]
     comments = (
         token
         for token in tokenize.generate_tokens(StringIO(text).readline)
@@ -271,6 +311,20 @@ def _python(name: str, text: str, digest: str) -> tuple[list[dict], list[dict], 
                 skipped.append({"file": name, "line": line, "reason": "invalid fact marker"})
             continue
         key, symbol = match.groups()
+        column = token.start[1]
+        in_scope = any(start <= line <= end for start, end in nonmodule_ranges)
+        inline_module_declaration = any(
+            start <= line <= end for start, end in module_declarations
+        ) and bool(source_lines[line - 1][:column].strip())
+        if in_scope or (column and not inline_module_declaration):
+            skipped.append(
+                {
+                    "file": name,
+                    "line": line,
+                    "reason": "fact marker is not a supported module-level reference",
+                }
+            )
+            continue
         declared = binding.get(symbol)
         if declared is None:
             skipped.append(
@@ -298,7 +352,6 @@ def _python(name: str, text: str, digest: str) -> tuple[list[dict], list[dict], 
 def _markdown(name: str, text: str, digest: str) -> tuple[list[dict], list[dict], list[dict]]:
     units, facts, skipped = [], [], []
     paragraph: list[tuple[int, str]] = []
-    fence: str | None = None
 
     def flush() -> None:
         if not paragraph:
@@ -320,19 +373,11 @@ def _markdown(name: str, text: str, digest: str) -> tuple[list[dict], list[dict]
             )
         paragraph.clear()
 
-    for line, value in enumerate(text.splitlines(), 1):
-        stripped = value.lstrip()
-        delimiter = re.match(r"^(`{3,}|~{3,})", stripped)
-        if delimiter:
+    for line, value in _markdown_lines(text):
+        if value is None:
             flush()
-            char = delimiter.group(1)[0]
-            if fence is None:
-                fence = char
-            elif fence == char:
-                fence = None
             continue
-        if fence:
-            continue
+        stripped = value.lstrip()
         match = _DOC_FACT.fullmatch(value)
         if match:
             flush()
@@ -385,7 +430,7 @@ def _graph(repo: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
 def align(
     repo_path: str | Path, *, scope: str | None = None, against: str | None = None
 ) -> dict[str, Any]:
-    repo = Path(repo_path).expanduser().resolve()
+    repo = _repo_path(repo_path)
     if not repo.is_dir():
         raise ValueError(f"Not a directory: {repo}")
     if scope and _safe_path(repo, scope) is None:
@@ -529,7 +574,24 @@ def align(
         except (OSError, ValueError):
             changed = True
     graph_after, _ = _graph(repo)
-    changed |= graph_after.get("snapshot_hash") != graph.get("snapshot_hash")
+    graph_changed = any(
+        graph_after.get(key) != graph.get(key)
+        for key in (
+            "snapshot_hash",
+            "state",
+            "head_commit",
+            "head_commit_before",
+            "built_at_commit",
+        )
+    )
+    changed |= graph_changed
+    graph = graph_after
+    if graph_changed:
+        graph = {
+            **graph,
+            "state": "unknown",
+            "reason": "Graph or revision evidence changed during scan",
+        }
     findings.sort(key=lambda f: (f["severity"] != "error", f["type"], f["id"]))
     errors = sum(f["severity"] == "error" for f in findings)
     complete = not skipped and not changed and (scope is None or scope in manifest)

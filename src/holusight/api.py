@@ -5,14 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .consistency import check, load_graph, provenance
+from .consistency import _repo_path, check, load_graph, provenance
 
 
 class Holusight:
     """Inspect an existing Graphify graph; never build or mutate it."""
 
     def __init__(self, folder_path: str | Path) -> None:
-        self.folder_path = Path(folder_path).expanduser().resolve()
+        self.folder_path = _repo_path(folder_path)
         if not self.folder_path.is_dir():
             raise ValueError(f"Not a directory: {self.folder_path}")
 

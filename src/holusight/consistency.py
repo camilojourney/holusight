@@ -7,9 +7,11 @@ is started or written by this module.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -38,19 +40,57 @@ def _git(repo: Path, *args: str) -> str | None:
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def _repo_path(value: str | Path) -> Path:
+    try:
+        return Path(value).expanduser().resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ValueError("Repository path cannot be resolved") from exc
+
+
 def _safe_path(repo: Path, value: object) -> Path | None:
     if not isinstance(value, str) or not value or "\\" in value:
         return None
     path = Path(value)
     if path.is_absolute() or any(part in ("..", ".") for part in path.parts):
         return None
-    target = (repo / path).resolve()
+    try:
+        target = (repo / path).resolve()
+    except (OSError, RuntimeError):
+        return None
     return target if target.is_relative_to(repo) else None
+
+
+def _markdown_lines(text: str) -> Iterator[tuple[int, str | None]]:
+    """Bounded Markdown prose: exclude fences and indented example lines.
+
+    None is a block boundary so examples cannot join surrounding paragraphs.
+    This is not a complete Markdown renderer (lists/quotes are not interpreted).
+    """
+    fence: tuple[str, int] | None = None
+    for number, line in enumerate(text.splitlines(), 1):
+        prefix = re.match(r"[ \t]*", line).group()
+        indent = len(prefix.expandtabs(4))
+        stripped = line[len(prefix) :]
+        delimiter = re.match(r"^(`{3,}|~{3,})(.*)$", stripped)
+        if fence:
+            if indent <= 3 and delimiter:
+                run, tail = delimiter.groups()
+                if run[0] == fence[0] and len(run) >= fence[1] and re.fullmatch(r"[ \t]*", tail):
+                    fence = None
+            yield number, None
+        elif indent >= 4:
+            yield number, None
+        elif delimiter and not (delimiter.group(1)[0] == "`" and "`" in delimiter.group(2)):
+            run = delimiter.group(1)
+            fence = (run[0], len(run))
+            yield number, None
+        else:
+            yield number, line
 
 
 def load_graph(repo_path: str | Path) -> dict[str, Any]:
     """Load a local graph, raising on absence/invalid structure (never fake empty)."""
-    repo = Path(repo_path).resolve()
+    repo = _repo_path(repo_path)
     path = _safe_path(repo, str(_GRAPH))
     if path is None or not path.is_file():
         raise FileNotFoundError("graphify-out/graph.json is missing or unsafe")
@@ -66,24 +106,38 @@ def load_graph(repo_path: str | Path) -> dict[str, Any]:
 
 def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
     """Current only for an exact Git HEAD match and clean repository snapshot."""
-    repo = Path(repo_path).resolve()
+    repo = _repo_path(repo_path)
     built = graph.get("built_at_commit")
     git_root = _git(repo, "rev-parse", "--show-toplevel")
     head = _git(repo, "rev-parse", "HEAD")
     dirty = _git(repo, "status", "--porcelain", "--untracked-files=normal")
+    head_after = _git(repo, "rev-parse", "HEAD")
+    try:
+        verified_root = _repo_path(git_root) if git_root else None
+    except ValueError:
+        verified_root = None
     if not isinstance(built, str) or not re.fullmatch(r"[0-9a-fA-F]{40}", built):
         state = "unknown"
         reason = "graph built_at_commit is missing or invalid"
-    elif head is None or dirty is None or git_root is None or Path(git_root).resolve() != repo:
+    elif head is None or head_after is None or dirty is None or verified_root != repo:
         state = "unknown"
         reason = "Repository Git root, HEAD, or working tree state could not be verified"
+    elif head != head_after:
+        state = "unknown"
+        reason = "Repository HEAD changed while verifying provenance"
     elif built != head or dirty:
         state = "stale"
         reason = "graph commit differs from HEAD or repository has local changes"
     else:
         state = "current"
         reason = "graph commit equals HEAD and working tree is clean"
-    return {"state": state, "reason": reason, "built_at_commit": built, "head_commit": head}
+    return {
+        "state": state,
+        "reason": reason,
+        "built_at_commit": built,
+        "head_commit": head_after,
+        "head_commit_before": head,
+    }
 
 
 def check(
@@ -95,7 +149,7 @@ def check(
     indexed files. A request to refresh is reported as unavailable, not ignored.
     Findings are bounded to 100 examples; counts are for the complete scan.
     """
-    repo = Path(repo_path).expanduser().resolve()
+    repo = _repo_path(repo_path)
     if not repo.is_dir():
         raise ValueError(f"Not a directory: {repo}")
     if scope is not None and _safe_path(repo, scope) is None:
@@ -148,6 +202,41 @@ def check(
     checked = 0
     unverified = 0
     line_counts: dict[Path, int | None] = {}
+    source_hashes: dict[Path, str] = {}
+    resolved_paths: dict[str, Path | None] = {}
+    path_states: dict[Path, bool] = {}
+    inputs_changed = False
+
+    def checked_path(value: str) -> Path | None:
+        nonlocal inputs_changed
+        path = _safe_path(repo, value)
+        inputs_changed |= resolved_paths.setdefault(value, path) != path
+        return path
+
+    def is_file(path: Path) -> bool:
+        nonlocal inputs_changed
+        try:
+            exists = path.is_file()
+        except (OSError, RuntimeError):
+            exists = False
+        inputs_changed |= path_states.setdefault(path, exists) != exists
+        return exists
+
+    def read_lines(path: Path) -> list[str] | None:
+        nonlocal inputs_changed
+        try:
+            if _safe_path(repo, str(path.relative_to(repo))) != path:
+                return None
+            with path.open("rb") as stream:
+                data = stream.read(2_000_001)
+            if len(data) > 2_000_000:
+                return None
+            lines = data.decode("utf-8").splitlines()
+            digest = hashlib.sha256(data).hexdigest()
+            inputs_changed |= source_hashes.setdefault(path, digest) != digest
+            return lines
+        except (OSError, UnicodeError):
+            return None
 
     def record(
         kind: str,
@@ -178,14 +267,31 @@ def check(
 
     def inspect_file(file: object, location: object, evidence: str) -> None:
         nonlocal checked, unverified
-        if not isinstance(file, str) or (scope and file != scope):
+        if scope and file != scope:
+            return
+        if not isinstance(file, str) or not file:
+            unverified += 1
+            record(
+                "unavailable_source",
+                str(_GRAPH),
+                None,
+                "Graph item has no usable source file; source evidence is unavailable",
+                evidence,
+                severity="info",
+            )
             return
         checked += 1
-        path = _safe_path(repo, file)
+        path = checked_path(file)
         if path is None:
-            record("unsafe_path", file, None, "Graph source path escapes repository", evidence)
+            record(
+                "unsafe_path",
+                file,
+                None,
+                "Graph source path is unsafe or cannot be resolved",
+                evidence,
+            )
             return
-        if not path.is_file():
+        if not is_file(path):
             record("missing_source", file, None, "Graph references a missing source file", evidence)
             return
         if location is not None and (
@@ -214,14 +320,8 @@ def check(
             # Source-location checks are factual even for stale graphs; an edge
             # relation's semantic truth is not inferred from the line.
             if path not in line_counts:
-                try:
-                    line_counts[path] = (
-                        len(path.read_text(encoding="utf-8").splitlines())
-                        if path.stat().st_size <= 2_000_000
-                        else None
-                    )
-                except (OSError, UnicodeError):
-                    line_counts[path] = None
+                lines = read_lines(path)
+                line_counts[path] = len(lines) if lines is not None else None
             if line_counts[path] is None:
                 unverified += 1
                 return
@@ -278,29 +378,21 @@ def check(
     for file in sorted(doc_files):
         if scope and file != scope:
             continue
-        path = _safe_path(repo, file)
-        if path is None or not path.is_file() or path.suffix != ".md":
+        path = checked_path(file)
+        if path is None or not is_file(path) or path.suffix != ".md":
             continue
-        try:
-            if path.stat().st_size > 2_000_000:
-                unverified += 1
-                continue
-            lines = path.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeError):
+        lines = read_lines(path)
+        if lines is None:
             unverified += 1
             continue
-        in_fence = False
-        for lineno, line in enumerate(lines, 1):
-            if line.lstrip().startswith(("```", "~~~")):
-                in_fence = not in_fence
-                continue
-            if in_fence:
+        for lineno, line in _markdown_lines("\n".join(lines)):
+            if line is None:
                 continue
             for match in _PATH.finditer(line):
                 ref = match.group(1)
                 checked += 1
-                target = _safe_path(repo, ref)
-                if target is None or not target.is_file():
+                target = checked_path(ref)
+                if target is None or not is_file(target):
                     if target is not None and _PLANNED_PATH.match(line[match.end() :]):
                         unverified += 1
                         record(
@@ -321,6 +413,29 @@ def check(
                             f"path:{ref}",
                         )
 
+    # Bounded end-of-check resampling, not a monitor or an atomicity promise.
+    for value, path in resolved_paths.items():
+        inputs_changed |= _safe_path(repo, value) != path
+    for path, existed in path_states.items():
+        inputs_changed |= is_file(path) != existed
+    for path in list(source_hashes):
+        if read_lines(path) is None:
+            inputs_changed = True
+    try:
+        graph_after = load_graph(repo)
+        inputs_changed |= graph_after != graph
+        proof_after = provenance(repo, graph_after)
+        inputs_changed |= proof_after != proof
+    except (OSError, ValueError, UnicodeError):
+        inputs_changed = True
+        proof_after = proof
+    proof = proof_after
+    if inputs_changed:
+        proof = {
+            **proof,
+            "state": "unknown",
+            "reason": "Graph, source or revision evidence changed during check",
+        }
     status = proof["state"]
     if status == "current":
         status = "error" if errors else "unknown" if unverified else "current"
@@ -331,6 +446,7 @@ def check(
         "error_types": error_types,
         "checked": checked,
         "unverified": unverified,
+        "inputs_changed_during_check": inputs_changed,
         "findings": findings,
         "truncated": finding_count > len(findings),
         "notes": "Stale/unknown provenance prevents a current verdict; "
