@@ -168,6 +168,22 @@ def test_graph_source_symlink_escape_is_reported_without_reading(tmp_path):
     assert "SECRET_DO_NOT_EXPOSE" not in json.dumps(result)
 
 
+@pytest.mark.parametrize("location", ["L0", "L-1", "L1-L0", "line 1", "", 0, {}, []])
+@pytest.mark.parametrize("collection", ["nodes", "links"])
+def test_invalid_source_location_prevents_current_verdict(tmp_path, location, collection):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph[collection][0]["source_location"] = location
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    assert result["status"] == "error"
+    assert result["error_types"] == {"invalid_source_location": 1}
+    assert result["findings"][0]["evidence"] == (
+        "node:hello" if collection == "nodes" else "links[0]"
+    )
+
+
 def test_range_end_line_is_checked_for_node_and_edge(tmp_path):
     repo = _repo(tmp_path)
     graph_path = repo / "graphify-out/graph.json"

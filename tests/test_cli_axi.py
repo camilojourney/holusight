@@ -55,6 +55,19 @@ def test_no_search_or_index_entry_points(tmp_path):
         assert "invalid choice" in result.stderr
 
 
+def test_public_command_rejects_invalid_source_location(tmp_path):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["nodes"][0]["source_location"] = "L0"
+    graph_path.write_text(json.dumps(graph))
+    result = _command(repo, "check")
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert report["status"] == "error"
+    assert report["error_types"] == {"invalid_source_location": 1}
+
+
 def test_scope_rejects_traversal(tmp_path):
     repo = _repo(tmp_path)
     result = _command(repo, "check", "--scope", "../outside")

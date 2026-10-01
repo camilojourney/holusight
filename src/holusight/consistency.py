@@ -173,6 +173,17 @@ def check(
         if not path.is_file():
             record("missing_source", file, None, "Graph references a missing source file", evidence)
             return
+        if location is not None and (
+            not isinstance(location, str) or not _LINE.fullmatch(location)
+        ):
+            record(
+                "invalid_source_location",
+                file,
+                None,
+                "Graph source location must be L<positive line> or a positive line range",
+                evidence,
+            )
+            return
         if isinstance(location, str) and (match := _LINE.fullmatch(location)):
             lineno = int(match.group(1))
             end_line = int(match.group(2) or match.group(1))
