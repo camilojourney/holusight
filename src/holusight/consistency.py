@@ -20,6 +20,8 @@ _PATH = re.compile(
     r"[\w./-]+\.[a-zA-Z0-9]+|(?:README|ARCHITECTURE|AGENTS|CLAUDE|COMPARISON)\.md))"
     r"(?=[:#\s`)]|$)"
 )
+# A literal, path-local annotation, not a classifier of future/proposed prose.
+_PLANNED_PATH = re.compile(r"^`?\s+\(not created yet\)", re.IGNORECASE)
 
 
 def _git(repo: Path, *args: str) -> str | None:
@@ -140,19 +142,32 @@ def check(
     ids = {n.get("id") for n in nodes if isinstance(n, dict) and isinstance(n.get("id"), str)}
     findings: list[dict[str, Any]] = []
     error_types: dict[str, int] = {}
+    finding_types: dict[str, int] = {}
     errors = 0
+    finding_count = 0
     checked = 0
     unverified = 0
     line_counts: dict[Path, int | None] = {}
 
-    def record(kind: str, file: str, line: int | None, message: str, evidence: str) -> None:
-        nonlocal errors
-        errors += 1
-        error_types[kind] = error_types.get(kind, 0) + 1
-        if len(findings) < 100 and error_types[kind] <= 15:
+    def record(
+        kind: str,
+        file: str,
+        line: int | None,
+        message: str,
+        evidence: str,
+        *,
+        severity: str = "error",
+    ) -> None:
+        nonlocal errors, finding_count
+        finding_count += 1
+        finding_types[kind] = finding_types.get(kind, 0) + 1
+        if severity == "error":
+            errors += 1
+            error_types[kind] = error_types.get(kind, 0) + 1
+        if len(findings) < 100 and finding_types[kind] <= 15:
             findings.append(
                 {
-                    "severity": "error",
+                    "severity": severity,
                     "type": kind,
                     "file": file,
                     "line": line,
@@ -286,13 +301,25 @@ def check(
                 checked += 1
                 target = _safe_path(repo, ref)
                 if target is None or not target.is_file():
-                    record(
-                        "missing_path_claim",
-                        file,
-                        lineno,
-                        f"Explicit repository path does not exist: {ref}",
-                        f"path:{ref}",
-                    )
+                    if target is not None and _PLANNED_PATH.match(line[match.end() :]):
+                        unverified += 1
+                        record(
+                            "planned_path_reference",
+                            file,
+                            lineno,
+                            f"Absent path is annotated '(not created yet)': {ref}; "
+                            "not a verified current-reference claim",
+                            f"path:{ref}",
+                            severity="info",
+                        )
+                    else:
+                        record(
+                            "missing_path_claim",
+                            file,
+                            lineno,
+                            f"Explicit repository path does not exist: {ref}",
+                            f"path:{ref}",
+                        )
 
     status = proof["state"]
     if status == "current":
@@ -305,7 +332,8 @@ def check(
         "checked": checked,
         "unverified": unverified,
         "findings": findings,
-        "truncated": errors > len(findings),
+        "truncated": finding_count > len(findings),
         "notes": "Stale/unknown provenance prevents a current verdict; "
-        "edges do not prove prose claims.",
+        "edges do not prove prose claims. Planned path annotations are unverified, "
+        "not confirmed current-reference errors.",
     }

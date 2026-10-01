@@ -14,7 +14,7 @@ uv run --offline holus align [repo-path]
 
 Output is JSON. `status` is `current` only when `built_at_commit` is a full SHA equal to Git HEAD **and** the working tree is clean. A missing or invalid commit is `unknown`, a mismatch or dirty tree is `stale`, and missing/malformed graph data is `unavailable`. Graphify's historical graph in this repository is intentionally **not refreshed** during checks; expect `stale` until an operator rebuilds it independently and proves its provenance. A scope not represented by graph-backed source evidence is `unknown`, not a clean pass. Exit code 0 means a current graph with no detected errors or unverified checks; exit code 1 covers errors, stale, unknown, or unavailable. Error findings in stale graphs are useful leads, not a current clean bill of health.
 
-Graph integrity and literal source/path evidence are bounded checks, not semantic doc/code verification. Agents should inspect cited source lines and use Graphify directly for traversal. No source or graph files are written by `check` or `align`.
+Graph integrity and literal source/path evidence are bounded checks, not semantic doc/code verification. A missing path immediately annotated `(not created yet)` (for example, `` `src/future.py` (not created yet) ``) is an informational `planned_path_reference`, not a confirmed current-reference error. It counts as unverified: a proposal-only scope returns `unknown`, not a clean semantic verdict. This literal path-local annotation does not infer intent from words like “future” elsewhere or exempt unsafe paths. Agents should inspect cited source lines and use Graphify directly for traversal. No source or graph files are written by `check` or `align`.
 
 ## Duplication, explicit alignment, and updates
 
