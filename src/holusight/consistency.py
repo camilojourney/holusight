@@ -15,6 +15,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+from .focus import Focus
+
 _GRAPH = Path("graphify-out/graph.json")
 _LINE = re.compile(r"^L([1-9][0-9]*)(?:-L?([1-9][0-9]*))?$")
 _PATH = re.compile(
@@ -141,7 +143,7 @@ def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
 
 
 def check(
-    repo_path: str | Path, *, scope: str | None = None, refresh: bool = False
+    repo_path: str | Path, *, scope: str | None = None, docs: bool = False, refresh: bool = False
 ) -> dict[str, Any]:
     """Check graph provenance, node/edge integrity and explicit path claims.
 
@@ -152,12 +154,22 @@ def check(
     repo = _repo_path(repo_path)
     if not repo.is_dir():
         raise ValueError(f"Not a directory: {repo}")
-    if scope is not None and _safe_path(repo, scope) is None:
-        raise ValueError("scope must be a repository-relative path inside the repository")
+    # Reuse existing enumeration/exclusions only when a selector is requested.
+    # This lazy import avoids a module cycle; alignment already uses this checker.
+    if scope is not None or docs:
+        from .alignment import _EXCLUDED, _inventory
+
+        focus = Focus(
+            repo, scope, docs, allowed=_inventory(repo) if docs else (), excluded=_EXCLUDED
+        )
+    else:
+        focus = Focus(repo, scope, docs)
+    selection = {"scope": focus.scope, "docs": docs, "selector": focus.describe()}
     if refresh:
         return {
             "status": "unavailable",
             "reason": "Graph refresh is unsupported; run Graphify separately",
+            **selection,
             "errors": 0,
             "findings": [],
             "checked": 0,
@@ -168,6 +180,7 @@ def check(
         return {
             "status": "unavailable",
             "reason": str(exc),
+            **selection,
             "errors": 0,
             "findings": [],
             "checked": 0,
@@ -181,13 +194,27 @@ def check(
             for key, value in nodes.items()
         ]
     links = graph["links"]
-    if scope and not any(
-        isinstance(item, dict) and item.get("source_file") == scope for item in [*nodes, *links]
-    ):
+    selected_files = {
+        item["source_file"]
+        for item in [*nodes, *links]
+        if isinstance(item, dict)
+        and isinstance(item.get("source_file"), str)
+        and focus.matches(item["source_file"])
+    }
+    selected_ids = {
+        n["id"]
+        for n in nodes
+        if isinstance(n, dict)
+        and isinstance(n.get("id"), str)
+        and focus.matches(n.get("source_file"))
+    }
+    coverage = {"graph_files": len(selected_files), "global_integrity": not focus.filtered}
+    if focus.filtered and not selected_files:
         return {
             "status": "unknown",
-            "reason": "scope has no graph-backed source evidence",
-            "scope": scope,
+            "reason": "selector has no graph-backed source evidence",
+            **selection,
+            "coverage": coverage,
             "provenance": proof,
             "errors": 0,
             "checked": 0,
@@ -267,7 +294,7 @@ def check(
 
     def inspect_file(file: object, location: object, evidence: str) -> None:
         nonlocal checked, unverified
-        if scope and file != scope:
+        if focus.filtered and not focus.matches(file):
             return
         if not isinstance(file, str) or not file:
             unverified += 1
@@ -282,6 +309,8 @@ def check(
             return
         checked += 1
         path = checked_path(file)
+        if docs and focus.symlink_source(file):
+            path = None
         if path is None:
             record(
                 "unsafe_path",
@@ -337,9 +366,10 @@ def check(
     seen_ids: set[str] = set()
     for n in nodes:
         if not isinstance(n, dict) or not isinstance(n.get("id"), str) or not n["id"]:
-            record("invalid_node", str(_GRAPH), None, "Graph node has no valid ID", "nodes")
+            if not focus.filtered or (isinstance(n, dict) and focus.matches(n.get("source_file"))):
+                record("invalid_node", str(_GRAPH), None, "Graph node has no valid ID", "nodes")
             continue
-        if n["id"] in seen_ids:
+        if n["id"] in seen_ids and (not focus.filtered or n["id"] in selected_ids):
             record(
                 "duplicate_node",
                 str(_GRAPH),
@@ -351,9 +381,22 @@ def check(
         inspect_file(n.get("source_file"), n.get("source_location"), f"node:{n['id']}")
     for index, edge in enumerate(links):
         if not isinstance(edge, dict):
-            record(
-                "invalid_edge", str(_GRAPH), None, "Graph edge is not an object", f"links[{index}]"
+            if not focus.filtered:
+                record(
+                    "invalid_edge",
+                    str(_GRAPH),
+                    None,
+                    "Graph edge is not an object",
+                    f"links[{index}]",
+                )
+            continue
+        if focus.filtered and not (
+            focus.matches(edge.get("source_file"))
+            or any(
+                isinstance(edge.get(k), str) and edge[k] in selected_ids
+                for k in ("source", "target")
             )
+        ):
             continue
         for endpoint in ("source", "target"):
             if not isinstance(edge.get(endpoint), str) or edge[endpoint] not in ids:
@@ -376,9 +419,11 @@ def check(
         and isinstance(n.get("source_file"), str)
     }
     for file in sorted(doc_files):
-        if scope and file != scope:
+        if focus.filtered and not focus.matches(file):
             continue
         path = checked_path(file)
+        if docs and focus.symlink_source(file):
+            continue  # already reported as unsafe by graph source inspection
         if path is None or not is_file(path) or path.suffix != ".md":
             continue
         lines = read_lines(path)
@@ -414,6 +459,11 @@ def check(
                         )
 
     # Bounded end-of-check resampling, not a monitor or an atomicity promise.
+    if docs:
+        try:
+            inputs_changed |= set(_inventory(repo)) != focus.allowed
+        except ValueError:
+            inputs_changed = True
     for value, path in resolved_paths.items():
         inputs_changed |= _safe_path(repo, value) != path
     for path, existed in path_states.items():
@@ -442,6 +492,8 @@ def check(
     return {
         "status": status,
         "provenance": proof,
+        **selection,
+        "coverage": {**coverage, "source_files_inspected": len(source_hashes)},
         "errors": errors,
         "error_types": error_types,
         "checked": checked,

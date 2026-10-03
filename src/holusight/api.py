@@ -16,14 +16,16 @@ class Holusight:
         if not self.folder_path.is_dir():
             raise ValueError(f"Not a directory: {self.folder_path}")
 
-    def check(self, scope: str | None = None) -> dict[str, Any]:
-        return check(self.folder_path, scope=scope)
+    def check(self, scope: str | None = None, *, docs: bool = False) -> dict[str, Any]:
+        return check(self.folder_path, scope=scope, docs=docs)
 
-    def align(self, scope: str | None = None, against: str | None = None) -> dict[str, Any]:
+    def align(
+        self, scope: str | None = None, against: str | None = None, *, docs: bool = False
+    ) -> dict[str, Any]:
         """Rescan current source for duplication candidates and explicit fact drift."""
         from .alignment import align
 
-        return align(self.folder_path, scope=scope, against=against)
+        return align(self.folder_path, scope=scope, docs=docs, against=against)
 
     def status(self) -> dict[str, Any]:
         try:

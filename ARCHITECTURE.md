@@ -1,6 +1,6 @@
 # Holusight architecture — Graphify consistency helper
 
-Holusight helps agents inspect Graphify/source integrity plus duplication and explicit alignment. It is not a search/index/LLM application. `src/holusight/consistency.py` checks the graph; `alignment.py` detects source duplication candidates and shared-fact contradictions. `api.py` exposes `Holusight.check/status/align`; `__main__.py` plus `cli_axi.py` expose the same operations as `python -m holusight` and `holus`.
+Holusight helps agents inspect Graphify/source integrity plus duplication and explicit alignment. It is not a search/index/LLM application. `src/holusight/consistency.py` checks the graph; `alignment.py` detects source duplication candidates and shared-fact contradictions. `focus.py` supplies shared validated file/directory/Markdown finding selectors. `api.py` exposes `Holusight.check/status/align`; `__main__.py` plus `cli_axi.py` expose the same operations as `python -m holusight` and `holus`.
 
 ## Data and trust boundary
 
@@ -12,10 +12,12 @@ For each graph node and edge, the checker verifies cited source paths exist and 
 
 ## Public contract
 
-- `holus check [repo] [--scope <relative-source-path>]` / `python -m holusight check`: JSON report; exit 0 only for current and no errors.
+- `holus check [repo] [--scope <relative-file-or-directory>] [--docs]` / `python -m holusight check`: JSON report; exit 0 only for a current graph and no errors/unverified checks in the declared coverage.
 - `holus status [repo]`: JSON provenance/counts, no mutation.
-- `Holusight(repo).check(scope=None)` and `.status()` return the same data.
-- `holus align [repo] [--scope <file>] [--against <repo-relative-report>]` and `Holusight(repo).align()` rescan current source and compare explicit declarations/duplicate candidates.
+- `Holusight(repo).check(scope=None, docs=False)` and `.status()` return the same data.
+- `holus align [repo] [--scope <file-or-directory>] [--docs] [--against <repo-relative-report>]` and `Holusight(repo).align(scope=None, against=None, docs=False)` rescan current source and compare explicit declarations/duplicate candidates.
+
+`--docs` selects supported `.md` files within the existing safe inventory, including specs/root instructions, not just `docs/`. It intersects any scope. Normalized directory scopes include descendants by path components, not loose prefixes; scope symlinks/escapes are refused. Status stays whole-graph and rejects selectors with check/align guidance. Graph checks focus source items and incident links while declaring that global integrity is outside coverage. Source alignment emits findings with a selected anchor (retained even with bounded partner locations) and still scans outside comparison partners. Empty/unrepresented focus is unknown/partial. Baselines bind `docs` and normalized scope/kind; file-to-directory changes are incompatible. Complete legacy v2 default/file receipts retain comparability when their unchanged analyzer/scope match. Output reduction is navigation evidence, not proof of scanner savings or agent productivity.
 
 ## Deterministic source checks and refresh
 

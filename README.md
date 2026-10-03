@@ -6,7 +6,8 @@ Holusight is a small **read-only consistency helper for agents**. Graphify suppl
 
 ```sh
 uv run --offline python -m holusight check [repo-path]
-uv run --offline python -m holusight check [repo-path] --scope docs/guide.md
+uv run --offline python -m holusight check [repo-path] --scope specs/
+uv run --offline holus check [repo-path] --docs
 uv run --offline python -m holusight status [repo-path]
 uv run --offline holus align [repo-path]
 # after installation: holus check [repo-path] / holus align [repo-path]
@@ -42,7 +43,18 @@ holus align . > .holusight/before.json  # exit 1 for explicit mismatch/incomplet
 holus align . --against .holusight/before.json > .holusight/after.json
 ```
 
-Reports include content hashes and `delta.new/resolved/persisting` IDs plus changed/deleted source paths. A resolved ID means no longer detected by these rules, not that a refactor is behaviorally correct. Comparison refuses incompatible or incomplete baselines. Corrected fact/example rules use `holus-alignment/v2`; v1 receipts are not comparable. `--scope <file>` focuses findings involving that file while still scanning comparison partners. Duplicate-only `review` is advisory (exit 0); `mismatch`, `partial`, `unknown` and `unavailable` exit 1. Budgets/coverage are explicit. There is no automatic skill selection or background Graphify refresh.
+Focus the agent's findings, without losing comparison partners:
+
+```sh
+holus check . --docs                  # supported Markdown anywhere in safe enumeration
+holus align . --scope specs/          # findings involving specs and relevant outside partners
+holus align . --scope src/holusight/  # application code and relevant documentation
+holus align . --docs --scope specs/  # intersection: Markdown beneath specs
+```
+
+The positional path stays the repository root, not the focus folder. File/directory scopes normalize trailing slashes and use path-component boundaries. `status` stays whole-graph provenance and rejects targeting flags. `--docs` does not enter ignored/private archives or follow source symlinks. `check` restricts source checks and graph integrity to selected items/incident links; its coverage explicitly says global integrity is not checked. `align` limits emitted findings, not comparison inventory: partners elsewhere and unverified partner evidence still matter. Reports expose the normalized selector and focused-file coverage. Empty/unrepresented selections are unknown/partial, never a clean pass. Focus reduces irrelevant findings the agent sees; it does not prove fewer scanner reads or improved productivity.
+
+Reports include content hashes and `delta.new/resolved/persisting` IDs plus changed/deleted source paths. A resolved ID means no longer detected by these rules, not that a refactor is behaviorally correct. Comparison refuses incompatible or incomplete baselines. Corrected fact/example rules use `holus-alignment/v2`; v1 receipts are not comparable. Baselines must also match Markdown selection and normalized file/directory scope kind. Equivalent `specs/` and `specs` scopes are comparable; a file becoming a directory is not. Existing complete v2 default/file receipts remain comparable when analysis and scope match. `--scope <file-or-directory>` focuses findings involving that selection while still scanning comparison partners. Duplicate-only `review` is advisory (exit 0); `mismatch`, `partial`, `unknown` and `unavailable` exit 1. Budgets/coverage are explicit. There is no automatic skill selection or background Graphify refresh.
 
 ## Development
 

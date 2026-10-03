@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from .consistency import _markdown_lines, _repo_path, _safe_path, load_graph, provenance
+from .focus import Focus
 
 RULES = "holus-alignment/v2"
 SCHEMA = "holus-alignment-report/v1"
@@ -428,14 +429,18 @@ def _graph(repo: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
 
 
 def align(
-    repo_path: str | Path, *, scope: str | None = None, against: str | None = None
+    repo_path: str | Path,
+    *,
+    scope: str | None = None,
+    docs: bool = False,
+    against: str | None = None,
 ) -> dict[str, Any]:
     repo = _repo_path(repo_path)
     if not repo.is_dir():
         raise ValueError(f"Not a directory: {repo}")
-    if scope and _safe_path(repo, scope) is None:
-        raise ValueError("scope must be a repository-relative path inside the repository")
     names = _inventory(repo)
+    focus = Focus(repo, scope, docs, allowed=names, excluded=_EXCLUDED)
+    scope = focus.scope
     manifest, units, facts, skipped = {}, [], [], []
     total = 0
     for index, name in enumerate(names):
@@ -469,8 +474,12 @@ def align(
     findings: list[dict[str, Any]] = []
 
     def finding(kind: str, key: str, occurrences: list[dict], **extra: Any) -> None:
-        if scope and not any(o["file"] == scope for o in occurrences):
-            return
+        if focus.filtered:
+            anchors = [o for o in occurrences if focus.matches(o["file"])]
+            if not anchors:
+                return
+            # Always retain the focus anchor even when partner locations are bounded.
+            occurrences = anchors + [o for o in occurrences if not focus.matches(o["file"])]
         locations = []
         for occurrence in occurrences[:30]:
             locations.append(
@@ -513,11 +522,11 @@ def align(
     for unit in units:
         if unit["kind"] == "docs":
             doc_groups[unit["exact"]].append(unit)
-    docs = [group[0] for _, group in sorted(doc_groups.items())]
+    doc_units = [group[0] for _, group in sorted(doc_groups.items())]
     postings: dict[tuple[str, ...], list[int]] = defaultdict(list)
     pairs: set[tuple[int, int]] = set()
     over_budget = False
-    for i, doc in enumerate(docs):
+    for i, doc in enumerate(doc_units):
         for shingle in sorted(doc["shingles"]):
             for j in postings[shingle]:
                 pairs.add((j, i))
@@ -531,7 +540,7 @@ def align(
             skipped.append({"reason": "documentation comparison budget exceeded"})
             break
     for i, j in sorted(pairs)[:MAX_PAIRS]:
-        left, right = docs[i], docs[j]
+        left, right = doc_units[i], doc_units[j]
         union = left["shingles"] | right["shingles"]
         similarity = len(left["shingles"] & right["shingles"]) / len(union)
         if similarity >= 0.85:
@@ -594,7 +603,8 @@ def align(
         }
     findings.sort(key=lambda f: (f["severity"] != "error", f["type"], f["id"]))
     errors = sum(f["severity"] == "error" for f in findings)
-    complete = not skipped and not changed and (scope is None or scope in manifest)
+    focused_files = sum(focus.matches(name) for name in manifest)
+    complete = not skipped and not changed and (not focus.filtered or focused_files > 0)
     status = (
         "unknown"
         if changed
@@ -614,11 +624,13 @@ def align(
         "python": platform.python_version(),
         "repo": str(repo),
         "scope": scope,
+        "docs": docs,
     }
     result = {
         **identity,
         "status": status,
         "complete": complete,
+        "selector": focus.describe(),
         "graph": graph,
         "source_snapshot": _hash(_encoded(manifest)),
         "sources": manifest,
@@ -627,6 +639,7 @@ def align(
             "units": len(units),
             "facts": len(facts),
             "graph_mapped_files": len(set(manifest) & refs.keys()),
+            "focused_files": focused_files,
         },
         "errors": errors,
         "candidates": len(findings) - errors,
@@ -644,8 +657,18 @@ def align(
         if path is None or path.stat().st_size > 2_000_000:
             raise ValueError("baseline must be a bounded report inside the repository")
         prior = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(prior, dict) or any(prior.get(k) != v for k, v in identity.items()):
+        if not isinstance(prior, dict) or any(
+            prior.get(k) != v for k, v in identity.items() if k != "docs"
+        ):
             raise ValueError("baseline repository, scope or analyzer is incompatible")
+        # Existing complete v2 all/file receipts have identical analysis semantics.
+        # New selectors must match exactly; a file becoming a directory is not comparable.
+        if prior.get("docs", False) is not docs or (
+            prior.get("selector") != focus.describe()
+            if "selector" in prior
+            else docs or focus.kind == "directory"
+        ):
+            raise ValueError("baseline selector is incompatible")
         if prior.get("complete") is not True or not complete:
             raise ValueError("partial/unknown scans cannot establish resolved findings")
         previous_ids = prior.get("finding_ids")
