@@ -107,7 +107,8 @@ def test_broken_graph_edge_and_missing_source_report_evidence(tmp_path):
     graph["links"][0]["target"] = "not_a_node"
     graph_path.write_text(json.dumps(graph))
     result = check(repo)
-    assert result["status"] == "error"
+    assert result["status"] == "unknown"
+    assert result["provenance"]["state"] == "unknown"
     assert {item["type"] for item in result["findings"]} == {"missing_source", "dangling_edge"}
     assert any(item["evidence"] == "node:missing" for item in result["findings"])
 
