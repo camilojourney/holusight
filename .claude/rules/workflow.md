@@ -91,10 +91,9 @@ For critical or complex features, add more cycles. For simple changes, one cycle
 Every cycle prompt must include an iterative verification loop — not just "run tests" but "run, fix, repeat until green":
 
 ```
-Run pnpm test. If any tests fail, fix them and run again. Repeat until all tests pass.
-Run pnpm eslint . — fix any lint issues found.
-Run cd frontend && pnpm tsc --noEmit — fix any type errors.
-Only commit when everything passes.
+Run the test, lint and format checks in docs/playbooks/development.md.
+Fix failures and repeat until green; only commit when authorized.
+Respect an active gate's phase boundary: run only checks assigned to that phase.
 ```
 
 ### Cycle Handoff
@@ -133,7 +132,7 @@ env -u CLAUDECODE claude --dangerously-skip-permissions --model [model] --max-tu
 If background execution fails for any reason, fall back to generating commands for the user to paste:
 
 ```bash
-claude --dangerously-skip-permissions --model claude-sonnet-4-6 -p 'Read specs/NNN-feature.md. Implement it fully. Run pnpm test and pnpm eslint . when done. Commit.'
+claude --dangerously-skip-permissions --model claude-sonnet-4-6 -p 'Read specs/NNN-feature.md. Implement it fully. Run the checks in docs/playbooks/development.md when done. Commit only when authorized.'
 ```
 
 The user pastes into a terminal, waits for completion, comes back.
@@ -186,8 +185,7 @@ To enable: add `--worktree` to the `claude` command or use `isolation: worktree`
 - Anything the user wants to review before execution
 
 ## Package Manager
-- Always **pnpm** (not npm). Project uses `pnpm-lock.yaml`.
-- Commands: `pnpm test`, `pnpm dev`, `pnpm eslint .`
+Python dependencies are declared in `pyproject.toml` and locked in `uv.lock`. Follow `docs/playbooks/development.md` for provisioning and checks; this repository has no Node application toolchain.
 
 ## Commit Style
 - Descriptive messages with `feat:`, `fix:`, `chore:` prefixes

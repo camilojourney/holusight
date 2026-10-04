@@ -107,7 +107,7 @@ def load_graph(repo_path: str | Path) -> dict[str, Any]:
 
 
 def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
-    """Current only for an exact Git HEAD match and clean repository snapshot."""
+    """Require matching HEAD, clean Git state and graph source bytes bound to its blobs."""
     repo = _repo_path(repo_path)
     built = graph.get("built_at_commit")
     git_root = _git(repo, "rev-parse", "--show-toplevel")
@@ -139,8 +139,7 @@ def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
                     or path != repo / name
                     or name not in committed
                     or not path.is_file()
-                    or _git(repo, "hash-object", "--no-filters", "--", str(path))
-                    != committed[name]
+                    or _git(repo, "hash-object", "--no-filters", "--", str(path)) != committed[name]
                 ):
                     sources_verified = False
                     break
@@ -176,9 +175,7 @@ def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def check(
-    repo_path: str | Path, *, scope: str | None = None, docs: bool = False
-) -> dict[str, Any]:
+def check(repo_path: str | Path, *, scope: str | None = None, docs: bool = False) -> dict[str, Any]:
     """Check graph provenance, node/edge integrity and explicit path claims.
 
     Findings are bounded to 100 examples; counts are for the complete scan.

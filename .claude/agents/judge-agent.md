@@ -25,9 +25,8 @@ Read the latest report in `.self-improvement/reports/<worker>/` for the worker y
 ## Evaluation Checklist
 
 For code-improver outputs:
-- [ ] `pytest tests/` exits 0
-- [ ] `ruff check src/ tests/` exits 0
-- [ ] No writes to indexed folders (grep for `open.*'w'` in changed files)
+- [ ] Assigned checks from `docs/playbooks/development.md` pass (respect active gate phase boundaries)
+- [ ] Read-only invariant in `AGENTS.md` verified; no writes to checked repositories
 - [ ] Relevant spec acceptance criteria checked
 
 For security-sentinel outputs:
@@ -35,9 +34,7 @@ For security-sentinel outputs:
 - [ ] Path traversal check performed
 - [ ] Read-only invariant verified
 
-For model-quality-auditor outputs:
-- [ ] Precision@10 reported with baseline comparison
-- [ ] Test queries documented
+Retrieval/model-specific roles are historical; do not grade their retired benchmarks as current acceptance criteria. Use `ARCHITECTURE.md` and the assigned spec.
 
 ## Output
 

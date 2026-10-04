@@ -2,7 +2,13 @@
 
 Holusight is a small **read-only consistency helper for agents**. Graphify supplies the map; Holusight checks graph references and rescans current source for code/code and docs/docs duplication candidates and explicitly linked code/docs/code facts. It does **not** index documents, synthesize answers, infer arbitrary prose truth, call models/network services, edit source, or silently rebuild Graphify.
 
+## Install
+
+Requires Python 3.11+; Git is needed to verify graph provenance. From a checkout, run `uv sync` (or `pip install -e .`). The runtime has no Python dependencies. Development tooling uses `uv sync --extra dev`. Offline commands below require an already provisioned environment. The installed console entry point is `holus`; the former skill installer and retrieval commands are retired.
+
 ## Run
+
+Replace `[repo-path]` with the repository root or omit it for the current directory.
 
 ```sh
 uv run --offline python -m holusight check [repo-path]
@@ -13,7 +19,7 @@ uv run --offline holus align [repo-path]
 # after installation: holus check [repo-path] / holus align [repo-path]
 ```
 
-Output is JSON. `status` is `current` only when `built_at_commit` is a full SHA equal to Git HEAD **and** the working tree is clean. A missing or invalid commit is `unknown`, a mismatch or dirty tree is `stale`, and missing/malformed graph data is `unavailable`. Graphify's historical graph in this repository is intentionally **not refreshed** during checks; expect `stale` until an operator rebuilds it independently and proves its provenance. A scope not represented by graph-backed source evidence is `unknown`, not a clean pass. Exit code 0 means a current graph with no detected errors or unverified checks; exit code 1 covers errors, stale, unknown, or unavailable. Error findings in stale graphs are useful leads, not a current clean bill of health.
+Output is JSON. `status` reports whole-graph provenance, not integrity; use `check` for errors. A current graph requires a matching build commit, clean Git tree and graph-backed source bytes verified against that snapshot. Unverifiable sources are `unknown`, not fresh. See [the provenance contract](ARCHITECTURE.md#data-and-trust-boundary) for exact conditions. The historical graph here is intentionally **not refreshed** during checks; expect `stale` until an operator rebuilds it independently. For `check`, exit 0 requires current provenance with no errors/unverified checks in declared coverage; exit 1 covers errors, stale, unknown or unavailable. Error findings in non-current graphs are leads, not a current clean bill of health.
 
 Graph integrity and literal source/path evidence are bounded checks, not semantic doc/code verification. A missing path immediately annotated `(not created yet)` (for example, `` `src/future.py` (not created yet) ``) is an informational `planned_path_reference`, not a confirmed current-reference error. It counts as unverified: a proposal-only scope returns `unknown`, not a clean semantic verdict. This literal path-local annotation does not infer intent from words like “future” elsewhere or exempt unsafe paths. Agents should inspect cited source lines and use Graphify directly for traversal. No source or graph files are written by `check` or `align`.
 
@@ -32,7 +38,7 @@ MAX_RETRIES = 3
 <!-- holus:fact retry-limit = 5 -->
 ```
 
-Different declarations of that key produce a mismatch with source hashes and locations. This works for code/code, docs/docs, and docs/code. It compares declarations, not the surrounding prose; nonliteral/ambiguous Python bindings, syntactic rebinding and wildcard imports are unverified rather than executed. Python markers must be module-level: standalone at column zero or inline with a top-level declaration, never inside functions/classes. Markdown fences respect delimiter type/length and closing syntax; indented example lines are excluded. These bounded rules are not a complete Markdown renderer or runtime interpreter. Source results and Graphify freshness are separate: a source scan can finish while the graph remains stale. Missing/empty graph source fields are unavailable evidence, not repository escapes. HEAD is sampled around Git status; `check` rechecks inspected bytes, paths, graph and provenance at completion. Detected changes return `unknown`, not false `current`. These are bounded observations, not locks or a guarantee against every concurrent edit.
+Different declarations of that key produce a mismatch with source hashes and locations across code/code, docs/docs or docs/code. Markers compare declarations, not surrounding prose. Python markers must be module-level; unsupported or malformed declarations are unverified, not executed. Source scans and graph freshness are separate: alignment can finish while the graph remains stale. See [the deterministic source contract](ARCHITECTURE.md#deterministic-source-checks-and-refresh) for binding, example-filtering and concurrent-edit limits.
 
 Agents can inspect findings, edit the cited source, and rerun:
 
@@ -54,13 +60,10 @@ holus align . --docs --scope specs/  # intersection: Markdown beneath specs
 
 The positional path stays the repository root, not the focus folder. File/directory scopes normalize trailing slashes and use path-component boundaries. `status` stays whole-graph provenance and rejects targeting flags. `--docs` does not enter ignored/private archives or follow source symlinks. `check` restricts source checks and graph integrity to selected items/incident links; its coverage explicitly says global integrity is not checked. `align` limits emitted findings, not comparison inventory: partners elsewhere and unverified partner evidence still matter. Reports expose the normalized selector and focused-file coverage. Empty/unrepresented selections are unknown/partial, never a clean pass. Focus reduces irrelevant findings the agent sees; it does not prove fewer scanner reads or improved productivity.
 
-Reports include content hashes and `delta.new/resolved/persisting` IDs plus changed/deleted source paths. A resolved ID means no longer detected by these rules, not that a refactor is behaviorally correct. Comparison refuses incompatible or incomplete baselines. Corrected fact/example rules use `holus-alignment/v2`; v1 receipts are not comparable. Baselines must also match Markdown selection and normalized file/directory scope kind. Equivalent `specs/` and `specs` scopes are comparable; a file becoming a directory is not. Existing complete v2 default/file receipts remain comparable when analysis and scope match. `--scope <file-or-directory>` focuses findings involving that selection while still scanning comparison partners. Duplicate-only `review` is advisory (exit 0); `mismatch`, `partial`, `unknown` and `unavailable` exit 1. Budgets/coverage are explicit. There is no automatic skill selection or background Graphify refresh.
+Reports include content hashes and `delta.new/resolved/persisting` IDs plus changed/deleted source paths. Resolved means no longer detected, not behaviorally correct. Comparison refuses incompatible or incomplete baselines; see [receipt compatibility](ARCHITECTURE.md#public-contract) and [scan limits](ARCHITECTURE.md#deterministic-source-checks-and-refresh). Duplicate-only `review` is advisory (exit 0); `mismatch`, `partial`, `unknown` and `unavailable` exit 1. There is no automatic skill selection or background Graphify refresh.
 
 ## Development
 
-```sh
-uv run --offline --extra dev pytest tests/ -q
-uv run --offline --extra dev ruff check src/ tests/
-```
+See [the development playbook](docs/playbooks/development.md) for setup, tests and lint commands.
 
 See `ARCHITECTURE.md`, `specs/028-graphify-consistency-helper.md` and `specs/029-deterministic-duplication-alignment.md` for the supported contracts, research and migration disposition. Earlier numbered specs and accepted decisions are historical context for the retired retrieval product, not current interfaces.

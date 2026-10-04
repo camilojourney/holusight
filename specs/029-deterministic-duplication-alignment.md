@@ -1,6 +1,6 @@
 # 029 — Deterministic duplication and explicit alignment
 
-Status: implemented; local behavioral validation passed, independent shipping validation remains held on owner-supported authentication/final review. Earlier Review lifecycle failures and the subsequent auth failure are preserved separately. Follows the user's expanded request (code/code, docs/code, docs/docs duplication/alignment and proof after changes). Extends spec 028; does not restore retrieval, embeddings, or LLMs. Source findings are independent of graph provenance: a stale graph remains stale, even when a new source scan completes.
+Status: implemented. Validation and shipping observations below describe earlier worker runs, not the current gate or publication status. Follows the user's expanded request (code/code, docs/code, docs/docs duplication/alignment and proof after changes). Extends spec 028; does not restore retrieval, embeddings, or LLMs. Source findings are independent of graph provenance: a stale graph remains stale, even when a new source scan completes.
 
 ## Research and bounded conclusions
 
@@ -46,7 +46,7 @@ The supervisor authorized between-terminal-run corrections, not a raw JSON gate 
 
 The two existing scanners share Markdown fenced/indented-example filtering. Closing fences must match character and minimum opening length, with valid ASCII space/tab-only suffix; mismatched/short/trailing-text closes do not release example contents into prose. Invalid backtick info strings do not hide live prose. Indented example lines are excluded; this is not a full renderer.
 
-Provenance brackets Git status with HEAD samples. The graph checker resamples read source hashes, path resolution/existence, graph and revision evidence at completion; the source scanner also carries end-of-run graph state instead of a falsely current initial state. Detected instability is unknown/non-current. No global locks, watch service or atomicity guarantee. Empty source fields are informational unavailable evidence, not path escapes. Resolution failures, including the documented Python 3.11 RuntimeError boundary, are contained without relaxing path restrictions.
+The authoritative provenance, snapshot-rechecking and path-resolution contract is in [Architecture: data and trust boundary](../ARCHITECTURE.md#data-and-trust-boundary). The current shared verifier also binds graph-backed source bytes to regular-file blobs in HEAD; Git cleanliness alone is insufficient.
 
 The corrected fact/example behavior changes receipt comparability: rule identity is now `holus-alignment/v2`, and complete v1 receipts are rejected as incompatible rather than silently claiming findings resolved. The selected review simplification removes the unsupported `check(refresh=...)` parameter; graph rebuilding remains external.
 
