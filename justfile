@@ -1,116 +1,21 @@
-# Default: show available commands
 default:
     @just --list
 
-# ─── Development ──────────────────────────────────
-
-# Run the demo app
-dev:
-    uv run --extra demo python -m holusight demo
-
-# Install dependencies (dev)
-install:
-    pip install -e ".[dev]"
-
-# Inspect CLI commands
+# Check an existing Graphify graph against repository source. Never rebuilds.
 inspect:
-    uv run python -m holusight --help
+    uv run --offline python -m holusight --help
 
-# ─── Quality ──────────────────────────────────────
+check-graph:
+    uv run --offline python -m holusight check
 
-# Run all checks (lint + test)
-check: lint test
+# Rescan source for duplication candidates and explicitly linked fact mismatches.
+align:
+    uv run --offline holus align .
 
-# Lint source code
 lint:
-    uv run --extra dev ruff check src/ tests/
+    uv run --offline --extra dev ruff check src/ tests/
 
-# Run tests
 test:
-    uv run --extra dev pytest tests/ -x -v
+    uv run --offline --extra dev pytest tests/ -q
 
-# Run holusight 20-query retrieval eval (task-plan harness)
-eval:
-    uv run --extra dev python tests/eval_holusight.py --top-k 10
-
-# Run the expanded ~85-query taxonomy across local baselines (hybrid/bm25/exact/graphify)
-eval-taxonomy:
-    uv run --extra dev python tests/eval_holusight.py \
-        --queries tests/fixtures/holusight_eval_taxonomy.json \
-        --baselines hybrid,bm25,exact,graphify --top-k 10
-
-# ─── Holusight-AXI (holus) ────────────────────────
-
-# Regenerate .claude/skills/holus/SKILL.md from src/holusight/axi_schema.py
-holus-skill:
-    uv run --extra dev python -m holusight.axi_skill_gen
-
-# Check that the committed /holus skill matches the schema (CI drift gate)
-holus-skill-check:
-    uv run --extra dev pytest tests/test_axi_skill_drift.py -q
-
-# ─── Fleet v1.2 protocol pilot ────────────────────
-
-# Canonical eval_entrypoint declared in agentic/manifest.yaml: runs the
-# local, no-spend smoke suite (exact + structural providers only) and
-# prints Fleet's expected domain-result JSON object as the last stdout line.
-fleet-smoke:
-    uv run --extra dev python -m holusight.fleet_scorecard smoke
-
-# ─── Safe continuous-evaluation pilot ─────────────
-
-# Run the frozen eval-pilot case corpus (local, no-spend, advisory only).
-# Not agentic/manifest.yaml's declared eval_entrypoint -- that stays
-# `just fleet-smoke`, unchanged. See specs/017-holusight-safe-continuous-evaluation-pilot.md.
-eval-pilot:
-    uv run --extra dev python -m holusight.eval_pilot run --scorecard
-
-# Run the named visible-development retrieval suite. Local, no-spend, and
-# advisory only; `pass` does not authorize promotion, merge, or deployment.
-eval-suite:
-    uv run --extra dev python -m holusight.eval_suite run
-
-# Advisory named-suite orchestration (ADR-0019). Loads suite identity, binds
-# EvaluationSubject, runs fleet-smoke + eval-pilot. Hidden holdout not scored.
-# Promotion always denied. Not the G2 trusted-sandbox runner.
-proper-eval:
-    uv run --extra dev python -m holusight.proper_eval
-
-# Iterative advisory loop: proper-eval + compare to prior local receipt.
-# Writes under .holusight/improvement-runs/proper-eval-iterations/. Promotion denied.
-improve-iterate:
-    uv run --extra dev python -m holusight.improve_iterate
-
-# Deterministic agent-focus harness: context pack + fixed alignment council.
-# No LLM. Helps agents orient before changing Holusight. Promotion denied.
-agent-focus:
-    uv run --extra dev python -m holusight.agent_focus
-
-# Advisory improve council: read focus and the latest improve receipt,
-# emit Eval/Fix/Chair seed takes, persist under .holusight/. No evaluator
-# run, no source edits, no /tmp copy. Promotion denied.
-council:
-    uv run --extra dev python -m holusight.council --board
-
-# Advisory: which other specs does each spec read most similarly to, and is
-# that relationship already declared in prose? Ranked, not pass/fail --
-# never blocks. Pass --changed <files...> to scope to specs touched in a
-# diff (the CI usage); omit it to report on every spec.
-specs-check-neighbors *args:
-    uv run --extra dev python -m holusight.spec_duplication {{args}}
-
-# ─── Autonomous Workers ──────────────────────────
-
-# Run self-improvement cycle
-improve:
-    claude --agent .claude/agents/manager.md
-
-# Run security audit
-audit:
-    claude --agent .claude/agents/security-sentinel.md
-
-# Verify repo integrity before committing (checks duplicates, specs, schema, dead modules)
-verify:
-    #!/usr/bin/env bash
-    script="${REPO_VERIFY_SCRIPT:-$HOME/github/fleet-system/system/shared/scripts/repo_verify.py}"
-    python3 "$script" --repo holusight --skip tests || [ $? -eq 2 ]
+check: lint test

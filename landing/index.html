@@ -1,135 +1,17 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Holusight — hybrid BM25 + vector document search with source citations. Local-first pilot deployments for SMB teams." />
-  <title>Holusight — Hybrid Document Search with Citations</title>
-  <link rel="stylesheet" href="/css/site.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Holusight — Graphify consistency helper</title>
+  <meta name="description" content="A small, read-only helper for agents to find Graphify graph errors and source mismatches.">
+  <style>body{font:1.1rem/1.6 system-ui,sans-serif;max-width:48rem;margin:4rem auto;padding:0 1.5rem;color:#173045}h1{line-height:1.2}code,pre{background:#edf2f5;padding:.2rem .4rem}pre{padding:1rem;overflow:auto}a{color:#12638a}</style>
 </head>
 <body>
-  <header class="site-header">
-    <a href="/" class="logo">Holusight</a>
-    <nav class="nav" aria-label="Main">
-      <a href="/" class="active">Home</a>
-      <a href="/docs.html">Docs</a>
-      <a href="/pricing.html">Pilot</a>
-      <a href="https://github.com/camilojourney/holusight">GitHub</a>
-    </nav>
-  </header>
-
-  <section class="hero">
-    <div class="badge-row">
-      <span class="badge">BM25 + vectors + RRF</span>
-      <span class="badge">Local index</span>
-      <span class="badge">Cited answers</span>
-    </div>
-    <h1>Find answers in your documents — with proof</h1>
-    <p class="lead">
-      Holusight indexes PDFs, Office files, markdown, and code on <strong>your</strong> infrastructure.
-      Hybrid retrieval fuses keyword and semantic search; every result links to the exact source chunk.
-    </p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="/pricing.html#contact">Start a pilot</a>
-      <a class="btn btn-secondary" href="/docs.html#quickstart">Quick start</a>
-    </div>
-  </section>
-
-  <div class="container">
-    <section id="problem">
-      <h2>The problem</h2>
-      <p>Teams store policies, contracts, runbooks, and code across folders and wikis. Generic chatbots hallucinate. <code>grep</code> misses concepts. Holusight is built for <em>retrieval you can verify</em> — ranked chunks with file, page, or line citations.</p>
-    </section>
-
-    <section id="product">
-      <h2>What ships today</h2>
-      <div class="grid-2">
-        <div class="card">
-          <h3>Hybrid search (local)</h3>
-          <p>SQLite FTS5 BM25 + LanceDB vectors merged with reciprocal rank fusion. No LLM required for search.</p>
-        </div>
-        <div class="card">
-          <h3>Ask with sources</h3>
-          <p>Optional LLM synthesis (Claude, Azure OpenAI, OpenAI, or Ollama). Retrieved chunks are always shown alongside the answer.</p>
-        </div>
-        <div class="card">
-          <h3>Docker pilot deployment</h3>
-          <p>FastAPI server + browser UI, API key auth, read-only document mount, persistent index volume.</p>
-        </div>
-        <div class="card">
-          <h3>CLI &amp; Python API</h3>
-          <p><code>python -m holusight index|search|ask</code> and the <code>Holusight</code> class for automation.</p>
-        </div>
-      </div>
-      <div class="callout">
-        <strong>This website is static.</strong> holusight.com does not index or process your files.
-        The paid product runs on your VM or cloud account.
-      </div>
-    </section>
-
-    <section id="how-it-works">
-      <h2>How it works</h2>
-      <div class="arch-diagram" role="img" aria-label="Architecture: documents are parsed and chunked, embedded locally, stored in LanceDB and SQLite FTS, queried via hybrid RRF search">
-        <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg">
-          <rect x="10" y="80" width="120" height="50" rx="8" fill="#1a1d26" stroke="#f5a623" stroke-width="1.5"/>
-          <text x="70" y="110" text-anchor="middle" fill="#e8eaed" font-size="13" font-family="system-ui">Documents</text>
-          <text x="70" y="145" text-anchor="middle" fill="#71717a" font-size="11" font-family="system-ui">read-only /data</text>
-          <path d="M130 105 H180" stroke="#71717a" stroke-width="2" marker-end="url(#arrow)"/>
-          <rect x="180" y="70" width="130" height="70" rx="8" fill="#1a1d26" stroke="#52525b"/>
-          <text x="245" y="100" text-anchor="middle" fill="#e8eaed" font-size="12" font-family="system-ui">Parse &amp; chunk</text>
-          <text x="245" y="120" text-anchor="middle" fill="#71717a" font-size="10" font-family="system-ui">PDF, DOCX, code…</text>
-          <path d="M310 105 H360" stroke="#71717a" stroke-width="2"/>
-          <rect x="360" y="55" width="150" height="45" rx="8" fill="#1a1d26" stroke="#52525b"/>
-          <text x="435" y="83" text-anchor="middle" fill="#e8eaed" font-size="12" font-family="system-ui">LanceDB vectors</text>
-          <rect x="360" y="115" width="150" height="45" rx="8" fill="#1a1d26" stroke="#52525b"/>
-          <text x="435" y="143" text-anchor="middle" fill="#e8eaed" font-size="12" font-family="system-ui">SQLite FTS5 BM25</text>
-          <path d="M510 105 H560" stroke="#71717a" stroke-width="2"/>
-          <rect x="560" y="70" width="110" height="70" rx="8" fill="#1a1d26" stroke="#f5a623" stroke-width="1.5"/>
-          <text x="615" y="100" text-anchor="middle" fill="#e8eaed" font-size="12" font-family="system-ui">RRF merge</text>
-          <text x="615" y="120" text-anchor="middle" fill="#71717a" font-size="10" font-family="system-ui">+ optional rerank</text>
-          <path d="M670 105 H720" stroke="#71717a" stroke-width="2"/>
-          <rect x="720" y="80" width="70" height="50" rx="8" fill="#1a1d26" stroke="#f5a623" stroke-width="1.5"/>
-          <text x="755" y="110" text-anchor="middle" fill="#e8eaed" font-size="11" font-family="system-ui">UI / API</text>
-          <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#71717a"/></marker></defs>
-        </svg>
-      </div>
-      <p>See the <a href="/docs.html#citations">citation contract</a> for how file types map to page vs line metadata.</p>
-    </section>
-
-    <section id="comparison">
-      <h2>Honest fit</h2>
-      <p>Holusight is a focused consulting product — not a Sourcegraph or Glean replacement.</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Good fit</th><th>Not yet</th></tr></thead>
-          <tbody>
-            <tr><td>Single-team pilot over a document folder</td><td class="planned">Company-wide SSO</td></tr>
-            <tr><td>Cited search across PDFs + code</td><td class="planned">Live M365 / SharePoint sync</td></tr>
-            <tr><td>On-prem or customer-cloud VM</td><td class="planned">Multi-tenant SaaS on holusight.com</td></tr>
-            <tr><td>Hybrid BM25 + semantic retrieval</td><td class="planned">Graphify code-graph integration</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="privacy">
-      <h2>Local-first boundary</h2>
-      <div class="grid-2">
-        <div class="card">
-          <h3>Stays local</h3>
-          <p>Indexing, embeddings (default model), BM25, vector search, and the index files on your disk or volume.</p>
-        </div>
-        <div class="card">
-          <h3>May leave your network</h3>
-          <p>Only when you configure <strong>Ask</strong> with a cloud LLM, or opt into Voyage/OpenAI embeddings. Use Ollama for fully local answers.</p>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <footer class="site-footer">
-  <p>Open-source engine: <a href="https://github.com/camilojourney/holusight">camilojourney/holusight</a> ·
-  Capability matrix: <a href="https://github.com/camilojourney/holusight/blob/main/specs/010-capability-inventory.md">specs/010-capability-inventory.md</a></p>
-  </footer>
+  <h1>Holusight</h1>
+  <p>A read-only consistency helper for agents. Compare an existing Graphify graph to its repository to find broken references, missing source paths and stale provenance. No document search, model calls, or automatic graph rebuild.</p>
+  <pre><code>uv run --offline python -m holusight check /path/to/repo</code></pre>
+  <p>Results distinguish <code>current</code>, <code>stale</code>, <code>unknown</code>, and <code>unavailable</code>. Agents inspect cited source for proof; graph edges alone cannot verify prose.</p>
+  <p><a href="https://github.com/camilojourney/holusight">Source and usage</a></p>
 </body>
 </html>

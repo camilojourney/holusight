@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Exact evidence cache safety
 
 `holus evidence` (including default `--mode auto`) and `--mode exact` perform read-only provider work. They do not bootstrap or update `.holusight/consistency.db`, so a fresh consumer repository remains clean and its file manifest is unchanged. In auto mode, the consistency provider reports `unavailable` when no cache exists, while exact, structural, and semantic providers still report their own explicit states.

@@ -1,6 +1,6 @@
 # Recommended SMB Pilot Offer
 
-> **Internal / sales framing.** This is a recommended starting engagement — not evidence of market traction or a published SaaS price list.
+> **Historical, retired search offer.** Not current product scope or pricing. Holusight is now the Graphify consistency helper (spec 028). Do not quote or deploy from this document.
 
 ## Ideal customer profile
 

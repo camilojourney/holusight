@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Playbook: Ship a Feature
 
 ## 1. Write the Spec

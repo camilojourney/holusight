@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Playbook: Admitting a case to the eval-pilot frozen corpus
 
 See `specs/017-holusight-safe-continuous-evaluation-pilot.md` for the full

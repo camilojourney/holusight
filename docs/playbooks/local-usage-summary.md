@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Local usage summary
 
 `holus usage-summary --format json` reads the existing local `events.jsonl` event

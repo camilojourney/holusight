@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Playbook: Run the Retrieval Evaluation Harness
 
 See `specs/014-retrieval-evaluation-harness-expansion.md` for the full

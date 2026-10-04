@@ -1,14 +1,14 @@
 # Business Operations
 
-Business ops for the Holusight consulting practice. Previously tracked in a separate `camilo-martinez-consulting` repo, now unified here.
+Historical business ops for the retired Holusight search/consulting offer. The current product is the Graphify consistency helper (spec 028); these pricing and sales materials are not current offers.
 
 ## Contents
 
-- **[pilot-offer.md](pilot-offer.md)** — Recommended starting SMB offer (authoritative pricing/scope for v1)
+- **[pilot-offer.md](pilot-offer.md)** — Historical SMB search offer (not current pricing/scope)
 - **proposals/** — Client proposal templates and per-client deliverables
 - **pipeline/** — Sales pipeline (leads, closed deals)
 - **playbooks/** — Sales process, pitch prep, client onboarding
 - **specs/** — GTM strategy, pricing model, market opportunity, infrastructure (historical; defer to `pilot-offer.md` for current quote)
 - **market/** — Market research and competitive analysis
 
-When business specs conflict (price points, SaaS claims, 50-user concurrency), use `pilot-offer.md`.
+Do not use the historical search-offer pricing or capability claims for the current consistency helper.

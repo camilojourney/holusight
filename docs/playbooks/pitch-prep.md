@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Pitch Prep — What to Know Before Every Meeting
 
 > Read this before any client meeting. Covers the 30-second pitch, every question they'll ask, and how to answer honestly.

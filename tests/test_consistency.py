@@ -1,552 +1,323 @@
-"""Tests for the Phase 1 Holusight-AXI documentation-code consistency system.
+"""Behavioral tests for read-only Graphify/source checks."""
 
-See specs/013-holusight-axi-consistency-architecture.md for the contract
-these tests exercise: purpose-aware classification, the concept registry,
-canonical authority selection, claim/relationship provenance across
-exact/structural/semantic providers, the incremental cache, the pre-change
-evidence packet, and the post-change consistency check.
-
-Most tests build a small synthetic repository under ``tmp_path`` so they
-stay fast and never mutate this actual repository. A few tests run directly
-against this repository's own real ``ARCHITECTURE.md``, source files, and
-``graphify-out/graph.json`` to prove the claim registry and structural
-provider work on real content — these are read-only and create no
-``.holusight/`` state (they call the extraction functions directly rather
-than the full ``refresh()`` pipeline).
-"""
-
-from __future__ import annotations
-
+import json
+import subprocess
 from pathlib import Path
 
 import pytest
 
-from holusight import consistency
-from holusight.consistency_store import ConsistencyStore
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
+from holusight import Holusight
+from holusight.consistency import check
 
 
-def _write(root: Path, rel_path: str, text: str) -> Path:
-    full = root / rel_path
-    full.parent.mkdir(parents=True, exist_ok=True)
-    full.write_text(text, encoding="utf-8")
-    return full
+def _repo(tmp_path: Path, *, graph_commit: str | None = "head") -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+    (repo / ".gitignore").write_text("graphify-out/\n")
+    (repo / "src").mkdir()
+    (repo / "src/mod.py").write_text("def hello():\n    return 1\n")
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "baseline"], check=True)
+    head = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+    (repo / "graphify-out").mkdir()
+    graph = {
+        "built_at_commit": head if graph_commit == "head" else graph_commit,
+        "nodes": [
+            {
+                "id": "hello",
+                "source_file": "src/mod.py",
+                "source_location": "L1",
+                "file_type": "code",
+            }
+        ],
+        "links": [
+            {
+                "source": "hello",
+                "target": "hello",
+                "relation": "calls",
+                "source_file": "src/mod.py",
+                "source_location": "L1",
+            }
+        ],
+    }
+    (repo / "graphify-out/graph.json").write_text(json.dumps(graph))
+    return repo
 
 
-def _minimal_repo(tmp_path: Path) -> Path:
-    """A synthetic repo with one spec that references one real impl file."""
-    _write(
-        tmp_path,
-        "specs/001-alpha.md",
-        "# Alpha Feature\n\nImplemented by `src/pkg/mod.py`.\n"
-        "Also mentions `src/pkg/missing.py`, which does not exist.\n",
+def test_check_is_read_only_and_offline(tmp_path, monkeypatch):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    before = {
+        p.relative_to(repo): p.read_bytes()
+        for p in repo.rglob("*")
+        if p.is_file() and ".git" not in p.parts
+    }
+    import holusight.consistency as checker
+
+    original_run = checker.subprocess.run
+
+    def git_only(command, *args, **kwargs):
+        assert command[0] == "git"
+        return original_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(checker.subprocess, "run", git_only)
+    assert check(repo)["status"] == "current"
+    assert graph_path.is_file()
+    after = {
+        p.relative_to(repo): p.read_bytes()
+        for p in repo.rglob("*")
+        if p.is_file() and ".git" not in p.parts
+    }
+    assert before == after
+
+
+def test_clean_graph_with_provenance_is_current(tmp_path):
+    repo = _repo(tmp_path)
+    result = Holusight(repo).check()
+    assert result["status"] == "current"
+    assert result["errors"] == 0
+    assert result["checked"] >= 2
+
+
+def test_unverified_oversized_source_prevents_clean_verdict(tmp_path):
+    repo = _repo(tmp_path)
+    (repo / "src/mod.py").write_text("#" * 2_000_001 + "\n")
+    subprocess.run(["git", "-C", str(repo), "add", "src/mod.py"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "large source"], check=True)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["built_at_commit"] = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    assert result["status"] == "unknown"
+    assert result["unverified"] >= 1
+    assert result["errors"] == 0
+
+
+def test_broken_graph_edge_and_missing_source_report_evidence(tmp_path):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["nodes"].append({"id": "missing", "source_file": "src/gone.py", "source_location": "L1"})
+    graph["links"][0]["target"] = "not_a_node"
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    assert result["status"] == "unknown"
+    assert result["provenance"]["state"] == "unknown"
+    assert {item["type"] for item in result["findings"]} == {"missing_source", "dangling_edge"}
+    assert any(item["evidence"] == "node:missing" for item in result["findings"])
+
+
+def test_dirty_or_mismatched_graph_never_reports_current(tmp_path):
+    repo = _repo(tmp_path, graph_commit="0" * 40)
+    assert check(repo)["status"] == "stale"
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["built_at_commit"] = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    graph_path.write_text(json.dumps(graph))
+    (repo / "src/mod.py").write_text("def changed():\n    return 2\n")
+    assert check(repo)["status"] == "stale"
+    graph.pop("built_at_commit")
+    graph_path.write_text(json.dumps(graph))
+    assert check(repo)["status"] == "unknown"
+
+
+@pytest.mark.parametrize("collection", ["nodes", "dict_nodes", "links"])
+@pytest.mark.parametrize("symlink", [False, True])
+def test_ignored_graph_sources_cannot_prove_freshness(tmp_path, collection, symlink):
+    repo = _repo(tmp_path)
+    with (repo / ".gitignore").open("a") as stream:
+        stream.write("src/generated.py\n")
+    target = repo / "src/generated.py"
+    target.write_text("LIMIT = 3\n")
+    source = "src/generated.py"
+    if symlink:
+        source = "src/alias.py"
+        (repo / source).symlink_to("generated.py")
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "ignored source"], check=True)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["built_at_commit"] = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    if collection == "dict_nodes":
+        graph["nodes"] = {"generated": {"source_file": source, "source_location": "L1"}}
+    else:
+        graph[collection][0]["source_file"] = source
+    graph_path.write_text(json.dumps(graph))
+    target.write_text("LIMIT = 5\n")
+    assert not subprocess.check_output(
+        ["git", "-C", str(repo), "status", "--porcelain"], text=True
+    ).strip()
+    engine = Holusight(repo)
+    assert engine.status()["status"] == "unknown"
+    assert engine.check()["provenance"]["state"] == "unknown"
+    assert engine.check()["status"] != "current"
+    assert engine.align()["graph"]["state"] == "unknown"
+
+
+def test_graph_source_hidden_from_git_status_still_requires_matching_bytes(tmp_path):
+    repo = _repo(tmp_path)
+    subprocess.run(
+        ["git", "-C", str(repo), "update-index", "--assume-unchanged", "src/mod.py"],
+        check=True,
     )
-    _write(tmp_path, "src/pkg/mod.py", "VALUE = 1\n")
-    return tmp_path
+    (repo / "src/mod.py").write_text("def hello():\n    return 2\n")
+    assert not subprocess.check_output(
+        ["git", "-C", str(repo), "status", "--porcelain"], text=True
+    ).strip()
+    assert Holusight(repo).status()["status"] == "unknown"
+    assert check(repo)["status"] != "current"
 
 
-# ---------------------------------------------------------------------------
-# 1. Purpose-aware artifact classification
-# ---------------------------------------------------------------------------
+def test_nested_directory_cannot_inherit_parent_git_provenance(tmp_path):
+    repo = _repo(tmp_path)
+    nested = repo / "nested"
+    nested.mkdir()
+    (nested / "graphify-out").mkdir()
+    (nested / "graphify-out/graph.json").write_bytes(
+        (repo / "graphify-out/graph.json").read_bytes()
+    )
+    assert check(nested)["status"] == "unknown"
 
 
-@pytest.mark.parametrize(
-    "path,expected_kind,expected_authority",
-    [
-        ("specs/013-foo.md", consistency.ArtifactKind.SPECIFICATION,
-         consistency.ArtifactAuthority.CANONICAL),
-        ("docs/decisions/0011-foo.md", consistency.ArtifactKind.DECISION,
-         consistency.ArtifactAuthority.CANONICAL),
-        ("ARCHITECTURE.md", consistency.ArtifactKind.ARCHITECTURE,
-         consistency.ArtifactAuthority.CANONICAL),
-        ("docs/roadmap.md", consistency.ArtifactKind.VISION_ROADMAP,
-         consistency.ArtifactAuthority.CANONICAL),
-        ("docs/playbooks/deploy.md", consistency.ArtifactKind.PLAYBOOK,
-         consistency.ArtifactAuthority.SUPPORTING),
-        ("src/holusight/search.py", consistency.ArtifactKind.IMPLEMENTATION,
-         consistency.ArtifactAuthority.SUPPORTING),
-        ("tests/test_search.py", consistency.ArtifactKind.TEST,
-         consistency.ArtifactAuthority.SUPPORTING),
-        ("devlog/2026-08-22.md", consistency.ArtifactKind.DEVLOG,
-         consistency.ArtifactAuthority.HISTORICAL),
-        (".self-improvement/reports/manager/2026-08-22.md", consistency.ArtifactKind.REPORT,
-         consistency.ArtifactAuthority.GENERATED),
-        ("graphify-out/graph.json", consistency.ArtifactKind.REPORT,
-         consistency.ArtifactAuthority.GENERATED),
-        ("README.md", consistency.ArtifactKind.DOCUMENTATION,
-         consistency.ArtifactAuthority.SUPPORTING),
-        ("AGENTS.md", consistency.ArtifactKind.GOVERNANCE,
-         consistency.ArtifactAuthority.CANONICAL),
-        (".claude/rules/workflow.md", consistency.ArtifactKind.GOVERNANCE,
-         consistency.ArtifactAuthority.CANONICAL),
-        ("random-notes.txt", consistency.ArtifactKind.OTHER,
-         consistency.ArtifactAuthority.SUPPORTING),
-    ],
-)
-def test_classify_artifact(path, expected_kind, expected_authority):
-    kind, authority = consistency.classify_artifact(path)
-    assert kind == expected_kind
-    assert authority == expected_authority
+def test_missing_malformed_and_unsafe_graph_are_unavailable(tmp_path):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    graph_path.unlink()
+    assert check(repo)["status"] == "unavailable"
+    graph_path.write_text("not json")
+    assert check(repo)["status"] == "unavailable"
+    graph_path.unlink()
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}")
+    graph_path.symlink_to(outside)
+    assert check(repo)["status"] == "unavailable"
 
 
-# ---------------------------------------------------------------------------
-# 2 & 3. Concept registry + canonical authority selection
-# ---------------------------------------------------------------------------
+def test_graph_source_symlink_escape_is_reported_without_reading(tmp_path):
+    repo = _repo(tmp_path)
+    outside = tmp_path / "secret.py"
+    outside.write_text("SECRET_DO_NOT_EXPOSE\n")
+    (repo / "src/escaped.py").symlink_to(outside)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["nodes"].append({"id": "escaped", "source_file": "src/escaped.py"})
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    assert result["status"] == "stale"  # untracked symlink invalidates provenance
+    assert any(f["type"] == "unsafe_path" for f in result["findings"])
+    assert "SECRET_DO_NOT_EXPOSE" not in json.dumps(result)
 
 
-def test_build_concepts_one_per_spec_and_decision(tmp_path):
-    _write(tmp_path, "specs/001-alpha.md", "# Alpha Feature\n\nbody\n")
-    _write(tmp_path, "docs/decisions/0001-alpha-choice.md", "# Alpha Choice\n\nbody\n")
-    _write(tmp_path, "README.md", "# Not a concept\n")  # documentation, not canonical
+@pytest.mark.parametrize("location", ["L0", "L-1", "L1-L0", "line 1", "", 0, {}, []])
+@pytest.mark.parametrize("collection", ["nodes", "links"])
+def test_invalid_source_location_prevents_current_verdict(tmp_path, location, collection):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph[collection][0]["source_location"] = location
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    assert result["status"] == "error"
+    assert result["error_types"] == {"invalid_source_location": 1}
+    assert result["findings"][0]["evidence"] == (
+        "node:hello" if collection == "nodes" else "links[0]"
+    )
 
-    artifacts = {
-        path: consistency.Artifact(
-            path=path, kind=kind, authority=authority, content_hash="x", classified_at="t"
-        )
-        for path, (kind, authority) in {
-            "specs/001-alpha.md": consistency.classify_artifact("specs/001-alpha.md"),
-            "docs/decisions/0001-alpha-choice.md": consistency.classify_artifact(
-                "docs/decisions/0001-alpha-choice.md"
-            ),
-            "README.md": consistency.classify_artifact("README.md"),
-        }.items()
+
+def test_range_end_line_is_checked_for_node_and_edge(tmp_path):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["nodes"][0]["source_location"] = "L1-L999"
+    graph["links"][0]["source_location"] = "L1-L999"
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    assert result["status"] == "error"
+    assert result["error_types"]["missing_line"] == 2
+    assert all(f["line"] == 999 for f in result["findings"])
+
+
+def test_malformed_edge_does_not_crash_or_escape(tmp_path):
+    repo = _repo(tmp_path)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["links"][0]["target"] = {"malformed": "object"}
+    graph_path.write_text(json.dumps(graph))
+    assert check(repo)["findings"][0]["type"] == "dangling_edge"
+
+
+def test_scoped_path_cannot_escape_repository(tmp_path):
+    repo = _repo(tmp_path)
+    with pytest.raises(ValueError):
+        check(repo, scope="../outside")
+    with pytest.raises(ValueError):
+        check(repo, scope="/etc/passwd")
+    assert check(repo, scope="src/not-in-graph.py")["status"] == "unknown"
+
+
+def test_root_business_and_dot_directory_path_claims(tmp_path):
+    repo = _repo(tmp_path)
+    (repo / "docs").mkdir()
+    (repo / "docs/guide.md").write_text(
+        "See `ARCHITECTURE.md`, `business/missing.md`, and `.claude/rules/missing.md`.\n"
+    )
+    subprocess.run(["git", "-C", str(repo), "add", "docs/guide.md"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "docs"], check=True)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["built_at_commit"] = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    graph["nodes"].append(
+        {
+            "id": "guide",
+            "file_type": "document",
+            "source_file": "docs/guide.md",
+            "source_location": "L1",
+        }
+    )
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    claims = [f for f in result["findings"] if f["type"] == "missing_path_claim"]
+    assert len(claims) == 3
+    assert {f["evidence"] for f in claims} == {
+        "path:ARCHITECTURE.md",
+        "path:business/missing.md",
+        "path:.claude/rules/missing.md",
     }
 
-    concepts = consistency.build_concepts(artifacts, tmp_path)
 
-    assert {c.concept_id for c in concepts} == {
-        "specs/001-alpha.md",
-        "docs/decisions/0001-alpha-choice.md",
-    }
-    by_id = {c.concept_id: c for c in concepts}
-    assert by_id["specs/001-alpha.md"].scope == "Alpha Feature"
-    assert by_id["specs/001-alpha.md"].canonical_path == "specs/001-alpha.md"
-    assert by_id["specs/001-alpha.md"].status == "active"
-
-
-def test_build_concepts_detects_superseded(tmp_path):
-    _write(
-        tmp_path,
-        "docs/decisions/0002-old.md",
-        "# Old Decision\n\nStatus: Superseded\n\nbody\n",
+def test_explicit_path_claim_and_missing_line(tmp_path):
+    repo = _repo(tmp_path)
+    (repo / "docs").mkdir()
+    (repo / "docs/guide.md").write_text("See `src/gone.py` for details.\n")
+    subprocess.run(["git", "-C", str(repo), "add", "docs/guide.md"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "docs"], check=True)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["built_at_commit"] = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    graph["nodes"].append(
+        {
+            "id": "guide",
+            "file_type": "document",
+            "source_file": "docs/guide.md",
+            "source_location": "L9",
+        }
     )
-    kind, authority = consistency.classify_artifact("docs/decisions/0002-old.md")
-    artifacts = {
-        "docs/decisions/0002-old.md": consistency.Artifact(
-            path="docs/decisions/0002-old.md", kind=kind, authority=authority,
-            content_hash="x", classified_at="t",
-        )
-    }
-    concepts = consistency.build_concepts(artifacts, tmp_path)
-    assert concepts[0].status == "superseded"
-
-
-# ---------------------------------------------------------------------------
-# 5a. Exact-reference provider (and dangling-reference detection)
-# ---------------------------------------------------------------------------
-
-
-def test_extract_exact_references_resolves_real_file_and_flags_dangling(tmp_path):
-    _minimal_repo(tmp_path)
-    edges, dangling = consistency.extract_exact_references("specs/001-alpha.md", tmp_path)
-
-    assert len(edges) == 1
-    edge = edges[0]
-    assert edge.from_ref == "artifact:specs/001-alpha.md"
-    assert edge.to_ref == "artifact:src/pkg/mod.py"
-    assert edge.relation == "references"
-    assert edge.provider == consistency.ProviderKind.EXACT
-    assert edge.confidence == 1.0
-    assert edge.evidence_class == consistency.EvidenceClass.VERIFIED
-
-    assert dangling == ["src/pkg/missing.py"]
-
-
-def test_extract_exact_references_real_repo_finds_known_dangling_link():
-    """Regression proof: this repository has one genuine, deliberately
-    unfixed dangling reference, found by the very first real run of this
-    system (`docs/decisions/0010-graphify-extension-contract.md`'s dangling
-    `docs/capabilities.md` reference was fixed in this same PR — see
-    specs/013-holusight-axi-consistency-architecture.md section 4). This
-    one is left as-is because the right fix requires a human product
-    decision (is the whole ADR superseded, and by what?), not a guess."""
-    _, dangling_0006 = consistency.extract_exact_references(
-        "docs/decisions/0006-two-deployment-modes.md", REPO_ROOT
-    )
-    assert any("specs/002-deployment-modes.md" in token for token in dangling_0006)
-
-    edges_0010, dangling_0010 = consistency.extract_exact_references(
-        "docs/decisions/0010-graphify-extension-contract.md", REPO_ROOT
-    )
-    assert "docs/capabilities.md" not in dangling_0010
-    assert any(e.to_ref == "artifact:specs/010-capability-inventory.md" for e in edges_0010)
-
-
-# ---------------------------------------------------------------------------
-# 4. Claim provenance: known-invariant registry
-# ---------------------------------------------------------------------------
-
-
-def test_evaluate_known_claims_real_repo_currently_all_match():
-    """This repo's ARCHITECTURE.md invariants currently agree with the
-    code they describe; this is the intended steady state, and a failure
-    here means either the doc or the code drifted (see ARCHITECTURE.md's
-    "What NOT to Change Without Discussion" section)."""
-    claims = consistency.evaluate_known_claims(REPO_ROOT)
-    by_name = {c.name: c for c in claims}
-
-    assert by_name["rrf_k"].doc_value == "60"
-    assert by_name["rrf_k"].code_value == "60"
-    assert by_name["rrf_k"].status == consistency.ClaimStatus.MATCH
-
-    assert by_name["ast_min_lines"].doc_value == "5"
-    assert by_name["ast_min_lines"].code_value == "5"
-    assert by_name["ast_min_lines"].status == consistency.ClaimStatus.MATCH
-
-    assert by_name["content_hash_length"].status == consistency.ClaimStatus.MATCH
-    assert by_name["data_dir_location"].status == consistency.ClaimStatus.MATCH
-
-
-def test_evaluate_known_claims_missing_files_returns_unknown(tmp_path):
-    claims = consistency.evaluate_known_claims(tmp_path)
-    assert all(c.status == consistency.ClaimStatus.UNKNOWN for c in claims)
-    assert all(c.doc_value is None and c.code_value is None for c in claims)
-
-
-def test_evaluate_known_claims_detects_drift(tmp_path):
-    _write(tmp_path, "ARCHITECTURE.md", "RRF k=60 constant\n")
-    _write(
-        tmp_path,
-        "src/holusight/search.py",
-        "def rrf_merge(\n    ranked_lists,\n    k: int = 99,\n):\n    pass\n",
-    )
-    claims = consistency.evaluate_known_claims(tmp_path)
-    rrf = next(c for c in claims if c.name == "rrf_k")
-    assert rrf.doc_value == "60"
-    assert rrf.code_value == "99"
-    assert rrf.status == consistency.ClaimStatus.DRIFT
-
-
-# ---------------------------------------------------------------------------
-# 5b. Structural provider (Graphify)
-# ---------------------------------------------------------------------------
-
-
-def test_structural_graph_freshness_self_consistent_on_real_repo():
-    """Doesn't assert a specific commit (that would break on the next
-    `graphify update .`); asserts the staleness computation is internally
-    consistent with the graph's own declared commit and current HEAD."""
-    from holusight.git_utils import current_commit
-
-    index = consistency._load_structural_index(REPO_ROOT)
-    assert index.available is True
-    assert index.built_at_commit is not None
-
-    stale, commit = consistency.structural_graph_freshness(index, REPO_ROOT)
-    assert commit == index.built_at_commit
-    head = current_commit(REPO_ROOT)
-    assert stale == (head is None or commit != head)
-
-
-def test_structural_edges_for_missing_graph_returns_empty(tmp_path):
-    index = consistency._load_structural_index(tmp_path)
-    assert index.available is False
-    edges = consistency.structural_edges_for(index, "src/pkg/mod.py", stale=True)
-    assert edges == []
-
-
-# ---------------------------------------------------------------------------
-# 5c. Semantic provider (local embeddings, opt-in)
-# ---------------------------------------------------------------------------
-
-
-def test_semantic_similarity_edges_thresholds_and_tags_provider(tmp_path):
-    _write(tmp_path, "specs/001-alpha.md", "# Alpha\n\nbody\n")
-    _write(tmp_path, "specs/002-beta.md", "# Beta\n\nbody\n")
-
-    concepts = [
-        consistency.Concept(
-            concept_id="specs/001-alpha.md", scope="Alpha",
-            canonical_path="specs/001-alpha.md",
-            source_kind=consistency.ArtifactKind.SPECIFICATION,
-        )
-    ]
-    artifacts = {
-        "specs/001-alpha.md": consistency.Artifact(
-            path="specs/001-alpha.md", kind=consistency.ArtifactKind.SPECIFICATION,
-            authority=consistency.ArtifactAuthority.CANONICAL,
-            content_hash="x", classified_at="t",
-        ),
-        "specs/002-beta.md": consistency.Artifact(
-            path="specs/002-beta.md", kind=consistency.ArtifactKind.SPECIFICATION,
-            authority=consistency.ArtifactAuthority.CANONICAL,
-            content_hash="x", classified_at="t",
-        ),
-    }
-
-    # Deterministic fake embedder: identical vectors -> similarity 1.0.
-    def fake_embed(texts: list[str]) -> list[list[float]]:
-        return [[1.0, 0.0] for _ in texts]
-
-    edges = consistency.semantic_similarity_edges(
-        concepts, artifacts, tmp_path, fake_embed, threshold=0.55
-    )
-    assert len(edges) == 1
-    edge = edges[0]
-    assert edge.provider == consistency.ProviderKind.SEMANTIC
-    assert edge.evidence_class == consistency.EvidenceClass.INFERRED
-    assert edge.from_ref == "concept:specs/001-alpha.md"
-    assert edge.to_ref == "artifact:specs/002-beta.md"
-    assert edge.confidence == pytest.approx(1.0)
-
-
-def test_refresh_default_never_produces_semantic_edges(tmp_path):
-    """Semantic provider is opt-in; a default refresh() must never call it
-    or persist semantic edges, even though this synthetic repo's two specs
-    would be identical (and thus maximally "similar") if it were enabled."""
-    _write(tmp_path, "specs/001-alpha.md", "# Alpha\n\nsame body\n")
-    _write(tmp_path, "specs/002-beta.md", "# Beta\n\nsame body\n")
-
-    consistency.refresh(tmp_path)
-    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
-    try:
-        providers = {row["provider"] for row in store.all_edges()}
-    finally:
-        store.close()
-    assert consistency.ProviderKind.SEMANTIC.value not in providers
-
-
-# ---------------------------------------------------------------------------
-# Incremental local cache
-# ---------------------------------------------------------------------------
-
-
-def test_refresh_incremental_skips_unchanged_artifacts(tmp_path):
-    _minimal_repo(tmp_path)
-
-    first = consistency.refresh(tmp_path)
-    assert first.artifacts_reclassified == first.artifacts_scanned
-    assert first.artifacts_unchanged == 0
-
-    second = consistency.refresh(tmp_path)
-    assert second.artifacts_scanned == first.artifacts_scanned
-    assert second.artifacts_reclassified == 0
-    assert second.artifacts_unchanged == first.artifacts_scanned
-
-
-def test_refresh_reclassifies_only_changed_file(tmp_path):
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-
-    _write(tmp_path, "src/pkg/mod.py", "VALUE = 2  # changed\n")
-    result = consistency.refresh(tmp_path)
-
-    assert result.artifacts_reclassified == 1
-    assert result.artifacts_unchanged == result.artifacts_scanned - 1
-
-
-def test_refresh_creates_single_sqlite_file_no_placeholder_dirs(tmp_path):
-    """Enforces ADR-0011: one atomic SQLite database, no per-concern
-    databases or empty placeholder directories."""
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-
-    holusight_dir = tmp_path / ".holusight"
-    entries = list(holusight_dir.iterdir())
-    db_entries = [e for e in entries if e.suffix == ".db"]
-    assert [e.name for e in db_entries] == ["consistency.db"]
-    # No other sqlite files (e.g. WAL/SHM sidecars are fine; separate
-    # per-concern databases or embeddings/graph-cache/health directories
-    # are not).
-    assert not any(e.is_dir() for e in entries)
-
-
-# ---------------------------------------------------------------------------
-# Health flags
-# ---------------------------------------------------------------------------
-
-
-def test_refresh_flags_duplicate_canonical_scope(tmp_path):
-    _write(tmp_path, "specs/001-alpha.md", "# Shared Title\n\nbody\n")
-    _write(tmp_path, "specs/002-beta.md", "# Shared Title\n\nbody\n")
-
-    result = consistency.refresh(tmp_path)
-    assert result.health_flags > 0
-
-    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
-    try:
-        flags = store.all_health_flags()
-    finally:
-        store.close()
-    assert any(f["flag_type"] == "MULTIPLE_CANONICAL_SCOPE" for f in flags)
-
-
-def test_refresh_flags_dangling_reference(tmp_path):
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-
-    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
-    try:
-        flags = store.all_health_flags()
-    finally:
-        store.close()
-    dangling_flags = [f for f in flags if f["flag_type"] == "DANGLING_REFERENCE"]
-    assert any("src/pkg/missing.py" in f["detail"] for f in dangling_flags)
-    assert any(f["flag_type"] == "STALE_RELATIONSHIP" for f in flags)
-    assert all(f["evidence_class"] == "verified" for f in dangling_flags)
-
-
-def test_governance_rules_are_checked_and_identified_as_canonical(tmp_path):
-    _write(
-        tmp_path,
-        "AGENTS.md",
-        "# Rules\n\nImplemented by `src/pkg/mod.py`.\nSee `src/pkg/renamed.py`.\n",
-    )
-    _write(tmp_path, "src/pkg/mod.py", "VALUE = 1\n")
-    consistency.refresh(tmp_path)
-    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
-    try:
-        artifacts = store.all_artifacts()
-        flags = store.all_health_flags()
-    finally:
-        store.close()
-    assert artifacts["AGENTS.md"]["authority"] == "canonical"
-    assert any(
-        f["flag_type"] == "STALE_RELATIONSHIP"
-        and "AGENTS.md" in f["detail"]
-        and f["evidence_class"] == "verified"
-        for f in flags
-    )
-
-
-def test_refresh_identifies_deleted_or_renamed_cached_artifact(tmp_path):
-    _write(tmp_path, "AGENTS.md", "# Rules\n")
-    consistency.refresh(tmp_path)
-    (tmp_path / "AGENTS.md").rename(tmp_path / "CLAUDE.md")
-    consistency.refresh(tmp_path)
-    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
-    try:
-        flags = store.all_health_flags()
-    finally:
-        store.close()
-    assert any(
-        f["flag_type"] == "STALE_ARTIFACT"
-        and "AGENTS.md" in f["detail"]
-        and "deleted or renamed" in f["detail"]
-        for f in flags
-    )
-
-
-# ---------------------------------------------------------------------------
-# Evidence classification and persistence
-# ---------------------------------------------------------------------------
-
-
-def test_claim_drift_is_verified_and_missing_claim_is_unknown(tmp_path):
-    _write(tmp_path, "ARCHITECTURE.md", "RRF k=60 constant\n")
-    _write(tmp_path, "src/holusight/search.py", "def rrf_merge(\n k: int = 99,\n):\n pass\n")
-    claims = consistency.evaluate_known_claims(tmp_path)
-    rrf = next(c for c in claims if c.name == "rrf_k")
-    assert rrf.status == consistency.ClaimStatus.DRIFT
-    assert rrf.evidence_class == consistency.EvidenceClass.VERIFIED
-    unknown = next(c for c in claims if c.name == "ast_min_lines")
-    assert unknown.evidence_class == consistency.EvidenceClass.UNKNOWN
-
-
-def test_refresh_persists_evidence_class_without_promoting_inference(tmp_path):
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-    store = ConsistencyStore(consistency.consistency_db_path(tmp_path))
-    try:
-        edges = store.all_edges()
-        flags = store.all_health_flags()
-    finally:
-        store.close()
-    assert any(e["evidence_class"] == "verified" for e in edges)
-    assert any(f["flag_type"] == "STALE_RELATIONSHIP" for f in flags)
-
-
-# ---------------------------------------------------------------------------
-# Pre-change evidence packet
-# ---------------------------------------------------------------------------
-
-
-def test_build_evidence_packet_unknown_concept_raises(tmp_path):
-    consistency.refresh(tmp_path)
-    with pytest.raises(KeyError):
-        consistency.build_evidence_packet(tmp_path, "specs/does-not-exist.md")
-
-
-def test_build_evidence_packet_returns_concept_and_edges(tmp_path):
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-
-    packet = consistency.build_evidence_packet(tmp_path, "specs/001-alpha.md")
-    assert packet.concept.concept_id == "specs/001-alpha.md"
-    assert packet.canonical_artifact is not None
-    assert packet.canonical_artifact.path == "specs/001-alpha.md"
-    assert any(e.to_ref == "artifact:src/pkg/mod.py" for e in packet.edges)
-    assert any(f.flag_type == "DANGLING_REFERENCE" for f in packet.health_flags)
-
-
-# ---------------------------------------------------------------------------
-# Post-change consistency check
-# ---------------------------------------------------------------------------
-
-
-def test_check_consistency_unknown_concept(tmp_path):
-    consistency.refresh(tmp_path)
-    report = consistency.check_consistency(tmp_path, "specs/does-not-exist.md")
-    assert report.status == consistency.ConsistencyStatus.UNKNOWN_CONCEPT
-
-
-def test_check_consistency_up_to_date_immediately_after_refresh(tmp_path):
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-    report = consistency.check_consistency(tmp_path, "specs/001-alpha.md")
-    assert report.status == consistency.ConsistencyStatus.UP_TO_DATE
-    assert report.canonical_changed is False
-    assert report.linked_changed == []
-
-
-def test_check_consistency_spec_changed_awaiting_implementation(tmp_path):
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-
-    _write(
-        tmp_path, "specs/001-alpha.md",
-        "# Alpha Feature\n\nImplemented by `src/pkg/mod.py`. New sentence.\n"
-        "Also mentions `src/pkg/missing.py`, which does not exist.\n",
-    )
-    report = consistency.check_consistency(tmp_path, "specs/001-alpha.md")
-    assert report.status == consistency.ConsistencyStatus.SPEC_CHANGED_AWAITING_IMPLEMENTATION
-    assert report.canonical_changed is True
-    assert report.linked_changed == []
-
-
-def test_check_consistency_possible_undocumented_drift(tmp_path):
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-
-    _write(tmp_path, "src/pkg/mod.py", "VALUE = 999  # behavior changed\n")
-    report = consistency.check_consistency(tmp_path, "specs/001-alpha.md")
-    assert report.status == consistency.ConsistencyStatus.POSSIBLE_UNDOCUMENTED_DRIFT
-    assert report.canonical_changed is False
-    assert "src/pkg/mod.py" in report.linked_changed
-
-
-def test_check_consistency_coordinated_change(tmp_path):
-    _minimal_repo(tmp_path)
-    consistency.refresh(tmp_path)
-
-    _write(
-        tmp_path, "specs/001-alpha.md",
-        "# Alpha Feature\n\nImplemented by `src/pkg/mod.py`. Updated together.\n"
-        "Also mentions `src/pkg/missing.py`, which does not exist.\n",
-    )
-    _write(tmp_path, "src/pkg/mod.py", "VALUE = 3  # coordinated update\n")
-    report = consistency.check_consistency(tmp_path, "specs/001-alpha.md")
-    assert report.status == consistency.ConsistencyStatus.COORDINATED_CHANGE
-    assert report.canonical_changed is True
-    assert "src/pkg/mod.py" in report.linked_changed
+    graph_path.write_text(json.dumps(graph))
+    result = check(repo)
+    assert result["status"] == "error"
+    assert {item["type"] for item in result["findings"]} == {"missing_line", "missing_path_claim"}
+    assert any(item["file"] == "docs/guide.md" and item["line"] == 1 for item in result["findings"])

@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Playbook: Review a research-to-improvement change
 
 Use this after specs 017 and 018 when a tracked conclusion needs a deterministic

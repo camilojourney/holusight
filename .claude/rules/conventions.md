@@ -1,10 +1,7 @@
 # Holusight Conventions
 
-- Python 3.10+, pip install -e ".[dev]"
-- Tests via pytest tests/ -x -v
-- Lint via ruff check src/ tests/
-- Read-only invariant: engine NEVER writes to indexed folders
-- Search is always local (BM25 + vector + RRF), LLM only for ask()
-- Content hash guard: sha256[:16] before re-embedding
-- Pluggable LLM backend: Claude, Azure OpenAI, OpenAI, Ollama
-- Storage in ~/.holusight/data/ (outside indexed folders)
+- Python requirements are in `pyproject.toml`; development commands are in `docs/playbooks/development.md`.
+- Read-only invariant: never write to a repository being checked.
+- Resolve graph and cited paths within the repository root; reject symlink escapes.
+- No implicit Graphify process, network access, embedding, or graph refresh.
+- Report precise paths/line evidence and honest stale/unknown/unavailable states; never claim prose truth from graph edges.

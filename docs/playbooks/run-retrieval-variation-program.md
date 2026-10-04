@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Playbook: Run the controlled retrieval variation program
 
 This program is a local, no-egress experiment over the fixed evidence-display

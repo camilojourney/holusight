@@ -1,79 +1,16 @@
-# Playbook: Development Setup
+# Develop and verify the consistency helper
 
-## Prerequisites
+Run in a clean, isolated worktree. Provision tooling with `uv sync --extra dev` before using offline commands. See [README](../../README.md) for installation and common CLI usage, and [Architecture](../../ARCHITECTURE.md) for graph provenance and source-scan contracts.
 
-- Python 3.11+
-- `uv` (recommended) or `pip`
-
-## Setup
-
-```bash
-cd holusight
-pip install -e ".[dev]"
-# or with uv:
-uv sync --extra dev
+```sh
+uv run --offline --extra dev ruff check src/ tests/
+uv run --offline --extra dev ruff format --check src/ tests/
+uv run --offline --extra dev pytest tests/ -q
+uv run --offline python -m holusight check .
+uv run --offline python -m holusight status .
+uv run --offline holus align .
 ```
 
-## Run Locally
+For the before/after repair workflow and fact-marker examples, follow [README: duplication, explicit alignment, and updates](../../README.md#duplication-explicit-alignment-and-updates).
 
-```bash
-# Index a folder of documents
-python -m holusight index /path/to/documents
-
-# Search
-python -m holusight search "payment terms" /path/to/documents
-
-# Ask a question (requires ANTHROPIC_API_KEY)
-python -m holusight ask "What are the payment terms?" /path/to/documents
-
-# Check index status
-python -m holusight status /path/to/documents
-
-# Launch the Streamlit demo UI
-uv run --extra demo python -m holusight demo
-# or directly:
-uv run --extra demo streamlit run demo/app.py
-
-# Production-shaped FastAPI server (requires API key unless unauthenticated dev)
-export HOLUSIGHT_API_KEY=dev-key
-export HOLUSIGHT_DOCUMENTS_DIR=./tests/fixtures/pilot_docs
-uv run --extra server python -m holusight serve ./tests/fixtures/pilot_docs
-```
-
-## Python API
-
-```python
-from holusight import Holusight
-
-engine = Holusight("/path/to/documents")
-engine.index()
-results = engine.search("payment terms")
-answer = engine.ask("What are the payment terms?")
-```
-
-## Tests
-
-```bash
-uv run --extra dev pytest tests/ -x -v
-```
-
-## Lint
-
-```bash
-uv run --extra dev ruff check src/ tests/
-uv run --extra dev ruff format src/ tests/ --check  # dry run
-```
-
-## Environment Variables
-
-See `.env.example` for all configuration options.
-
-Key variables:
-- `ANTHROPIC_API_KEY` — required for `ask()` / Claude answer synthesis
-- `HOLUSIGHT_DATA_DIR` — index storage location (default: `~/.holusight/data/`)
-- `HOLUSIGHT_EMBEDDING_MODEL` — embedding model (default: `all-MiniLM-L6-v2`)
-
-## Directory Layout
-
-See `ARCHITECTURE.md` for the full source layout.
-See `.claude/rules/structure.md` for where new files should go.
+A historical graph may correctly return `stale` and nonzero even when tests pass. Do not force a rebuild or claim a current verdict from that result. Use `--scope <repo-relative-file-or-directory>` and/or `--docs` to focus findings; see the [selector contract](../../ARCHITECTURE.md#public-contract). Inspect reported paths and lines directly; graph edges are not proof of prose claims.

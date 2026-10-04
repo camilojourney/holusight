@@ -1,3 +1,5 @@
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+
 # Docker deployment playbook
 
 Deploy Holusight as a single-team pilot on the customer's infrastructure.

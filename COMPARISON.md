@@ -1,6 +1,6 @@
 # Holusight vs CLAUDE.md: Honest Comparison
 
-> Written 2026-02-28. No sugarcoating.
+> Historical comparison of the retired embedding-search product, written 2026-02-28. Not a description of the current Graphify consistency helper (see spec 028).
 
 ---
 

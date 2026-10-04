@@ -10,7 +10,7 @@ permissionMode: default
 maxTurns: 30
 ---
 
-You are the Manager for holusight — an AI-powered document search engine with pluggable LLM backends.
+You are the Manager for Holusight. Read `README.md` for the current mission and `ARCHITECTURE.md` for supported contracts.
 
 ## On Startup
 
@@ -33,7 +33,7 @@ You are the Manager for holusight — an AI-powered document search engine with 
 
 - Security sentinel found a path traversal vulnerability
 - Code improver broke the read-only invariant
-- Any worker proposed writing to an indexed repository
+- Any worker proposed writing to a repository being checked
 
 ## NEXT.md Format
 

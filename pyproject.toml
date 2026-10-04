@@ -1,58 +1,15 @@
 [project]
 name = "holusight"
-version = "0.3.0"
-description = "AI-powered document search engine — hybrid BM25 + vector retrieval with Claude answer synthesis"
+version = "0.4.0"
+description = "Read-only Graphify graph/source consistency helper for agents"
 requires-python = ">=3.11"
-dependencies = [
-    "sentence-transformers>=3.0",
-    "lancedb>=0.17",
-    "pandas>=2.0",
-    "pathspec>=0.12",
-    "pydantic>=2.0",
-    "httpx>=0.27",
-    "pymupdf>=1.24",
-    "python-docx>=1.1",
-    "python-pptx>=0.6",
-    "voyageai>=0.3",
-    "python-dotenv>=1.2.2",
-]
+dependencies = []
 
 [project.scripts]
 holus = "holusight.cli_axi:main"
-holusight-install-skill = "holusight.skill_installer:main"
-holusight-embedding-daemon = "holusight.embedding_daemon:main"
 
 [project.optional-dependencies]
-claude = ["anthropic>=0.40"]
-azure = ["openai>=1.0"]
-openai = ["openai>=1.0"]
-all-llm = ["anthropic>=0.40", "openai>=1.0"]
-ast = [
-    "tree-sitter>=0.21",
-    "tree-sitter-python>=0.21",
-    "tree-sitter-javascript>=0.21",
-]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24",
-    "ruff>=0.8",
-    "anthropic>=0.40",
-    "openai>=1.0",
-    "tree-sitter>=0.21",
-    "tree-sitter-python>=0.21",
-    "tree-sitter-javascript>=0.21",
-    "fastapi>=0.110",
-    "uvicorn[standard]>=0.30",
-    "python-multipart>=0.0.9",
-]
-demo = [
-    "streamlit>=1.40",
-]
-server = [
-    "fastapi>=0.110",
-    "uvicorn[standard]>=0.30",
-    "python-multipart>=0.0.9",
-]
+dev = ["pytest>=8.0", "ruff>=0.8"]
 
 [build-system]
 requires = ["hatchling"]
@@ -69,5 +26,4 @@ target-version = "py311"
 select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]

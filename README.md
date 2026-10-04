@@ -1,63 +1,69 @@
 # Holusight
 
-Holusight is a local-first repository-evidence tool for agents. It answers questions about a project with bounded exact, structural, consistency, and optional semantic evidence, while reporting provenance, freshness, and whether an evidence provider is unavailable. It does not turn a partial result into a successful answer. The project website is [holusight.com](https://holusight.com/); this README makes no claim about that site's product behavior.
+Holusight is a small **read-only consistency helper for agents**. Graphify supplies the map; Holusight checks graph references and rescans current source for code/code and docs/docs duplication candidates and explicitly linked code/docs/code facts. It does **not** index documents, synthesize answers, infer arbitrary prose truth, call models/network services, edit source, or silently rebuild Graphify.
 
-## Install anywhere
+## Install
 
-Install the CLI globally, then bootstrap the skill in each project that uses it. The skill bootstrap is project-local and missing-only: it writes only `.agents/skills/holusight/` and preserves an existing project copy. It does not require or create a machine-wide skill directory. Requires [`uv`](https://docs.astral.sh/uv/).
+Requires Python 3.11+; Git is needed to verify graph provenance. From a checkout, run `uv sync` (or `pip install -e .`). The runtime has no Python dependencies. Development tooling uses `uv sync --extra dev`. Offline commands below require an already provisioned environment. The installed console entry point is `holus`; the former skill installer and retrieval commands are retired.
 
-```bash
-uv tool install git+https://github.com/camilojourney/holusight
-cd ~/some/project
-holusight-install-skill --project-local
+## Run
+
+Replace `[repo-path]` with the repository root or omit it for the current directory.
+
+```sh
+uv run --offline python -m holusight check [repo-path]
+uv run --offline python -m holusight check [repo-path] --scope specs/
+uv run --offline holus check [repo-path] --docs
+uv run --offline python -m holusight status [repo-path]
+uv run --offline holus align [repo-path]
+# after installation: holus check [repo-path] / holus align [repo-path]
 ```
 
-`holus`, `holusight-install-skill`, and the other `[project.scripts]` entries land on your `PATH` (`uv tool install` puts them in `~/.local/bin` - make sure that's on `PATH`). From then on, invoke `/holusight` inside that project.
+Output is JSON. `status` reports whole-graph provenance, not integrity; use `check` for errors. A current graph requires a matching build commit, clean Git tree and graph-backed source bytes verified against that snapshot. Unverifiable sources are `unknown`, not fresh. See [the provenance contract](ARCHITECTURE.md#data-and-trust-boundary) for exact conditions. The historical graph here is intentionally **not refreshed** during checks; expect `stale` until an operator rebuilds it independently. For `check`, exit 0 requires current provenance with no errors/unverified checks in declared coverage; exit 1 covers errors, stale, unknown or unavailable. Error findings in non-current graphs are leads, not a current clean bill of health.
 
-For a checkout or installed CLI:
+Graph integrity and literal source/path evidence are bounded checks, not semantic doc/code verification. A missing path immediately annotated `(not created yet)` (for example, `` `src/future.py` (not created yet) ``) is an informational `planned_path_reference`, not a confirmed current-reference error. It counts as unverified: a proposal-only scope returns `unknown`, not a clean semantic verdict. This literal path-local annotation does not infer intent from words like “future” elsewhere or exempt unsafe paths. Agents should inspect cited source lines and use Graphify directly for traversal. No source or graph files are written by `check` or `align`.
 
-```bash
-holusight-install-skill --project-local
+## Duplication, explicit alignment, and updates
+
+`holus align` rescans current Python and Markdown files with no cache or daemon. It reports Python function AST copies/renamed-local candidates and substantive duplicate/overlapping Markdown paragraphs. Candidates require agent judgment: similar code may be intentionally separate. It preserves literals, operators and external identifiers; unsupported languages and arbitrary prose meaning are not verified.
+
+For a fact that must agree across consumers, explicitly give it the same key:
+
+```python
+MAX_RETRIES = 3
+# holus:fact retry-limit = MAX_RETRIES
 ```
 
-The project-local destination is validated against the current project root and symlink escapes are rejected.
-
-## Repository evidence
-
-```bash
-cd ~/some/project
-holus                                      # repository snapshot and provider health
-holus evidence "where is retry policy enforced?"
-holus evidence "how does X work?" --mode structure
-holus providers                            # availability and freshness
+```markdown
+<!-- holus:fact retry-limit = 5 -->
 ```
 
-Exact, structural, and consistency evidence work without an embedding index. Structural evidence consumes `graphify-out/graph.json`; when it is missing or older than HEAD, Holusight invokes the installed `graphify` executable with `update .` and then reads the result. Its citation is marked current only when the graph's `built_at_commit` matches repository HEAD. A missing graph or failed builder is unavailable, and an unreadable or stale result is never presented as current. Builder discovery uses `PATH`, not a machine-specific script path.
+Different declarations of that key produce a mismatch with source hashes and locations across code/code, docs/docs or docs/code. Markers compare declarations, not surrounding prose. Python markers must be module-level; unsupported or malformed declarations are unverified, not executed. Source scans and graph freshness are separate: alignment can finish while the graph remains stale. See [the deterministic source contract](ARCHITECTURE.md#deterministic-source-checks-and-refresh) for binding, example-filtering and concurrent-edit limits.
 
-Semantic evidence requires an explicit index build:
+Agents can inspect findings, edit the cited source, and rerun:
 
-```bash
-python -m holusight index .
-holus evidence "how does X work?" --mode semantic
+```sh
+mkdir -p .holusight
+holus align . > .holusight/before.json  # exit 1 for explicit mismatch/incomplete scan
+# inspect cited files/lines and repair them (Holusight never edits them)
+holus align . --against .holusight/before.json > .holusight/after.json
 ```
 
-A missing, incomplete, or stale embedding index is a failure, not a successful partial answer. Exact matches cannot mask unavailable semantic evidence. Queries are local by default; external embedding access requires an explicit egress opt-in.
+Focus the agent's findings, without losing comparison partners:
 
-## Project-local skill controls
-
-```bash
-holusight-install-skill --print       # preview without writing
-uv tool install --editable .          # develop from a local checkout
-uv tool install --upgrade git+https://github.com/camilojourney/holusight
-uv tool uninstall holusight
+```sh
+holus check . --docs                  # supported Markdown anywhere in safe enumeration
+holus align . --scope specs/          # findings involving specs and relevant outside partners
+holus align . --scope src/holusight/  # application code and relevant documentation
+holus align . --docs --scope specs/  # intersection: Markdown beneath specs
 ```
 
-The installed skill records its interpreter in project-local derived state when needed. Holusight's search data is kept outside the indexed folder, keyed by that folder's path, and is never written into the repository being searched.
+The positional path stays the repository root, not the focus folder. File/directory scopes normalize trailing slashes and use path-component boundaries. `status` stays whole-graph provenance and rejects targeting flags. `--docs` does not enter ignored/private archives or follow source symlinks. `check` restricts source checks and graph integrity to selected items/incident links; its coverage explicitly says global integrity is not checked. `align` limits emitted findings, not comparison inventory: partners elsewhere and unverified partner evidence still matter. Reports expose the normalized selector and focused-file coverage. Empty/unrepresented selections are unknown/partial, never a clean pass. Focus reduces irrelevant findings the agent sees; it does not prove fewer scanner reads or improved productivity.
 
-## Evidence contract
+Reports include content hashes and `delta.new/resolved/persisting` IDs plus changed/deleted source paths. Resolved means no longer detected, not behaviorally correct. Comparison refuses incompatible or incomplete baselines; see [receipt compatibility](ARCHITECTURE.md#public-contract) and [scan limits](ARCHITECTURE.md#deterministic-source-checks-and-refresh). Duplicate-only `review` is advisory (exit 0); `mismatch`, `partial`, `unknown` and `unavailable` exit 1. There is no automatic skill selection or background Graphify refresh.
 
-Every provider reports an explicit state such as `ok`, `no_evidence`, `unavailable`, `stale`, or `budget_exceeded`. Evidence items include their source and location, and available providers attach provenance and freshness. If the required provider is unavailable or stale, the command exits nonzero and reports that state instead of presenting a partial answer as authoritative.
+## Development
 
-No public hosting or deployment behavior is implied by this repository README. The supported product surface described here is the local CLI and its project-local skill.
+See [the development playbook](docs/playbooks/development.md) for setup, tests and lint commands.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) and the numbered specifications in [specs/](specs/) for implementation detail.
+See `ARCHITECTURE.md`, `specs/028-graphify-consistency-helper.md` and `specs/029-deterministic-duplication-alignment.md` for the supported contracts, research and migration disposition. Earlier numbered specs and accepted decisions are historical context for the retired retrieval product, not current interfaces.

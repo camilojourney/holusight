@@ -1,26 +1,8 @@
-"""Holusight-AXI documentation-code consistency engine (Phase 1).
+"""Read-only checks of a Graphify graph against the repository it describes.
 
-Implements the vertical slice defined in
-``specs/013-holusight-axi-consistency-architecture.md``:
-
-- purpose-aware artifact classification (:func:`classify_artifact`)
-- a concept registry seeded from canonical specs/ADRs (:func:`build_concepts`)
-- canonical authority selection (one concept per spec/ADR file, plus a
-  ``MULTIPLE_CANONICAL_SCOPE`` health flag when scopes collide)
-- claim provenance for a small, explicit registry of named invariants
-  (:func:`evaluate_known_claims`)
-- relationship provenance across three distinguishable provider kinds:
-  exact (:func:`extract_exact_references`), structural
-  (:func:`structural_edges_for`, sourced from the tracked Graphify graph),
-  and semantic (:func:`semantic_similarity_edges`, local embeddings, opt-in)
-- an incremental local cache (:func:`refresh`, gated by content hash at the
-  artifact-classification layer)
-- a pre-change evidence packet (:func:`build_evidence_packet`)
-- a post-change consistency check (:func:`check_consistency`)
-
-All state this module writes lives in ``.holusight/consistency.db`` — see
-``consistency_store.py``. Canonical repository content (specs, ADRs,
-architecture docs, source, tests) is only ever read.
+Only graph integrity and source-backed facts are checked. An edge alone does not
+prove that documentation prose is true. No Graphify process, model, index or cache
+is started or written by this module.
 """
 
 from __future__ import annotations
@@ -29,1195 +11,517 @@ import hashlib
 import json
 import re
 import subprocess
-from datetime import datetime, timezone
-from enum import Enum
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Any
 
-from pydantic import BaseModel, Field
+from .focus import Focus
 
-from .consistency_store import ConsistencyStore
-from .git_utils import current_commit, is_git_repo
-from .indexer import walk_repo_files
-
-# ---------------------------------------------------------------------------
-# Enums
-# ---------------------------------------------------------------------------
-
-
-class ArtifactKind(str, Enum):
-    SPECIFICATION = "specification"
-    DECISION = "decision"
-    ARCHITECTURE = "architecture"
-    VISION_ROADMAP = "vision_roadmap"
-    PLAYBOOK = "playbook"
-    IMPLEMENTATION = "implementation"
-    TEST = "test"
-    DEVLOG = "devlog"
-    REPORT = "report"
-    BUSINESS = "business"
-    DOCUMENTATION = "documentation"
-    GOVERNANCE = "governance"
-    OTHER = "other"
+_GRAPH = Path("graphify-out/graph.json")
+_LINE = re.compile(r"^L([1-9][0-9]*)(?:-L?([1-9][0-9]*))?$")
+_PATH = re.compile(
+    r"(?:^|\s|[`(])((?:(?:src|tests|specs|docs|business|\.claude|\.github)/"
+    r"[\w./-]+\.[a-zA-Z0-9]+|(?:README|ARCHITECTURE|AGENTS|CLAUDE|COMPARISON)\.md))"
+    r"(?=[:#\s`)]|$)"
+)
+# A literal, path-local annotation, not a classifier of future/proposed prose.
+_PLANNED_PATH = re.compile(r"^`?\s+\(not created yet\)", re.IGNORECASE)
 
 
-class ArtifactAuthority(str, Enum):
-    CANONICAL = "canonical"
-    SUPPORTING = "supporting"
-    GENERATED = "generated"
-    HISTORICAL = "historical"
-
-
-class ProviderKind(str, Enum):
-    EXACT = "exact"
-    STRUCTURAL = "structural"
-    SEMANTIC = "semantic"
-
-
-class EvidenceClass(str, Enum):
-    """Strength of the repository evidence behind a recorded fact."""
-
-    VERIFIED = "verified"
-    DECLARED = "declared"
-    INFERRED = "inferred"
-    UNKNOWN = "unknown"
-
-
-class ClaimStatus(str, Enum):
-    MATCH = "match"
-    DRIFT = "drift"
-    UNKNOWN = "unknown"
-
-
-class ConsistencyStatus(str, Enum):
-    UP_TO_DATE = "up_to_date"
-    SPEC_CHANGED_AWAITING_IMPLEMENTATION = "spec_changed_awaiting_implementation"
-    POSSIBLE_UNDOCUMENTED_DRIFT = "possible_undocumented_drift"
-    COORDINATED_CHANGE = "coordinated_change"
-    UNKNOWN_CONCEPT = "unknown_concept"
-
-
-# ---------------------------------------------------------------------------
-# Models
-# ---------------------------------------------------------------------------
-
-
-class Artifact(BaseModel):
-    path: str
-    kind: ArtifactKind
-    authority: ArtifactAuthority
-    content_hash: str
-    classified_at: str
-
-
-class Concept(BaseModel):
-    concept_id: str
-    scope: str
-    canonical_path: str
-    source_kind: ArtifactKind
-    status: str = "active"
-
-
-class Edge(BaseModel):
-    from_ref: str
-    to_ref: str
-    relation: str
-    provider: ProviderKind
-    confidence: float
-    evidence: dict = Field(default_factory=dict)
-    created_at: str
-    evidence_class: EvidenceClass = EvidenceClass.UNKNOWN
-
-
-class Claim(BaseModel):
-    name: str
-    description: str
-    doc_path: str
-    doc_value: str | None
-    code_path: str
-    code_value: str | None
-    status: ClaimStatus
-    evaluated_at: str
-    evidence_class: EvidenceClass = EvidenceClass.UNKNOWN
-
-
-class HealthFlag(BaseModel):
-    flag_type: str
-    concept_id: str | None
-    detail: str
-    severity: str  # "info" | "warning" | "high"
-    detected_at: str
-    evidence_class: EvidenceClass = EvidenceClass.UNKNOWN
-
-
-class RepoSnapshot(BaseModel):
-    head_commit: str | None
-    dirty: bool
-
-
-class RefreshResult(BaseModel):
-    repo_snapshot: RepoSnapshot
-    artifacts_scanned: int
-    artifacts_reclassified: int
-    artifacts_unchanged: int
-    concepts: int
-    edges: int
-    claims: int
-    health_flags: int
-    structural_graph_stale: bool
-    structural_graph_commit: str | None
-
-
-class EvidencePacket(BaseModel):
-    repo_snapshot: RepoSnapshot
-    concept: Concept
-    canonical_artifact: Artifact | None
-    edges: list[Edge]
-    claims: list[Claim]
-    health_flags: list[HealthFlag]
-    structural_graph_stale: bool
-    structural_graph_commit: str | None
-
-
-class ConsistencyReport(BaseModel):
-    concept_id: str
-    status: ConsistencyStatus
-    canonical_changed: bool
-    linked_changed: list[str]
-    linked_unchanged: list[str]
-    notes: str
-
-
-# ---------------------------------------------------------------------------
-# Paths and small helpers
-# ---------------------------------------------------------------------------
-
-
-def consistency_db_path(repo_root: str | Path) -> Path:
-    """Path to the single atomic SQLite cache for a given repository root."""
-    return Path(repo_root) / ".holusight" / "consistency.db"
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _content_hash(path: Path) -> str:
-    """sha256[:16] of file bytes, matching this repo's existing convention
-    (see ``src/holusight/chunker.py`` and ARCHITECTURE.md's content-hashing
-    invariant)."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
-
-
-def _is_dirty(repo_root: Path) -> bool:
+def _git(repo: Path, *args: str) -> str | None:
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=str(repo_root),
+            ["git", "--no-optional-locks", "-c", "core.fsmonitor=false", "-C", str(repo), *args],
             capture_output=True,
             text=True,
-            timeout=10,
+            check=False,
+            timeout=5,
         )
-        return result.returncode == 0 and bool(result.stdout.strip())
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return False
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
-# ---------------------------------------------------------------------------
-# 1. Purpose-aware artifact classification
-# ---------------------------------------------------------------------------
+def _repo_path(value: str | Path) -> Path:
+    try:
+        return Path(value).expanduser().resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ValueError("Repository path cannot be resolved") from exc
 
-_SPEC_RE = re.compile(r"^specs/\d{3}-.+\.md$")
-_DECISION_RE = re.compile(r"^docs/decisions/\d{4}-.+\.md$")
+
+def _safe_path(repo: Path, value: object) -> Path | None:
+    if not isinstance(value, str) or not value or "\\" in value:
+        return None
+    path = Path(value)
+    if path.is_absolute() or any(part in ("..", ".") for part in path.parts):
+        return None
+    try:
+        target = (repo / path).resolve()
+    except (OSError, RuntimeError):
+        return None
+    return target if target.is_relative_to(repo) else None
 
 
-def classify_artifact(rel_path: str) -> tuple[ArtifactKind, ArtifactAuthority]:
-    """Classify one repo-relative path by purpose, deterministically.
+def _markdown_lines(text: str) -> Iterator[tuple[int, str | None]]:
+    """Bounded Markdown prose: exclude fences and indented example lines.
 
-    Rules mirror this repository's own documented structure contract
-    (``.claude/rules/structure.md``) rather than inspecting file content:
-    this answers "why does this file exist," not "what words are inside
-    it."
+    None is a block boundary so examples cannot join surrounding paragraphs.
+    This is not a complete Markdown renderer (lists/quotes are not interpreted).
     """
-    p = rel_path.replace("\\", "/")
-    if _SPEC_RE.match(p):
-        return ArtifactKind.SPECIFICATION, ArtifactAuthority.CANONICAL
-    if _DECISION_RE.match(p):
-        return ArtifactKind.DECISION, ArtifactAuthority.CANONICAL
-    if p == "ARCHITECTURE.md":
-        return ArtifactKind.ARCHITECTURE, ArtifactAuthority.CANONICAL
-    if p in ("docs/vision.md", "docs/roadmap.md"):
-        return ArtifactKind.VISION_ROADMAP, ArtifactAuthority.CANONICAL
-    if p.startswith("docs/playbooks/"):
-        return ArtifactKind.PLAYBOOK, ArtifactAuthority.SUPPORTING
-    if p.startswith("src/") and p.endswith(".py"):
-        return ArtifactKind.IMPLEMENTATION, ArtifactAuthority.SUPPORTING
-    if p.startswith("tests/") and p.endswith(".py"):
-        return ArtifactKind.TEST, ArtifactAuthority.SUPPORTING
-    if p.startswith("devlog/"):
-        return ArtifactKind.DEVLOG, ArtifactAuthority.HISTORICAL
-    if p.startswith(".self-improvement/reports/"):
-        return ArtifactKind.REPORT, ArtifactAuthority.GENERATED
-    if p in ("AGENTS.md", "CLAUDE.md") or (
-        p.startswith(".claude/rules/") and p.endswith(".md")
-    ):
-        return ArtifactKind.GOVERNANCE, ArtifactAuthority.CANONICAL
-    if p.startswith("graphify-out/"):
-        return ArtifactKind.REPORT, ArtifactAuthority.GENERATED
-    if p.startswith("business/"):
-        return ArtifactKind.BUSINESS, ArtifactAuthority.SUPPORTING
-    if p in ("README.md", "COMPARISON.md"):
-        return ArtifactKind.DOCUMENTATION, ArtifactAuthority.SUPPORTING
-    return ArtifactKind.OTHER, ArtifactAuthority.SUPPORTING
+    fence: tuple[str, int] | None = None
+    for number, line in enumerate(text.splitlines(), 1):
+        prefix = re.match(r"[ \t]*", line).group()
+        indent = len(prefix.expandtabs(4))
+        stripped = line[len(prefix) :]
+        delimiter = re.match(r"^(`{3,}|~{3,})(.*)$", stripped)
+        if fence:
+            if indent <= 3 and delimiter:
+                run, tail = delimiter.groups()
+                if run[0] == fence[0] and len(run) >= fence[1] and re.fullmatch(r"[ \t]*", tail):
+                    fence = None
+            yield number, None
+        elif indent >= 4:
+            yield number, None
+        elif delimiter and not (delimiter.group(1)[0] == "`" and "`" in delimiter.group(2)):
+            run = delimiter.group(1)
+            fence = (run[0], len(run))
+            yield number, None
+        else:
+            yield number, line
 
 
-def discover_artifacts(repo_root: Path) -> list[str]:
-    """Gitignore-aware discovery, reusing the existing indexer file walker."""
-    files = walk_repo_files(repo_root)
-    repo_root = Path(repo_root).resolve()
-    return sorted(str(f.relative_to(repo_root)) for f in files)
+def load_graph(repo_path: str | Path) -> dict[str, Any]:
+    """Load a local graph, raising on absence/invalid structure (never fake empty)."""
+    repo = _repo_path(repo_path)
+    path = _safe_path(repo, str(_GRAPH))
+    if path is None or not path.is_file():
+        raise FileNotFoundError("graphify-out/graph.json is missing or unsafe")
+    if path.stat().st_size > 100_000_000:
+        raise ValueError("graphify-out/graph.json exceeds 100 MB limit")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("nodes"), (list, dict)):
+        raise ValueError("Graphify graph has no valid nodes collection")
+    if not isinstance(data.get("links"), list):
+        raise ValueError("Graphify graph has no valid links collection")
+    return data
 
 
-# ---------------------------------------------------------------------------
-# 2 & 3. Concept registry + canonical authority selection
-# ---------------------------------------------------------------------------
+def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
+    """Require matching HEAD, clean Git state and graph source bytes bound to its blobs."""
+    repo = _repo_path(repo_path)
+    built = graph.get("built_at_commit")
+    git_root = _git(repo, "rev-parse", "--show-toplevel")
+    head = _git(repo, "rev-parse", "HEAD")
+    dirty = _git(repo, "status", "--porcelain", "--untracked-files=normal")
+    sources_verified = False
+    if head is not None and built == head and dirty == "":
+        tree = _git(repo, "ls-tree", "-r", "-z", "--full-tree", head)
+        if tree is not None:
+            committed = {}
+            for entry in tree.split("\0"):
+                if entry:
+                    metadata, name = entry.split("\t", 1)
+                    mode, kind, digest = metadata.split()
+                    if mode in {"100644", "100755"} and kind == "blob":
+                        committed[name] = digest
+            nodes = graph.get("nodes", [])
+            records = list(nodes.values()) if isinstance(nodes, dict) else list(nodes)
+            records.extend(graph.get("links", []))
+            sources_verified = True
+            for name in {
+                record["source_file"]
+                for record in records
+                if isinstance(record, dict) and isinstance(record.get("source_file"), str)
+            }:
+                path = _safe_path(repo, name)
+                if (
+                    path is None
+                    or path != repo / name
+                    or name not in committed
+                    or not path.is_file()
+                    or _git(repo, "hash-object", "--no-filters", "--", str(path)) != committed[name]
+                ):
+                    sources_verified = False
+                    break
+    head_after = _git(repo, "rev-parse", "HEAD")
+    try:
+        verified_root = _repo_path(git_root) if git_root else None
+    except ValueError:
+        verified_root = None
+    if not isinstance(built, str) or not re.fullmatch(r"[0-9a-fA-F]{40}", built):
+        state = "unknown"
+        reason = "graph built_at_commit is missing or invalid"
+    elif head is None or head_after is None or dirty is None or verified_root != repo:
+        state = "unknown"
+        reason = "Repository Git root, HEAD, or working tree state could not be verified"
+    elif head != head_after:
+        state = "unknown"
+        reason = "Repository HEAD changed while verifying provenance"
+    elif built != head or dirty:
+        state = "stale"
+        reason = "graph commit differs from HEAD or repository has local changes"
+    elif not sources_verified:
+        state = "unknown"
+        reason = "Graph source bytes are not verified regular files in the Git snapshot"
+    else:
+        state = "current"
+        reason = "graph commit equals HEAD, working tree is clean, and source bytes match Git"
+    return {
+        "state": state,
+        "reason": reason,
+        "built_at_commit": built,
+        "head_commit": head_after,
+        "head_commit_before": head,
+    }
 
-_H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
-_SUPERSEDED_RE = re.compile(r"(?im)^\**status\**\s*:?\s*superseded")
 
+def check(repo_path: str | Path, *, scope: str | None = None, docs: bool = False) -> dict[str, Any]:
+    """Check graph provenance, node/edge integrity and explicit path claims.
 
-def _extract_scope_title(text: str, fallback: str) -> str:
-    match = _H1_RE.search(text)
-    return match.group(1).strip() if match else fallback
+    Findings are bounded to 100 examples; counts are for the complete scan.
+    """
+    repo = _repo_path(repo_path)
+    if not repo.is_dir():
+        raise ValueError(f"Not a directory: {repo}")
+    # Reuse existing enumeration/exclusions only when a selector is requested.
+    # This lazy import avoids a module cycle; alignment already uses this checker.
+    if scope is not None or docs:
+        from .alignment import _EXCLUDED, _inventory
 
+        focus = Focus(
+            repo, scope, docs, allowed=_inventory(repo) if docs else (), excluded=_EXCLUDED
+        )
+    else:
+        focus = Focus(repo, scope, docs)
+    selection = {"scope": focus.scope, "docs": docs, "selector": focus.describe()}
+    try:
+        graph = load_graph(repo)
+    except (OSError, ValueError, json.JSONDecodeError, UnicodeError) as exc:
+        return {
+            "status": "unavailable",
+            "reason": str(exc),
+            **selection,
+            "errors": 0,
+            "findings": [],
+            "checked": 0,
+        }
 
-def build_concepts(artifacts: dict[str, Artifact], repo_root: Path) -> list[Concept]:
-    """One concept per canonical spec/ADR file — this repository already
-    enforces one-feature-per-numbered-spec, so the file *is* the concept
-    scope by construction."""
-    repo_root = Path(repo_root)
-    concepts: list[Concept] = []
-    for path, artifact in sorted(artifacts.items()):
-        if artifact.kind not in (
-            ArtifactKind.SPECIFICATION,
-            ArtifactKind.DECISION,
-            ArtifactKind.GOVERNANCE,
+    proof = provenance(repo, graph)
+    nodes = graph["nodes"]
+    if isinstance(nodes, dict):
+        nodes = [
+            dict(value, id=key) if isinstance(value, dict) else value
+            for key, value in nodes.items()
+        ]
+    links = graph["links"]
+    selected_files = {
+        item["source_file"]
+        for item in [*nodes, *links]
+        if isinstance(item, dict)
+        and isinstance(item.get("source_file"), str)
+        and focus.matches(item["source_file"])
+    }
+    selected_ids = {
+        n["id"]
+        for n in nodes
+        if isinstance(n, dict)
+        and isinstance(n.get("id"), str)
+        and focus.matches(n.get("source_file"))
+    }
+    coverage = {"graph_files": len(selected_files), "global_integrity": not focus.filtered}
+    if focus.filtered and not selected_files:
+        return {
+            "status": "unknown",
+            "reason": "selector has no graph-backed source evidence",
+            **selection,
+            "coverage": coverage,
+            "provenance": proof,
+            "errors": 0,
+            "checked": 0,
+            "findings": [],
+        }
+    ids = {n.get("id") for n in nodes if isinstance(n, dict) and isinstance(n.get("id"), str)}
+    findings: list[dict[str, Any]] = []
+    error_types: dict[str, int] = {}
+    finding_types: dict[str, int] = {}
+    errors = 0
+    finding_count = 0
+    checked = 0
+    unverified = 0
+    line_counts: dict[Path, int | None] = {}
+    source_hashes: dict[Path, str] = {}
+    resolved_paths: dict[str, Path | None] = {}
+    path_states: dict[Path, bool] = {}
+    inputs_changed = False
+
+    def checked_path(value: str) -> Path | None:
+        nonlocal inputs_changed
+        path = _safe_path(repo, value)
+        inputs_changed |= resolved_paths.setdefault(value, path) != path
+        return path
+
+    def is_file(path: Path) -> bool:
+        nonlocal inputs_changed
+        try:
+            exists = path.is_file()
+        except (OSError, RuntimeError):
+            exists = False
+        inputs_changed |= path_states.setdefault(path, exists) != exists
+        return exists
+
+    def read_lines(path: Path) -> list[str] | None:
+        nonlocal inputs_changed
+        try:
+            if _safe_path(repo, str(path.relative_to(repo))) != path:
+                return None
+            with path.open("rb") as stream:
+                data = stream.read(2_000_001)
+            if len(data) > 2_000_000:
+                return None
+            lines = data.decode("utf-8").splitlines()
+            digest = hashlib.sha256(data).hexdigest()
+            inputs_changed |= source_hashes.setdefault(path, digest) != digest
+            return lines
+        except (OSError, UnicodeError):
+            return None
+
+    def record(
+        kind: str,
+        file: str,
+        line: int | None,
+        message: str,
+        evidence: str,
+        *,
+        severity: str = "error",
+    ) -> None:
+        nonlocal errors, finding_count
+        finding_count += 1
+        finding_types[kind] = finding_types.get(kind, 0) + 1
+        if severity == "error":
+            errors += 1
+            error_types[kind] = error_types.get(kind, 0) + 1
+        if len(findings) < 100 and finding_types[kind] <= 15:
+            findings.append(
+                {
+                    "severity": severity,
+                    "type": kind,
+                    "file": file,
+                    "line": line,
+                    "message": message,
+                    "evidence": evidence,
+                }
+            )
+
+    def inspect_file(file: object, location: object, evidence: str) -> None:
+        nonlocal checked, unverified
+        if focus.filtered and not focus.matches(file):
+            return
+        if not isinstance(file, str) or not file:
+            unverified += 1
+            record(
+                "unavailable_source",
+                str(_GRAPH),
+                None,
+                "Graph item has no usable source file; source evidence is unavailable",
+                evidence,
+                severity="info",
+            )
+            return
+        checked += 1
+        path = checked_path(file)
+        if docs and focus.symlink_source(file):
+            path = None
+        if path is None:
+            record(
+                "unsafe_path",
+                file,
+                None,
+                "Graph source path is unsafe or cannot be resolved",
+                evidence,
+            )
+            return
+        if not is_file(path):
+            record("missing_source", file, None, "Graph references a missing source file", evidence)
+            return
+        if location is not None and (
+            not isinstance(location, str) or not _LINE.fullmatch(location)
+        ):
+            record(
+                "invalid_source_location",
+                file,
+                None,
+                "Graph source location must be L<positive line> or a positive line range",
+                evidence,
+            )
+            return
+        if isinstance(location, str) and (match := _LINE.fullmatch(location)):
+            lineno = int(match.group(1))
+            end_line = int(match.group(2) or match.group(1))
+            if end_line < lineno:
+                record(
+                    "invalid_line_range",
+                    file,
+                    lineno,
+                    "Graph source line range is reversed",
+                    evidence,
+                )
+                return
+            # Source-location checks are factual even for stale graphs; an edge
+            # relation's semantic truth is not inferred from the line.
+            if path not in line_counts:
+                lines = read_lines(path)
+                line_counts[path] = len(lines) if lines is not None else None
+            if line_counts[path] is None:
+                unverified += 1
+                return
+            if end_line > line_counts[path]:
+                record(
+                    "missing_line",
+                    file,
+                    end_line,
+                    "Graph source line is beyond end of current file",
+                    evidence,
+                )
+
+    seen_ids: set[str] = set()
+    for n in nodes:
+        if not isinstance(n, dict) or not isinstance(n.get("id"), str) or not n["id"]:
+            if not focus.filtered or (isinstance(n, dict) and focus.matches(n.get("source_file"))):
+                record("invalid_node", str(_GRAPH), None, "Graph node has no valid ID", "nodes")
+            continue
+        if n["id"] in seen_ids and (not focus.filtered or n["id"] in selected_ids):
+            record(
+                "duplicate_node",
+                str(_GRAPH),
+                None,
+                f"Duplicate graph node ID: {n['id']}",
+                f"node:{n['id']}",
+            )
+        seen_ids.add(n["id"])
+        inspect_file(n.get("source_file"), n.get("source_location"), f"node:{n['id']}")
+    for index, edge in enumerate(links):
+        if not isinstance(edge, dict):
+            if not focus.filtered:
+                record(
+                    "invalid_edge",
+                    str(_GRAPH),
+                    None,
+                    "Graph edge is not an object",
+                    f"links[{index}]",
+                )
+            continue
+        if focus.filtered and not (
+            focus.matches(edge.get("source_file"))
+            or any(
+                isinstance(edge.get(k), str) and edge[k] in selected_ids
+                for k in ("source", "target")
+            )
         ):
             continue
+        for endpoint in ("source", "target"):
+            if not isinstance(edge.get(endpoint), str) or edge[endpoint] not in ids:
+                record(
+                    "dangling_edge",
+                    str(_GRAPH),
+                    None,
+                    f"Edge {endpoint} is not a graph node: {edge.get(endpoint)!r}",
+                    f"links[{index}]",
+                )
+        inspect_file(edge.get("source_file"), edge.get("source_location"), f"links[{index}]")
+
+    # Only explicit repository paths in graph-backed documentation are claims.
+    # No fuzzy symbols or generic prose assertions are treated as proven drift.
+    doc_files = {
+        n.get("source_file")
+        for n in nodes
+        if isinstance(n, dict)
+        and n.get("file_type") == "document"
+        and isinstance(n.get("source_file"), str)
+    }
+    for file in sorted(doc_files):
+        if focus.filtered and not focus.matches(file):
+            continue
+        path = checked_path(file)
+        if docs and focus.symlink_source(file):
+            continue  # already reported as unsafe by graph source inspection
+        if path is None or not is_file(path) or path.suffix != ".md":
+            continue
+        lines = read_lines(path)
+        if lines is None:
+            unverified += 1
+            continue
+        for lineno, line in _markdown_lines("\n".join(lines)):
+            if line is None:
+                continue
+            for match in _PATH.finditer(line):
+                ref = match.group(1)
+                checked += 1
+                target = checked_path(ref)
+                if target is None or not is_file(target):
+                    if target is not None and _PLANNED_PATH.match(line[match.end() :]):
+                        unverified += 1
+                        record(
+                            "planned_path_reference",
+                            file,
+                            lineno,
+                            f"Absent path is annotated '(not created yet)': {ref}; "
+                            "not a verified current-reference claim",
+                            f"path:{ref}",
+                            severity="info",
+                        )
+                    else:
+                        record(
+                            "missing_path_claim",
+                            file,
+                            lineno,
+                            f"Explicit repository path does not exist: {ref}",
+                            f"path:{ref}",
+                        )
+
+    # Bounded end-of-check resampling, not a monitor or an atomicity promise.
+    if docs:
         try:
-            text = (repo_root / path).read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            text = ""
-        scope = _extract_scope_title(text, fallback=path)
-        status = "superseded" if _SUPERSEDED_RE.search(text) else "active"
-        concepts.append(
-            Concept(
-                concept_id=path,
-                scope=scope,
-                canonical_path=path,
-                source_kind=artifact.kind,
-                status=status,
-            )
-        )
-    return concepts
-
-
-# ---------------------------------------------------------------------------
-# 5a. Relationship provenance: exact provider
-# ---------------------------------------------------------------------------
-
-_URL_RE = re.compile(r"https?://\S+")
-_PATH_TOKEN_RE = re.compile(
-    r"(?<![\w./-])((?:\.\./|[\w.-]+/)+[\w.-]+\.(?:py|md|json|ya?ml|toml))(?![\w/-])"
-)
-_REFERABLE_KINDS = (
-    ArtifactKind.SPECIFICATION,
-    ArtifactKind.DECISION,
-    ArtifactKind.ARCHITECTURE,
-    ArtifactKind.GOVERNANCE,
-)
-
-
-def _resolve_candidate(raw: str, doc_dir: Path, repo_root: Path) -> Path | None:
-    """Resolve a prose path token against the doc's own directory first
-    (markdown-link convention), then the repo root (bare repo-relative
-    mention convention). Returns None if it escapes the repo or doesn't
-    exist on disk — a dangling reference, not a fabricated edge."""
-    for base in (doc_dir, repo_root):
-        candidate = (base / raw).resolve()
-        try:
-            candidate.relative_to(repo_root)
+            inputs_changed |= set(_inventory(repo)) != focus.allowed
         except ValueError:
-            continue
-        if candidate.exists() and candidate.is_file():
-            return candidate
-    return None
-
-
-def extract_exact_references(
-    doc_path: str, repo_root: Path
-) -> tuple[list[Edge], list[str]]:
-    """Extract file-path references from one doc's prose, resolved against
-    the filesystem. Returns (edges, dangling_tokens): a token that looks
-    like a path but doesn't resolve to a real file is reported as dangling
-    rather than silently dropped or fabricated into an edge."""
-    repo_root = Path(repo_root).resolve()
-    full_path = repo_root / doc_path
+            inputs_changed = True
+    for value, path in resolved_paths.items():
+        inputs_changed |= _safe_path(repo, value) != path
+    for path, existed in path_states.items():
+        inputs_changed |= is_file(path) != existed
+    for path in list(source_hashes):
+        if read_lines(path) is None:
+            inputs_changed = True
     try:
-        text = full_path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return [], []
-
-    doc_dir = full_path.parent
-    now = _now()
-    seen: set[str] = set()
-    edges: list[Edge] = []
-    dangling: list[str] = []
-
-    # Strip URLs first so a GitHub blob URL's path segment (e.g.
-    # "github.com/org/repo/blob/main/specs/010-x.md") is never mistaken for
-    # a repo-relative file reference.
-    scan_text = _URL_RE.sub(" ", text)
-
-    for match in _PATH_TOKEN_RE.finditer(scan_text):
-        raw = match.group(1)
-        if raw in seen:
-            continue
-        seen.add(raw)
-
-        resolved = _resolve_candidate(raw, doc_dir, repo_root)
-        if resolved is None:
-            dangling.append(raw)
-            continue
-
-        rel_str = str(resolved.relative_to(repo_root)).replace("\\", "/")
-        if rel_str == doc_path:
-            continue
-
-        edges.append(
-            Edge(
-                from_ref=f"artifact:{doc_path}",
-                to_ref=f"artifact:{rel_str}",
-                relation="references",
-                provider=ProviderKind.EXACT,
-                confidence=1.0,
-                evidence={"pattern": "path-token", "raw_token": raw},
-                created_at=now,
-                evidence_class=EvidenceClass.VERIFIED,
-            )
-        )
-
-    return edges, dangling
-
-
-# ---------------------------------------------------------------------------
-# 5b. Relationship provenance: structural provider (Graphify)
-# ---------------------------------------------------------------------------
-
-
-class _StructuralIndex:
-    __slots__ = ("available", "built_at_commit", "node_file", "file_nodes", "links")
-
-    def __init__(
-        self,
-        available: bool,
-        built_at_commit: str | None,
-        node_file: dict[str, str],
-        file_nodes: dict[str, list[str]],
-        links: list[dict],
-    ) -> None:
-        self.available = available
-        self.built_at_commit = built_at_commit
-        self.node_file = node_file
-        self.file_nodes = file_nodes
-        self.links = links
-
-
-def _load_structural_index(repo_root: Path) -> _StructuralIndex:
-    graph_path = Path(repo_root) / "graphify-out" / "graph.json"
-    if not graph_path.exists():
-        return _StructuralIndex(False, None, {}, {}, [])
-    try:
-        data = json.loads(graph_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return _StructuralIndex(False, None, {}, {}, [])
-
-    node_file: dict[str, str] = {}
-    file_nodes: dict[str, list[str]] = {}
-    for node in data.get("nodes", []):
-        node_id = node.get("id")
-        source_file = node.get("source_file")
-        if node_id and source_file:
-            node_file[node_id] = source_file
-            file_nodes.setdefault(source_file, []).append(node_id)
-
-    return _StructuralIndex(
-        available=True,
-        built_at_commit=data.get("built_at_commit"),
-        node_file=node_file,
-        file_nodes=file_nodes,
-        links=data.get("links", []),
-    )
-
-
-def structural_graph_freshness(
-    index: _StructuralIndex, repo_root: Path
-) -> tuple[bool, str | None]:
-    """Return (stale, built_at_commit). Unavailable graph counts as stale."""
-    if not index.available:
-        return True, None
-    head = current_commit(repo_root)
-    stale = head is None or index.built_at_commit is None or head != index.built_at_commit
-    return stale, index.built_at_commit
-
-
-def structural_edges_for(
-    index: _StructuralIndex, artifact_path: str, stale: bool
-) -> list[Edge]:
-    """Edges sourced from the tracked Graphify graph for one implementation
-    file, explicitly tagged `structural` with the graph's own confidence
-    and a staleness flag — never presented as if it were exact evidence."""
-    node_ids = set(index.file_nodes.get(artifact_path, []))
-    if not node_ids:
-        return []
-
-    now = _now()
-    seen: set[tuple[str, str]] = set()
-    edges: list[Edge] = []
-    for link in index.links:
-        source, target = link.get("source"), link.get("target")
-        if source in node_ids:
-            other_file = index.node_file.get(target)
-        elif target in node_ids:
-            other_file = index.node_file.get(source)
-        else:
-            continue
-        if not other_file or other_file == artifact_path:
-            continue
-
-        relation = link.get("relation", "related")
-        key = (other_file, relation)
-        if key in seen:
-            continue
-        seen.add(key)
-
-        edges.append(
-            Edge(
-                from_ref=f"artifact:{artifact_path}",
-                to_ref=f"artifact:{other_file}",
-                relation=f"structural:{relation}",
-                provider=ProviderKind.STRUCTURAL,
-                confidence=float(link.get("confidence_score", 0.5)),
-                evidence={
-                    "graphify_relation": relation,
-                    "graphify_confidence_label": link.get("confidence"),
-                    "graph_built_at_commit": index.built_at_commit,
-                    "graph_stale": stale,
-                },
-                created_at=now,
-                evidence_class=EvidenceClass.INFERRED,
-            )
-        )
-    return edges
-
-
-# ---------------------------------------------------------------------------
-# 5c. Relationship provenance: semantic provider (local embeddings, opt-in)
-# ---------------------------------------------------------------------------
-
-
-class EmbedFn(Protocol):
-    def __call__(self, texts: list[str]) -> list[list[float]]: ...
-
-
-def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = sum(x * x for x in a) ** 0.5
-    norm_b = sum(y * y for y in b) ** 0.5
-    if norm_a == 0.0 or norm_b == 0.0:
-        return 0.0
-    return dot / (norm_a * norm_b)
-
-
-def semantic_similarity_edges(
-    concepts: list[Concept],
-    artifacts: dict[str, Artifact],
-    repo_root: Path,
-    embed_fn: EmbedFn,
-    threshold: float = 0.55,
-) -> list[Edge]:
-    """Local-embedding similarity between each concept's canonical text and
-    other documentation-kind artifacts not already linked by an exact
-    reference. Opt-in only, never invoked by default. Confidence is the
-    similarity score; never treated as canonical, only as a "possibly
-    relates to" hint above ``threshold``."""
-    repo_root = Path(repo_root)
-    doc_kinds = (
-        ArtifactKind.SPECIFICATION,
-        ArtifactKind.DECISION,
-        ArtifactKind.ARCHITECTURE,
-        ArtifactKind.PLAYBOOK,
-    )
-    candidate_paths = [
-        path for path, artifact in artifacts.items() if artifact.kind in doc_kinds
-    ]
-    if not concepts or not candidate_paths:
-        return []
-
-    texts_by_path: dict[str, str] = {}
-    for path in {c.canonical_path for c in concepts} | set(candidate_paths):
-        try:
-            texts_by_path[path] = (repo_root / path).read_text(
-                encoding="utf-8", errors="replace"
-            )
-        except OSError:
-            texts_by_path[path] = ""
-
-    ordered_paths = sorted(texts_by_path)
-    vectors = embed_fn([texts_by_path[p] for p in ordered_paths])
-    vector_by_path = dict(zip(ordered_paths, vectors))
-
-    now = _now()
-    edges: list[Edge] = []
-    for concept in concepts:
-        concept_vector = vector_by_path.get(concept.canonical_path)
-        if concept_vector is None:
-            continue
-        for path in candidate_paths:
-            if path == concept.canonical_path:
-                continue
-            other_vector = vector_by_path.get(path)
-            if other_vector is None:
-                continue
-            score = _cosine(concept_vector, other_vector)
-            if score < threshold:
-                continue
-            edges.append(
-                Edge(
-                    from_ref=f"concept:{concept.concept_id}",
-                    to_ref=f"artifact:{path}",
-                    relation="possibly_relates_to",
-                    provider=ProviderKind.SEMANTIC,
-                    confidence=round(score, 4),
-                    evidence={"embedding_threshold": threshold},
-                    created_at=now,
-                    evidence_class=EvidenceClass.INFERRED,
-                )
-            )
-    return edges
-
-
-# ---------------------------------------------------------------------------
-# 4. Claim provenance: known-invariant registry
-# ---------------------------------------------------------------------------
-
-
-class _ClaimDef:
-    __slots__ = ("name", "description", "doc_path", "doc_pattern", "code_path", "code_pattern")
-
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        doc_path: str,
-        doc_pattern: re.Pattern,
-        code_path: str,
-        code_pattern: re.Pattern,
-    ) -> None:
-        self.name = name
-        self.description = description
-        self.doc_path = doc_path
-        self.doc_pattern = doc_pattern
-        self.code_path = code_path
-        self.code_pattern = code_pattern
-
-
-# Deliberately small and explicit — not a general natural-language claim
-# extractor. Each entry mirrors one line of ARCHITECTURE.md's "What NOT to
-# Change Without Discussion" section. Extend this list only with claims that
-# have an unambiguous, regex-extractable value on both sides.
-_KNOWN_CLAIMS: tuple[_ClaimDef, ...] = (
-    _ClaimDef(
-        name="rrf_k",
-        description="Reciprocal Rank Fusion k constant",
-        doc_path="ARCHITECTURE.md",
-        doc_pattern=re.compile(r"RRF k=(\d+) constant"),
-        code_path="src/holusight/search.py",
-        code_pattern=re.compile(r"def rrf_merge\([\s\S]*?k:\s*int\s*=\s*(\d+)"),
-    ),
-    _ClaimDef(
-        name="ast_min_lines",
-        description="AST chunking merge-small-siblings threshold",
-        doc_path="ARCHITECTURE.md",
-        doc_pattern=re.compile(r"AST min_lines=(\d+) threshold"),
-        code_path="src/holusight/chunker.py",
-        code_pattern=re.compile(r"min_lines:\s*int\s*=\s*(\d+)"),
-    ),
-    _ClaimDef(
-        name="content_hash_length",
-        description="Content hash truncation length used for dedup",
-        doc_path="ARCHITECTURE.md",
-        doc_pattern=re.compile(r"sha256\(content\)\[:(\d+)\]"),
-        code_path="src/holusight/chunker.py",
-        code_pattern=re.compile(r"hexdigest\(\)\[:(\d+)\]"),
-    ),
-    _ClaimDef(
-        name="data_dir_location",
-        description="On-disk index storage root",
-        doc_path="ARCHITECTURE.md",
-        doc_pattern=re.compile(r"(~/\.holusight/data/)"),
-        code_path="src/holusight/config.py",
-        code_pattern=re.compile(r'Path\.home\(\)\s*/\s*"\.holusight"\s*/\s*"data"'),
-    ),
-)
-
-# Per-claim raw-code-value normalizers, applied only when the code pattern
-# matched. Explicit and documented, not inferred.
-_CLAIM_NORMALIZERS: dict[str, Callable[[str], str]] = {
-    "data_dir_location": lambda _raw: "~/.holusight/data/",
-}
-
-
-def _search_first_group(path: Path, pattern: re.Pattern) -> str | None:
-    if not path.exists():
-        return None
-    try:
-        text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return None
-    match = pattern.search(text)
-    if not match:
-        return None
-    return match.group(1) if match.groups() else match.group(0)
-
-
-def evaluate_known_claims(repo_root: Path) -> list[Claim]:
-    """Evaluate the small, explicit registry of named invariants: extract
-    each side's value with a registered regex, compare, and classify as
-    match/drift/unknown. Never fabricates a value when a pattern doesn't
-    match — that is reported as ``unknown``, not silently skipped."""
-    repo_root = Path(repo_root)
-    now = _now()
-    claims: list[Claim] = []
-    for definition in _KNOWN_CLAIMS:
-        doc_value = _search_first_group(repo_root / definition.doc_path, definition.doc_pattern)
-        raw_code_value = _search_first_group(
-            repo_root / definition.code_path, definition.code_pattern
-        )
-        normalizer = _CLAIM_NORMALIZERS.get(definition.name)
-        code_value = (
-            normalizer(raw_code_value)
-            if raw_code_value is not None and normalizer
-            else raw_code_value
-        )
-
-        if doc_value is None or code_value is None:
-            status = ClaimStatus.UNKNOWN
-        elif doc_value == code_value:
-            status = ClaimStatus.MATCH
-        else:
-            status = ClaimStatus.DRIFT
-
-        evidence_class = (
-            EvidenceClass.VERIFIED
-            if doc_value is not None and code_value is not None
-            else EvidenceClass.DECLARED
-            if doc_value is not None
-            else EvidenceClass.UNKNOWN
-        )
-        claims.append(
-            Claim(
-                name=definition.name,
-                description=definition.description,
-                doc_path=definition.doc_path,
-                doc_value=doc_value,
-                code_path=definition.code_path,
-                code_value=code_value,
-                status=status,
-                evaluated_at=now,
-                evidence_class=evidence_class,
-            )
-        )
-    return claims
-
-
-# ---------------------------------------------------------------------------
-# Health flags
-# ---------------------------------------------------------------------------
-
-
-def compute_health_flags(
-    concepts: list[Concept],
-    claims: list[Claim],
-    edges: list[Edge],
-    dangling_by_doc: dict[str, list[str]],
-    structural_stale: bool,
-    structural_commit: str | None,
-    removed_artifacts: list[str] | None = None,
-) -> list[HealthFlag]:
-    now = _now()
-    flags: list[HealthFlag] = []
-
-    # A cache entry disappearing is actionable repository evidence, but not
-    # proof of a deletion versus a rename. Keep that distinction explicit so
-    # governance checks never overclaim what the filesystem can establish.
-    for path in sorted(removed_artifacts or []):
-        flags.append(
-            HealthFlag(
-                flag_type="STALE_ARTIFACT",
-                concept_id=path,
-                detail=(
-                    f"cached artifact {path!r} is absent from the current repository; "
-                    "it may have been deleted or renamed, so references require review"
-                ),
-                severity="warning",
-                detected_at=now,
-                evidence_class=EvidenceClass.VERIFIED,
-            )
-        )
-
-    scopes: dict[str, list[str]] = {}
-    for concept in concepts:
-        scopes.setdefault(concept.scope.strip().lower(), []).append(concept.concept_id)
-    for scope_key, concept_ids in scopes.items():
-        if len(concept_ids) > 1:
-            flags.append(
-                HealthFlag(
-                    flag_type="MULTIPLE_CANONICAL_SCOPE",
-                    concept_id=sorted(concept_ids)[0],
-                    detail=(
-                        f"{len(concept_ids)} concepts share scope title "
-                        f"{scope_key!r}: {', '.join(sorted(concept_ids))}"
-                    ),
-                    severity="warning",
-                    detected_at=now,
-                    evidence_class=EvidenceClass.VERIFIED,
-                )
-            )
-
-    if structural_stale:
-        flags.append(
-            HealthFlag(
-                flag_type="STALE_STRUCTURAL_GRAPH",
-                concept_id=None,
-                detail=(
-                    f"graphify-out/graph.json built_at_commit={structural_commit!r} "
-                    "does not match current HEAD; run `graphify update .`"
-                ),
-                severity="info",
-                detected_at=now,
-                evidence_class=EvidenceClass.INFERRED,
-            )
-        )
-
-    exact_outgoing: dict[str, set[str]] = {}
-    for edge in edges:
-        if edge.provider == ProviderKind.EXACT:
-            exact_outgoing.setdefault(edge.from_ref, set()).add(edge.to_ref)
-    for concept in concepts:
-        ref = f"artifact:{concept.canonical_path}"
-        if not exact_outgoing.get(ref):
-            flags.append(
-                HealthFlag(
-                    flag_type="ORPHAN_CONCEPT",
-                    concept_id=concept.concept_id,
-                    detail=(
-                        f"{concept.canonical_path} has no exact references to "
-                        "implementation/test/other artifacts"
-                    ),
-                    severity="info",
-                    detected_at=now,
-                    evidence_class=EvidenceClass.VERIFIED,
-                )
-            )
-
-    for doc_path, tokens in dangling_by_doc.items():
-        for token in tokens:
-            flags.append(
-                HealthFlag(
-                    flag_type="DANGLING_REFERENCE",
-                    concept_id=doc_path,
-                    detail=f"{doc_path} references {token!r}, which does not resolve to a file",
-                    severity="warning",
-                    detected_at=now,
-                    evidence_class=EvidenceClass.VERIFIED,
-                )
-            )
-            flags.append(
-                HealthFlag(
-                    flag_type="STALE_RELATIONSHIP",
-                    concept_id=doc_path,
-                    detail=(
-                        f"relationship from {doc_path} to {token!r} is stale: "
-                        "the declared target is absent; exact evidence cannot distinguish "
-                        "deletion from rename"
-                    ),
-                    severity="warning",
-                    detected_at=now,
-                    evidence_class=EvidenceClass.VERIFIED,
-                )
-            )
-
-    for claim in claims:
-        if claim.status == ClaimStatus.DRIFT:
-            flags.append(
-                HealthFlag(
-                    flag_type="CLAIM_DRIFT",
-                    concept_id=None,
-                    detail=(
-                        f"{claim.name}: {claim.doc_path} says {claim.doc_value!r}, "
-                        f"{claim.code_path} says {claim.code_value!r}"
-                    ),
-                    severity="high",
-                    detected_at=now,
-                    evidence_class=EvidenceClass.VERIFIED,
-                )
-            )
-        elif claim.status == ClaimStatus.UNKNOWN:
-            flags.append(
-                HealthFlag(
-                    flag_type="CLAIM_UNKNOWN",
-                    concept_id=None,
-                    detail=(
-                        f"{claim.name}: could not extract a value from "
-                        f"{claim.doc_path} or {claim.code_path}"
-                    ),
-                    severity="warning",
-                    detected_at=now,
-                    evidence_class=claim.evidence_class,
-                )
-            )
-
-    return flags
-
-
-# ---------------------------------------------------------------------------
-# Row <-> model conversion
-# ---------------------------------------------------------------------------
-
-
-def _edge_to_row(edge: Edge) -> dict:
-    row = edge.model_dump()
-    row["provider"] = edge.provider.value
-    row["evidence_class"] = edge.evidence_class.value
-    row["evidence"] = json.dumps(edge.evidence, sort_keys=True)
-    return row
-
-
-def _row_to_edge(row: dict) -> Edge:
-    return Edge(
-        from_ref=row["from_ref"],
-        to_ref=row["to_ref"],
-        relation=row["relation"],
-        provider=ProviderKind(row["provider"]),
-        confidence=row["confidence"],
-        evidence=json.loads(row["evidence"]) if row["evidence"] else {},
-        created_at=row["created_at"],
-        evidence_class=EvidenceClass(row.get("evidence_class", "unknown")),
-    )
-
-
-def _claim_to_row(claim: Claim) -> dict:
-    row = claim.model_dump()
-    row["status"] = claim.status.value
-    row["evidence_class"] = claim.evidence_class.value
-    return row
-
-
-def _row_to_claim(row: dict) -> Claim:
-    return Claim(
-        name=row["name"],
-        description=row["description"],
-        doc_path=row["doc_path"],
-        doc_value=row["doc_value"],
-        code_path=row["code_path"],
-        code_value=row["code_value"],
-        status=ClaimStatus(row["status"]),
-        evaluated_at=row["evaluated_at"],
-        evidence_class=EvidenceClass(row.get("evidence_class", "unknown")),
-    )
-
-
-def _flag_to_row(flag: HealthFlag) -> dict:
-    row = flag.model_dump()
-    row["evidence_class"] = flag.evidence_class.value
-    return row
-
-
-def _row_to_flag(row: dict) -> HealthFlag:
-    return HealthFlag(**row)
-
-
-# ---------------------------------------------------------------------------
-# Orchestration: incremental refresh
-# ---------------------------------------------------------------------------
-
-
-def refresh(
-    repo_root: str | Path,
-    *,
-    run_semantic: bool = False,
-    embed_fn: EmbedFn | None = None,
-) -> RefreshResult:
-    """Refresh the consistency cache for one repository.
-
-    Incrementality is scoped to artifact classification: an artifact whose
-    content hash is unchanged since the last refresh is not reclassified.
-    Edge/claim/health-flag recomputation is currently a full pass each
-    refresh (see spec 013 section 4/5 for the documented scope and the
-    trigger for making that partially incremental too).
-    """
-    repo_root = Path(repo_root).resolve()
-    store = ConsistencyStore(consistency_db_path(repo_root))
-    try:
-        now = _now()
-        head = current_commit(repo_root) if is_git_repo(repo_root) else None
-        dirty = _is_dirty(repo_root) if head else False
-
-        discovered = discover_artifacts(repo_root)
-        cached = store.all_artifacts()
-
-        artifacts: dict[str, Artifact] = {}
-        reclassified = 0
-        unchanged = 0
-        for rel_path in discovered:
-            full = repo_root / rel_path
-            try:
-                content_hash = _content_hash(full)
-            except OSError:
-                continue
-
-            cached_row = cached.get(rel_path)
-            if cached_row and cached_row["content_hash"] == content_hash:
-                kind = ArtifactKind(cached_row["kind"])
-                authority = ArtifactAuthority(cached_row["authority"])
-                classified_at = cached_row["classified_at"]
-                unchanged += 1
-            else:
-                kind, authority = classify_artifact(rel_path)
-                classified_at = now
-                reclassified += 1
-
-            artifact = Artifact(
-                path=rel_path,
-                kind=kind,
-                authority=authority,
-                content_hash=content_hash,
-                classified_at=classified_at,
-            )
-            artifacts[rel_path] = artifact
-            store.upsert_artifact(
-                rel_path, kind.value, authority.value, content_hash, classified_at
-            )
-
-        removed_artifacts = sorted(set(cached) - set(artifacts))
-        store.delete_artifacts_not_in(set(artifacts))
-
-        concepts = build_concepts(artifacts, repo_root)
-        store.replace_concepts([c.model_dump() for c in concepts])
-
-        edges: list[Edge] = []
-        dangling_by_doc: dict[str, list[str]] = {}
-        for path, artifact in artifacts.items():
-            if artifact.kind in _REFERABLE_KINDS:
-                doc_edges, dangling = extract_exact_references(path, repo_root)
-                edges.extend(doc_edges)
-                if dangling:
-                    dangling_by_doc[path] = dangling
-
-        structural_index = _load_structural_index(repo_root)
-        structural_stale, structural_commit = structural_graph_freshness(
-            structural_index, repo_root
-        )
-        for path, artifact in artifacts.items():
-            if artifact.kind == ArtifactKind.IMPLEMENTATION:
-                edges.extend(structural_edges_for(structural_index, path, structural_stale))
-
-        if run_semantic:
-            resolved_embed = embed_fn or _default_local_embed_fn()
-            edges.extend(
-                semantic_similarity_edges(concepts, artifacts, repo_root, resolved_embed)
-            )
-
-        store.replace_edges([_edge_to_row(e) for e in edges])
-
-        claims = evaluate_known_claims(repo_root)
-        store.replace_claims([_claim_to_row(c) for c in claims])
-
-        health_flags = compute_health_flags(
-            concepts,
-            claims,
-            edges,
-            dangling_by_doc,
-            structural_stale,
-            structural_commit,
-            removed_artifacts,
-        )
-        store.replace_health_flags([_flag_to_row(f) for f in health_flags])
-
-        store.set_repo_state(head, dirty, now, structural_stale, structural_commit)
-        store.commit()
-
-        return RefreshResult(
-            repo_snapshot=RepoSnapshot(head_commit=head, dirty=dirty),
-            artifacts_scanned=len(discovered),
-            artifacts_reclassified=reclassified,
-            artifacts_unchanged=unchanged,
-            concepts=len(concepts),
-            edges=len(edges),
-            claims=len(claims),
-            health_flags=len(health_flags),
-            structural_graph_stale=structural_stale,
-            structural_graph_commit=structural_commit,
-        )
-    finally:
-        store.close()
-
-
-def _default_local_embed_fn() -> EmbedFn:
-    """Lazily construct a local (no-network) embedding function using this
-    package's existing embedder, only when semantic edges are explicitly
-    requested."""
-    from .embeddings import LocalEmbedder
-
-    embedder = LocalEmbedder()
-
-    def _embed(texts: list[str]) -> list[list[float]]:
-        return embedder.embed(texts).tolist()
-
-    return _embed
-
-
-# ---------------------------------------------------------------------------
-# Pre-change evidence packet
-# ---------------------------------------------------------------------------
-
-
-def build_evidence_packet(repo_root: str | Path, concept_id: str) -> EvidencePacket:
-    """Assemble everything known about one concept before a change: repo
-    snapshot, canonical artifact, every edge/claim touching it, and open
-    health flags. Never mutates anything — this is "Phase A — Understand,"
-    not "Phase B — Decide/Act" (see spec 013 section 4)."""
-    repo_root = Path(repo_root).resolve()
-    store = ConsistencyStore(consistency_db_path(repo_root))
-    try:
-        state = store.get_repo_state()
-        snapshot = RepoSnapshot(
-            head_commit=state["head_commit"] if state else None,
-            dirty=bool(state["dirty"]) if state else False,
-        )
-
-        concept_row = store.get_concept(concept_id)
-        if not concept_row:
-            raise KeyError(
-                f"unknown concept_id: {concept_id!r}; run `consistency.refresh()` first"
-            )
-        concept = Concept(**concept_row)
-
-        artifact_row = store.get_artifact(concept.canonical_path)
-        canonical_artifact = Artifact(**artifact_row) if artifact_row else None
-
-        ref = f"artifact:{concept.canonical_path}"
-        edges = [_row_to_edge(r) for r in store.edges_for_ref(ref)]
-        edges += [
-            _row_to_edge(r) for r in store.edges_for_ref(f"concept:{concept.concept_id}")
-        ]
-
-        claims = [_row_to_claim(r) for r in store.claims_for_doc_path(concept.canonical_path)]
-        health_flags = [_row_to_flag(r) for r in store.health_flags_for_concept(concept_id)]
-
-        return EvidencePacket(
-            repo_snapshot=snapshot,
-            concept=concept,
-            canonical_artifact=canonical_artifact,
-            edges=edges,
-            claims=claims,
-            health_flags=health_flags,
-            structural_graph_stale=bool(state["structural_graph_stale"]) if state else True,
-            structural_graph_commit=state["structural_graph_commit"] if state else None,
-        )
-    finally:
-        store.close()
-
-
-# ---------------------------------------------------------------------------
-# Post-change consistency check
-# ---------------------------------------------------------------------------
-
-
-def check_consistency(repo_root: str | Path, concept_id: str) -> ConsistencyReport:
-    """Compare currently-computed content hashes against the cache's
-    last-refreshed hashes for a concept's canonical artifact and its linked
-    artifacts. This is deterministic hash-diffing, not semantic value
-    comparison: it reports *that* something changed since the cache was
-    last refreshed, not *what* changed within the text."""
-    repo_root = Path(repo_root).resolve()
-    store = ConsistencyStore(consistency_db_path(repo_root))
-    try:
-        concept_row = store.get_concept(concept_id)
-        if not concept_row:
-            return ConsistencyReport(
-                concept_id=concept_id,
-                status=ConsistencyStatus.UNKNOWN_CONCEPT,
-                canonical_changed=False,
-                linked_changed=[],
-                linked_unchanged=[],
-                notes="concept not found in cache; run `consistency.refresh()` first",
-            )
-        concept = Concept(**concept_row)
-
-        canonical_changed = _artifact_changed(store, repo_root, concept.canonical_path)
-
-        ref = f"artifact:{concept.canonical_path}"
-        linked_paths = sorted(
-            {
-                row["to_ref"].removeprefix("artifact:")
-                for row in store.edges_for_ref(ref)
-                if row["from_ref"] == ref and row["to_ref"].startswith("artifact:")
-            }
-        )
-
-        linked_changed: list[str] = []
-        linked_unchanged: list[str] = []
-        for path in linked_paths:
-            if _artifact_changed(store, repo_root, path):
-                linked_changed.append(path)
-            else:
-                linked_unchanged.append(path)
-
-        if not canonical_changed and not linked_changed:
-            status = ConsistencyStatus.UP_TO_DATE
-            notes = "cache matches disk for the canonical artifact and all linked artifacts"
-        elif canonical_changed and not linked_changed:
-            status = ConsistencyStatus.SPEC_CHANGED_AWAITING_IMPLEMENTATION
-            notes = "canonical artifact changed since last refresh; linked artifacts unchanged"
-        elif linked_changed and not canonical_changed:
-            status = ConsistencyStatus.POSSIBLE_UNDOCUMENTED_DRIFT
-            notes = (
-                "linked artifact(s) changed since last refresh but the canonical artifact "
-                f"did not: {', '.join(linked_changed)}"
-            )
-        else:
-            status = ConsistencyStatus.COORDINATED_CHANGE
-            notes = "canonical artifact and linked artifact(s) both changed since last refresh"
-
-        return ConsistencyReport(
-            concept_id=concept_id,
-            status=status,
-            canonical_changed=canonical_changed,
-            linked_changed=linked_changed,
-            linked_unchanged=linked_unchanged,
-            notes=notes,
-        )
-    finally:
-        store.close()
-
-
-def _artifact_changed(store: ConsistencyStore, repo_root: Path, path: str) -> bool:
-    row = store.get_artifact(path)
-    full = repo_root / path
-    if not full.exists():
-        return True  # deleted since last refresh counts as changed
-    if not row:
-        return True  # never seen before counts as changed
-    return _content_hash(full) != row["content_hash"]
+        graph_after = load_graph(repo)
+        inputs_changed |= graph_after != graph
+        proof_after = provenance(repo, graph_after)
+        inputs_changed |= proof_after != proof
+    except (OSError, ValueError, UnicodeError):
+        inputs_changed = True
+        proof_after = proof
+    proof = proof_after
+    if inputs_changed:
+        proof = {
+            **proof,
+            "state": "unknown",
+            "reason": "Graph, source or revision evidence changed during check",
+        }
+    status = proof["state"]
+    if status == "current":
+        status = "error" if errors else "unknown" if unverified else "current"
+    return {
+        "status": status,
+        "provenance": proof,
+        **selection,
+        "coverage": {**coverage, "source_files_inspected": len(source_hashes)},
+        "errors": errors,
+        "error_types": error_types,
+        "checked": checked,
+        "unverified": unverified,
+        "inputs_changed_during_check": inputs_changed,
+        "findings": findings,
+        "truncated": finding_count > len(findings),
+        "notes": "Stale/unknown provenance prevents a current verdict; "
+        "edges do not prove prose claims. Planned path annotations are unverified, "
+        "not confirmed current-reference errors.",
+    }
