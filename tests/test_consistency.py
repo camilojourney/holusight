@@ -128,6 +128,55 @@ def test_dirty_or_mismatched_graph_never_reports_current(tmp_path):
     assert check(repo)["status"] == "unknown"
 
 
+@pytest.mark.parametrize("collection", ["nodes", "dict_nodes", "links"])
+@pytest.mark.parametrize("symlink", [False, True])
+def test_ignored_graph_sources_cannot_prove_freshness(tmp_path, collection, symlink):
+    repo = _repo(tmp_path)
+    with (repo / ".gitignore").open("a") as stream:
+        stream.write("src/generated.py\n")
+    target = repo / "src/generated.py"
+    target.write_text("LIMIT = 3\n")
+    source = "src/generated.py"
+    if symlink:
+        source = "src/alias.py"
+        (repo / source).symlink_to("generated.py")
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "ignored source"], check=True)
+    graph_path = repo / "graphify-out/graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["built_at_commit"] = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    if collection == "dict_nodes":
+        graph["nodes"] = {"generated": {"source_file": source, "source_location": "L1"}}
+    else:
+        graph[collection][0]["source_file"] = source
+    graph_path.write_text(json.dumps(graph))
+    target.write_text("LIMIT = 5\n")
+    assert not subprocess.check_output(
+        ["git", "-C", str(repo), "status", "--porcelain"], text=True
+    ).strip()
+    engine = Holusight(repo)
+    assert engine.status()["status"] == "unknown"
+    assert engine.check()["provenance"]["state"] == "unknown"
+    assert engine.check()["status"] != "current"
+    assert engine.align()["graph"]["state"] == "unknown"
+
+
+def test_graph_source_hidden_from_git_status_still_requires_matching_bytes(tmp_path):
+    repo = _repo(tmp_path)
+    subprocess.run(
+        ["git", "-C", str(repo), "update-index", "--assume-unchanged", "src/mod.py"],
+        check=True,
+    )
+    (repo / "src/mod.py").write_text("def hello():\n    return 2\n")
+    assert not subprocess.check_output(
+        ["git", "-C", str(repo), "status", "--porcelain"], text=True
+    ).strip()
+    assert Holusight(repo).status()["status"] == "unknown"
+    assert check(repo)["status"] != "current"
+
+
 def test_nested_directory_cannot_inherit_parent_git_provenance(tmp_path):
     repo = _repo(tmp_path)
     nested = repo / "nested"
@@ -212,7 +261,6 @@ def test_scoped_path_cannot_escape_repository(tmp_path):
         check(repo, scope="../outside")
     with pytest.raises(ValueError):
         check(repo, scope="/etc/passwd")
-    assert check(repo, refresh=True)["status"] == "unavailable"
     assert check(repo, scope="src/not-in-graph.py")["status"] == "unknown"
 
 

@@ -308,7 +308,7 @@ def _python(name: str, text: str, digest: str) -> tuple[list[dict], list[dict], 
         line, value = token.start[0], token.string
         match = _CODE_FACT.fullmatch(value)
         if not match:
-            if "# holus:fact" in value:
+            if re.match(r"^\s*#\s*holus:fact\b", value):
                 skipped.append({"file": name, "line": line, "reason": "invalid fact marker"})
             continue
         key, symbol = match.groups()

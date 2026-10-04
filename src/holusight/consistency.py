@@ -113,6 +113,37 @@ def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
     git_root = _git(repo, "rev-parse", "--show-toplevel")
     head = _git(repo, "rev-parse", "HEAD")
     dirty = _git(repo, "status", "--porcelain", "--untracked-files=normal")
+    sources_verified = False
+    if head is not None and built == head and dirty == "":
+        tree = _git(repo, "ls-tree", "-r", "-z", "--full-tree", head)
+        if tree is not None:
+            committed = {}
+            for entry in tree.split("\0"):
+                if entry:
+                    metadata, name = entry.split("\t", 1)
+                    mode, kind, digest = metadata.split()
+                    if mode in {"100644", "100755"} and kind == "blob":
+                        committed[name] = digest
+            nodes = graph.get("nodes", [])
+            records = list(nodes.values()) if isinstance(nodes, dict) else list(nodes)
+            records.extend(graph.get("links", []))
+            sources_verified = True
+            for name in {
+                record["source_file"]
+                for record in records
+                if isinstance(record, dict) and isinstance(record.get("source_file"), str)
+            }:
+                path = _safe_path(repo, name)
+                if (
+                    path is None
+                    or path != repo / name
+                    or name not in committed
+                    or not path.is_file()
+                    or _git(repo, "hash-object", "--no-filters", "--", str(path))
+                    != committed[name]
+                ):
+                    sources_verified = False
+                    break
     head_after = _git(repo, "rev-parse", "HEAD")
     try:
         verified_root = _repo_path(git_root) if git_root else None
@@ -130,9 +161,12 @@ def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
     elif built != head or dirty:
         state = "stale"
         reason = "graph commit differs from HEAD or repository has local changes"
+    elif not sources_verified:
+        state = "unknown"
+        reason = "Graph source bytes are not verified regular files in the Git snapshot"
     else:
         state = "current"
-        reason = "graph commit equals HEAD and working tree is clean"
+        reason = "graph commit equals HEAD, working tree is clean, and source bytes match Git"
     return {
         "state": state,
         "reason": reason,
@@ -143,12 +177,10 @@ def provenance(repo_path: str | Path, graph: dict[str, Any]) -> dict[str, Any]:
 
 
 def check(
-    repo_path: str | Path, *, scope: str | None = None, docs: bool = False, refresh: bool = False
+    repo_path: str | Path, *, scope: str | None = None, docs: bool = False
 ) -> dict[str, Any]:
     """Check graph provenance, node/edge integrity and explicit path claims.
 
-    ``refresh`` is retained for callers, but never executes Graphify or writes
-    indexed files. A request to refresh is reported as unavailable, not ignored.
     Findings are bounded to 100 examples; counts are for the complete scan.
     """
     repo = _repo_path(repo_path)
@@ -165,15 +197,6 @@ def check(
     else:
         focus = Focus(repo, scope, docs)
     selection = {"scope": focus.scope, "docs": docs, "selector": focus.describe()}
-    if refresh:
-        return {
-            "status": "unavailable",
-            "reason": "Graph refresh is unsupported; run Graphify separately",
-            **selection,
-            "errors": 0,
-            "findings": [],
-            "checked": 0,
-        }
     try:
         graph = load_graph(repo)
     except (OSError, ValueError, json.JSONDecodeError, UnicodeError) as exc:

@@ -154,6 +154,29 @@ def test_fact_marker_mentions_are_prose_not_malformed_contracts(tmp_path):
     assert result["skipped_count"] == 1
 
 
+@pytest.mark.parametrize("prefix", ["#holus:fact", "# holus:fact", "#\tholus:fact"])
+def test_malformed_python_marker_cannot_resolve_mismatch(tmp_path, prefix):
+    repo = _repo(
+        tmp_path,
+        {
+            "src/a.py": f"LIMIT = 3\n{prefix} retries = LIMIT\n",
+            "docs/a.md": "<!-- holus:fact retries = 5 -->\n",
+        },
+    )
+    before = Holusight(repo).align()
+    assert before["complete"] is True
+    assert before["errors"] == 1
+    baseline = _save(repo, before)
+    (repo / "src/a.py").write_text(f"LIMIT = 3\n{prefix} retries = 3\n")
+    after = Holusight(repo).align()
+    assert after["status"] == "partial"
+    assert after["complete"] is False
+    assert after["skipped_count"] == 1
+    assert after["skipped"][0]["reason"] == "invalid fact marker"
+    with pytest.raises(ValueError, match="partial/unknown"):
+        Holusight(repo).align(against=baseline)
+
+
 def test_dynamic_values_not_executed_and_comment_inside_string_not_a_fact(tmp_path):
     repo = _repo(
         tmp_path,
