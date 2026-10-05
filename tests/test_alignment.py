@@ -220,6 +220,31 @@ def test_external_calls_and_defaults_are_not_normalized_away(tmp_path):
     assert alignment.align(repo)["candidates"] == 0
 
 
+def test_local_fingerprint_cannot_capture_external_identifier(tmp_path):
+    repo = _repo(
+        tmp_path,
+        {
+            "a.py": "def first(arg):\n    value = arg + local_0\n"
+            "    value += 2\n    return value\n",
+            "b.py": "def second(arg):\n    value = arg + arg\n    value += 2\n    return value\n",
+        },
+    )
+    proc = _public(repo)
+    assert proc.returncode == 0
+    report = json.loads(proc.stdout)
+    assert report["candidates"] == 0
+    assert report["rules"] == "holus-alignment/v3"
+
+
+def test_v2_receipts_cannot_establish_resolution_under_corrected_rules(tmp_path):
+    repo = _repo(tmp_path, {"a.py": CODE, "b.py": RENAMED})
+    report = alignment.align(repo)
+    report["rules"] = "holus-alignment/v2"
+    baseline = _save(repo, report)
+    with pytest.raises(ValueError, match="analyzer is incompatible"):
+        alignment.align(repo, against=baseline)
+
+
 def test_partial_near_document_scan_does_not_claim_complete(tmp_path, monkeypatch):
     repo = _repo(tmp_path, {"a.md": PARAGRAPH, "b.md": PARAGRAPH + " Always."})
     monkeypatch.setattr(alignment, "MAX_PAIRS", 0)
