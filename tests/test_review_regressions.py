@@ -81,11 +81,12 @@ def test_r1_ordinary_module_literals_remain_supported(tmp_path, source):
     assert report["coverage"]["facts"] == 2 and report["complete"]
 
 
-def test_revised_fact_example_rules_reject_old_baseline(tmp_path):
+@pytest.mark.parametrize("old_rules", ["holus-alignment/v1", "holus-alignment/v2"])
+def test_revised_fact_example_rules_reject_old_baseline(tmp_path, old_rules):
     repo = alignment_repo(tmp_path, {"src/a.py": "LIMIT = 3\n# holus:fact retries = LIMIT\n"})
     report = json.loads(_public(repo).stdout)
-    assert report["rules"] == "holus-alignment/v2"
-    report["rules"] = "holus-alignment/v1"
+    assert report["rules"] == "holus-alignment/v3"
+    report["rules"] = old_rules
     (repo / ".holusight").mkdir()
     (repo / ".holusight/before.json").write_text(json.dumps(report))
     command = _public(repo, "--against", ".holusight/before.json")

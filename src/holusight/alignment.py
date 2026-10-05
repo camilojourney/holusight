@@ -15,7 +15,7 @@ import platform
 import re
 import subprocess
 import tokenize
-from collections import defaultdict
+from collections import Counter, defaultdict
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -23,7 +23,7 @@ from typing import Any
 from .consistency import _markdown_lines, _repo_path, _safe_path, load_graph, provenance
 from .focus import Focus
 
-RULES = "holus-alignment/v2"
+RULES = "holus-alignment/v3"
 SCHEMA = "holus-alignment-report/v1"
 MAX_FILES = 500
 MAX_BYTES = 256_000
@@ -31,6 +31,46 @@ MAX_TOTAL_BYTES = 10_000_000
 MAX_UNITS = 2_000
 MAX_FACTS = 1_000
 MAX_PAIRS = 5_000
+_SUPPORTED = {".py", ".md"}
+# Metadata-only recognition, not parsers or a claim of exhaustive language coverage.
+_SOURCE_EXTENSIONS = _SUPPORTED | {
+    ".pyi",
+    ".pyw",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".swift",
+    ".java",
+    ".c",
+    ".h",
+    ".cc",
+    ".cpp",
+    ".cxx",
+    ".hpp",
+    ".cs",
+    ".go",
+    ".rs",
+    ".rb",
+    ".php",
+    ".kt",
+    ".kts",
+    ".scala",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".sql",
+    ".vue",
+    ".svelte",
+    ".dart",
+    ".r",
+    ".R",
+    ".lua",
+    ".ex",
+    ".exs",
+}
 _EXCLUDED = {
     ".git",
     ".venv",
@@ -100,7 +140,7 @@ def _inventory(repo: Path) -> list[str]:
         {
             n
             for n in names
-            if Path(n).suffix in {".py", ".md"}
+            if Path(n).suffix in _SOURCE_EXTENSIONS
             and not set(Path(n).parts) & _EXCLUDED
             and ((repo / n).is_symlink() or (repo / n).is_file())
         },
@@ -250,7 +290,9 @@ def _fingerprints(function: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[str
         sub.id for sub in body_nodes if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store)
     )
     # Never normalize externally bound names or attributes/literals/operators.
-    mapping = {name: f"local_{i}" for i, name in enumerate(dict.fromkeys(locals_))}
+    # Fingerprints are never compiled. Use impossible Python identifiers so an
+    # original external name cannot collide with a normalized local binding.
+    mapping = {name: f"<holus-local:{i}>" for i, name in enumerate(dict.fromkeys(locals_))}
     transformer = _Rename(mapping)
     node.body = [transformer.visit(statement) for statement in node.body]
     # Defaults, annotations and decorators resolve in outer scope; preserve them.
@@ -441,9 +483,18 @@ def align(
     names = _inventory(repo)
     focus = Focus(repo, scope, docs, allowed=names, excluded=_EXCLUDED)
     scope = focus.scope
+    supported = [name for name in names if Path(name).suffix in _SUPPORTED]
+    unsupported = [name for name in names if Path(name).suffix not in _SUPPORTED]
+    focused_unsupported = [name for name in unsupported if focus.matches(name)]
     manifest, units, facts, skipped = {}, [], [], []
+    # Unsupported source contents are never opened, hashed, parsed or graph-mapped
+    # by the source scanner. A selector limits the declared coverage, not reads.
+    skipped.extend(
+        {"file": name, "reason": f"unsupported source language: {Path(name).suffix}"}
+        for name in focused_unsupported
+    )
     total = 0
-    for index, name in enumerate(names):
+    for index, name in enumerate(supported):
         if index >= MAX_FILES or total >= MAX_TOTAL_BYTES or len(units) >= MAX_UNITS:
             skipped.append({"reason": "scan budget exceeded"})
             break
@@ -604,14 +655,16 @@ def align(
     findings.sort(key=lambda f: (f["severity"] != "error", f["type"], f["id"]))
     errors = sum(f["severity"] == "error" for f in findings)
     focused_files = sum(focus.matches(name) for name in manifest)
-    complete = not skipped and not changed and (not focus.filtered or focused_files > 0)
+    complete = (
+        bool(manifest) and not skipped and not changed and (not focus.filtered or focused_files > 0)
+    )
     status = (
         "unknown"
         if changed
+        else "unavailable"
+        if not names and not focus.filtered
         else "partial"
         if not complete
-        else "unavailable"
-        if not manifest
         else "mismatch"
         if errors
         else "review"
@@ -640,6 +693,13 @@ def align(
             "facts": len(facts),
             "graph_mapped_files": len(set(manifest) & refs.keys()),
             "focused_files": focused_files,
+            "inventory_files": len(names),
+            "supported_files": len(supported),
+            "unsupported_files": len(unsupported),
+            "focused_unsupported_files": len(focused_unsupported),
+            "extensions": dict(sorted(Counter(Path(name).suffix for name in names).items())),
+            "supported_extensions": sorted(_SUPPORTED),
+            "language_inventory": "recognized extensions only; unsupported contents not analyzed",
         },
         "errors": errors,
         "candidates": len(findings) - errors,
@@ -650,7 +710,9 @@ def align(
         "skipped_count": len(skipped),
         "inputs_changed_during_scan": changed,
         "notes": "Source scan is separate from graph freshness. Candidates need agent review; "
-        "unlinked prose and runtime behavior are not verified. Rerun after edits.",
+        "unlinked prose and runtime behavior are not verified. Language inventory recognizes "
+        "listed extensions only, not all possible source formats. Scope is not a privacy boundary. "
+        "Rerun after edits.",
     }
     if against:
         path = _safe_path(repo, against)
@@ -661,13 +723,9 @@ def align(
             prior.get(k) != v for k, v in identity.items() if k != "docs"
         ):
             raise ValueError("baseline repository, scope or analyzer is incompatible")
-        # Existing complete v2 all/file receipts have identical analysis semantics.
-        # New selectors must match exactly; a file becoming a directory is not comparable.
-        if prior.get("docs", False) is not docs or (
-            prior.get("selector") != focus.describe()
-            if "selector" in prior
-            else docs or focus.kind == "directory"
-        ):
+        # v3 receipts must bind the selector explicitly; pre-v3 rules are rejected
+        # above even if their source manifests and candidate IDs happen to match.
+        if prior.get("docs") is not docs or prior.get("selector") != focus.describe():
             raise ValueError("baseline selector is incompatible")
         if prior.get("complete") is not True or not complete:
             raise ValueError("partial/unknown scans cannot establish resolved findings")

@@ -217,14 +217,14 @@ def test_normalized_focus_baseline_and_justified_repair_while_global_issues_rema
         engine.align(scope="docs", docs=True, against=baseline)
 
 
-def test_default_v2_baseline_remains_comparable(tmp_path):
+def test_incomplete_selector_receipt_is_not_comparable(tmp_path):
     repo = _fixture(tmp_path)
     report = Holusight(repo).align()
-    report.pop("docs", None)  # pre-selector v2 receipt
-    report.pop("selector", None)
+    report.pop("docs")
+    report.pop("selector")
     baseline = _save(repo, report)
-    result = Holusight(repo).align(against=baseline)
-    assert result["delta"]["new"] == result["delta"]["resolved"] == []
+    with pytest.raises(ValueError, match="selector is incompatible"):
+        Holusight(repo).align(against=baseline)
 
 
 def test_focus_anchor_survives_bounded_partner_projection(tmp_path):
