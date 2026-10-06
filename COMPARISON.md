@@ -1,6 +1,6 @@
 # Holusight vs CLAUDE.md: Honest Comparison
 
-> Historical comparison of the retired embedding-search product, written 2026-02-28. Not a description of the current Graphify consistency helper (see spec 028).
+> Historical comparison of the retired embedding-search product, written 2026-02-28. Not a description of the current source scanner (see spec 029).
 
 ---
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
+from .paths import _safe_path
+
 
 class Focus:
     def __init__(
@@ -16,8 +18,6 @@ class Focus:
         allowed: Iterable[str] = (),
         excluded: Iterable[str] = (),
     ) -> None:
-        from .consistency import _safe_path
-
         if type(docs) is not bool:
             raise ValueError("docs must be a boolean")
         self.repo = repo

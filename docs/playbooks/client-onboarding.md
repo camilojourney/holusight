@@ -1,4 +1,4 @@
-> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 028 for the current Graphify consistency helper.
+> **Historical playbook (retired interfaces).** Preserved for provenance; commands and product claims below may no longer work. Use `README.md` and spec 029 for the current source scanner.
 
 # Client Onboarding — Delivery Kickoff
 

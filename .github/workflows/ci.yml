@@ -24,15 +24,3 @@ jobs:
         run: uv run --extra dev ruff check src/ tests/
       - name: Test
         run: uv run --extra dev pytest tests/ -q
-      - name: Graph consistency (advisory; historical graph may be stale)
-        if: always()
-        run: |
-          uv run python -m holusight check > /tmp/holusight-check.json || true
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
-          with open('/tmp/holusight-check.json') as f:
-              result = json.load(f)
-          print('## Graphify/source consistency (advisory)')
-          print(f"Status: {result['status']}; errors: {result.get('errors', 0)}")
-          print(result.get('provenance', {}).get('reason', result.get('reason', '')))
-          PY

@@ -1,6 +1,6 @@
 # Recommended SMB Pilot Offer
 
-> **Historical, retired search offer.** Not current product scope or pricing. Holusight is now the Graphify consistency helper (spec 028). Do not quote or deploy from this document.
+> **Historical, retired search offer.** Not current product scope or pricing. Holusight is now a source scanner (spec 029). Do not quote or deploy from this document.
 
 ## Ideal customer profile
 
