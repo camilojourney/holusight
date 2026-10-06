@@ -1,7 +1,7 @@
 [project]
 name = "holusight"
 version = "0.4.0"
-description = "Read-only Graphify graph/source consistency helper for agents"
+description = "Read-only source duplication and fact-drift scanner for agents"
 requires-python = ">=3.11"
 dependencies = []
 

@@ -41,7 +41,7 @@ def _repo(tmp_path, files):
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     for key, value in (("user.name", "Test"), ("user.email", "test@example.invalid")):
         subprocess.run(["git", "-C", str(repo), "config", key, value], check=True)
-    (repo / ".gitignore").write_text(".holusight/\ngraphify-out/\nignored.md\n")
+    (repo / ".gitignore").write_text(".holusight/\nignored.md\n")
     for name, text in files.items():
         path = repo / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -291,28 +291,16 @@ def test_repeatable_rescan_after_repair_and_deletion(tmp_path):
     assert len(regression["delta"]["new"]) == 1
 
 
-def test_source_graph_and_safety_are_separate(tmp_path):
+def test_scan_is_read_only_and_scope_safe(tmp_path):
     repo = _repo(tmp_path, {"src/a.py": CODE, "src/b.py": RENAMED})
-    graph_dir = repo / "graphify-out"
-    graph_dir.mkdir()
-    graph_path = graph_dir / "graph.json"
-    graph_path.write_text(
-        json.dumps(
-            {
-                "built_at_commit": "0" * 40,
-                "nodes": [{"id": "a", "source_file": "src/a.py"}],
-                "links": [],
-            }
-        )
-    )
     before = {
         str(p.relative_to(repo)): hashlib.sha256(p.read_bytes()).hexdigest()
         for p in repo.rglob("*")
         if p.is_file()
     }
     result = alignment.align(repo, scope="src/a.py")
-    assert result["status"] == "review" and result["graph"]["state"] == "stale"
-    assert result["findings"][0]["locations"][0]["graph_nodes"] == ["a"]
+    assert result["status"] == "review" and "graph" not in result
+    assert "graph_nodes" not in result["findings"][0]["locations"][0]
     after = {
         str(p.relative_to(repo)): hashlib.sha256(p.read_bytes()).hexdigest()
         for p in repo.rglob("*")

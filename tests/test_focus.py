@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from holusight import Holusight, alignment
+from holusight import Holusight
 
 from .test_alignment import CODE, PARAGRAPH, RENAMED, _repo, _save
 
@@ -26,38 +26,6 @@ def _fixture(tmp_path):
             "specs-other/broken.md": "The current file is `src/missing.py`.\n",
         },
     )
-    graph_dir = repo / "graphify-out"
-    graph_dir.mkdir()
-    names = [n for n in alignment._inventory(repo)]
-    graph = {
-        "built_at_commit": subprocess.check_output(
-            ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
-        ).strip(),
-        "nodes": [
-            {
-                "id": n,
-                "source_file": n,
-                "source_location": "L1",
-                "file_type": "document" if n.endswith(".md") else "code",
-            }
-            for n in names
-        ],
-        "links": [
-            {
-                "source": "specs/guide.md",
-                "target": "src/app/a.py",
-                "source_file": "specs/guide.md",
-                "source_location": "L1",
-            },
-            {
-                "source": "src/other/a.py",
-                "target": "missing-global-endpoint",
-                "source_file": "src/other/a.py",
-                "source_location": "L1",
-            },
-        ],
-    }
-    (graph_dir / "graph.json").write_text(json.dumps(graph))
     return repo
 
 
@@ -75,23 +43,6 @@ def _public(repo, command, *options, console=False):
 def _report(process):
     assert process.stdout, process.stderr
     return json.loads(process.stdout)
-
-
-@pytest.mark.parametrize("console", [False, True])
-def test_public_directory_check_excludes_unrelated_global_failures(tmp_path, console):
-    repo = _fixture(tmp_path)
-    before = {p: p.read_bytes() for p in repo.rglob("*") if p.is_file()}
-    whole = _report(_public(repo, "check", console=console))
-    focused_process = _public(repo, "check", "--scope", "specs/", console=console)
-    focused = _report(focused_process)
-    assert whole["errors"] >= 2
-    assert focused_process.returncode == 0
-    assert focused["status"] == "current" and focused["checked"] > 0
-    assert focused["errors"] == 0
-    assert focused["scope"] == "specs"
-    assert focused["selector"] == {"scope": "specs", "kind": "directory", "docs": False}
-    assert focused["coverage"]["global_integrity"] is False
-    assert before == {p: p.read_bytes() for p in repo.rglob("*") if p.is_file()}
 
 
 def test_api_directory_alignment_keeps_cross_focus_partners(tmp_path):
@@ -121,11 +72,6 @@ def test_docs_selector_and_intersection_use_public_commands(tmp_path, console):
     assert docs["errors"] == 2
     assert all(f["type"] != "code_duplicate" for f in docs["findings"])
     assert any(o["file"].endswith(".py") for f in both["findings"] for o in f["locations"])
-    assert _report(_public(repo, "check", "--docs", console=console))["errors"] == 1
-    assert (
-        _report(_public(repo, "check", "--docs", "--scope", "specs/", console=console))["errors"]
-        == 0
-    )
 
 
 def test_application_scope_has_code_candidates_and_document_partner(tmp_path):
@@ -142,52 +88,33 @@ def test_docs_api_excludes_ignored_private_and_symlink_sources(tmp_path):
     private = repo / ".holusight"
     private.mkdir()
     (private / "secret.md").write_text("PRIVATE_CANARY `src/absent-private.py`.\n")
-    graph_path = repo / "graphify-out/graph.json"
-    graph = json.loads(graph_path.read_text())
-    graph["nodes"].extend(
-        {"id": n, "source_file": n, "source_location": "L1", "file_type": "document"}
-        for n in ["ignored.md", ".holusight/secret.md"]
-    )
-    graph_path.write_text(json.dumps(graph))
-    result = Holusight(repo).check(docs=True)
-    assert result["errors"] == 1
-    assert "PRIVATE_CANARY" not in json.dumps(result)
-    assert not any(f["file"] in {"ignored.md", ".holusight/secret.md"} for f in result["findings"])
     scan = Holusight(repo).align(docs=True)
+    assert "PRIVATE_CANARY" not in json.dumps(scan)
     assert "ignored.md" not in scan["sources"] and ".holusight/secret.md" not in scan["sources"]
     (repo / "specs/link.md").symlink_to(private / "secret.md")
-    graph["nodes"].append({"id": "link", "source_file": "specs/link.md", "file_type": "document"})
-    graph_path.write_text(json.dumps(graph))
-    checked = Holusight(repo).check(docs=True, scope="specs/")
-    assert checked["error_types"] == {"unsafe_path": 1}
-    assert "absent-private" not in json.dumps(checked)
     assert Holusight(repo).align(docs=True, scope="specs/")["status"] == "partial"
 
 
 @pytest.mark.parametrize(
     "scope", ["../outside", "/etc", "specs/../../outside", "specs\\guide.md", ""]
 )
-def test_invalid_scopes_are_refused_by_both_apis(tmp_path, scope):
+def test_invalid_scopes_are_refused(tmp_path, scope):
     repo = _fixture(tmp_path)
-    engine = Holusight(repo)
-    for method in [engine.check, engine.align]:
-        with pytest.raises(ValueError, match="scope must be"):
-            method(scope=scope)
+    with pytest.raises(ValueError, match="scope must be"):
+        Holusight(repo).align(scope=scope)
 
 
 def test_directory_symlink_escape_is_refused(tmp_path):
     repo = _fixture(tmp_path)
     (repo / "outside").symlink_to(tmp_path, target_is_directory=True)
-    for method in [Holusight(repo).check, Holusight(repo).align]:
-        with pytest.raises(ValueError, match="scope must be"):
-            method(scope="outside/")
+    with pytest.raises(ValueError, match="scope must be"):
+        Holusight(repo).align(scope="outside/")
 
 
 @pytest.mark.parametrize("scope,docs", [("absent/", False), ("src/", True), (".holusight/", False)])
 def test_empty_or_unrepresented_focus_is_not_a_clean_pass(tmp_path, scope, docs):
     repo = _fixture(tmp_path)
     engine = Holusight(repo)
-    assert engine.check(scope=scope, docs=docs)["status"] == "unknown"
     report = engine.align(scope=scope, docs=docs)
     assert report["status"] == "partial" and report["complete"] is False
     assert report["coverage"]["focused_files"] == 0
@@ -209,8 +136,6 @@ def test_normalized_focus_baseline_and_justified_repair_while_global_issues_rema
     assert len(after["delta"]["resolved"]) == 2
     assert after["delta"]["changed_sources"] == ["specs/guide.md"]
     assert engine.align()["errors"] == 1  # unrelated other-limit deliberately remains
-    assert engine.check()["errors"] >= 2  # unrelated dangling edge / missing path remain
-    assert after["graph"]["state"] == "stale"  # source repairs never refresh the graph
     with pytest.raises(ValueError, match="incompatible"):
         engine.align(scope="specs", against=baseline)
     with pytest.raises(ValueError, match="incompatible"):
@@ -258,30 +183,3 @@ def test_unverified_comparison_partner_prevents_resolution(tmp_path):
     assert engine.align(scope="specs/", docs=True)["complete"] is False
     with pytest.raises(ValueError, match="partial"):
         engine.align(scope="specs/", docs=True, against=baseline)
-
-
-def test_relevant_graph_edge_is_checked_even_with_outside_source(tmp_path):
-    repo = _fixture(tmp_path)
-    path = repo / "graphify-out/graph.json"
-    graph = json.loads(path.read_text())
-    graph["links"].append(
-        {
-            "source": "specs/guide.md",
-            "target": "missing-relevant-endpoint",
-            "source_file": "src/other/a.py",
-            "source_location": "L1",
-        }
-    )
-    path.write_text(json.dumps(graph))
-    result = Holusight(repo).check(scope="specs/", docs=True)
-    assert result["error_types"] == {"dangling_edge": 1}
-    assert result["findings"][0]["evidence"] == "links[2]"
-
-
-@pytest.mark.parametrize("flag", ["--docs", "--scope"])
-def test_status_rejects_selectors_with_actionable_guidance(tmp_path, flag):
-    repo = _fixture(tmp_path)
-    options = [flag] if flag == "--docs" else [flag, "specs/"]
-    proc = _public(repo, "status", *options)
-    assert proc.returncode == 2
-    assert "whole" in proc.stderr.lower() and "check" in proc.stderr and "align" in proc.stderr

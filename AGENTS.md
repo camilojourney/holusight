@@ -144,24 +144,6 @@ Each worker with `memory: project` uses `.claude/agent-memory/<worker>/MEMORY.md
 
 @import .claude/rules/workflow.md
 
-<!-- graphify:start -->
-## graphify
-
-When the user types `/graphify`, invoke the graphify skill before doing anything else.
-
-This project has a graphify knowledge graph at graphify-out/.
-
-Rules:
-- When Graphify is installed with proven no-network isolation, query its worktree-local graph first; otherwise inspect source and report graph traversal unavailable.
-- Before editing a source file, surface callers and dependents from a safe local graph query when available; otherwise inspect local imports and tests.
-- Do not re-read multiple source files after a good query unless the user asks for line-level proof.
-- Skip graphify for trivial one-line edits already in context, pure shell/commit/run tasks, and external/non-repo research.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw file browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- Do not auto-refresh the historical Graphify graph during Holusight checks; a separately authorized, no-network build is required.
-- In worktrees, use the worktree-local `graphify-out/`; do not share or symlink one graph across active branches.
-<!-- graphify:end -->
-
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

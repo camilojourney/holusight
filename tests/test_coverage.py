@@ -73,7 +73,7 @@ def test_supported_focus_and_docs_declare_bounded_not_repository_coverage(tmp_pa
 def test_ignored_derived_and_symlink_boundaries_remain_intact(tmp_path):
     repo = _repo(tmp_path, {"src/a.py": CODE})
     (repo / ".gitignore").write_text("ignored/\n")
-    for folder in ("ignored", "node_modules", "graphify-out", ".holusight"):
+    for folder in ("ignored", "node_modules", ".holusight"):
         (repo / folder).mkdir()
         (repo / folder / "private.ts").write_text("PRIVATE_CANARY")
     (repo / "link.ts").symlink_to(tmp_path / "outside.ts")

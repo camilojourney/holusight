@@ -1,6 +1,6 @@
 # Business Operations
 
-Historical business ops for the retired Holusight search/consulting offer. The current product is the Graphify consistency helper (spec 028); these pricing and sales materials are not current offers.
+Historical business ops for the retired Holusight search/consulting offer. The current product is the source scanner (spec 029); these pricing and sales materials are not current offers.
 
 ## Contents
 

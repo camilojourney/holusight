@@ -1,6 +1,6 @@
 """Deterministic source duplication candidates and explicitly linked scalar facts.
 
-No imports of analyzed code, eval, model calls, caches, or Graphify execution.
+No imports of analyzed code, eval, model calls, or caches.
 A candidate is not a semantic equivalence or a recommendation to delete code.
 """
 
@@ -20,11 +20,11 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
-from .consistency import _markdown_lines, _repo_path, _safe_path, load_graph, provenance
 from .focus import Focus
+from .paths import _markdown_lines, _repo_path, _safe_path
 
 RULES = "holus-alignment/v3"
-SCHEMA = "holus-alignment-report/v1"
+SCHEMA = "holus-alignment-report/v2"
 MAX_FILES = 500
 MAX_BYTES = 256_000
 MAX_TOTAL_BYTES = 10_000_000
@@ -76,7 +76,6 @@ _EXCLUDED = {
     ".venv",
     "venv",
     ".holusight",
-    "graphify-out",
     "node_modules",
     "dist",
     "build",
@@ -452,24 +451,6 @@ def _markdown(name: str, text: str, digest: str) -> tuple[list[dict], list[dict]
     return units, facts, skipped
 
 
-def _graph(repo: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
-    try:
-        graph = load_graph(repo)
-        proof = provenance(repo, graph)
-        proof["snapshot_hash"] = _hash(_encoded(graph))
-        nodes = graph["nodes"]
-        if isinstance(nodes, dict):
-            nodes = [dict(value, id=key) for key, value in nodes.items() if isinstance(value, dict)]
-        refs: dict[str, list[str]] = defaultdict(list)
-        for node in nodes:
-            if isinstance(node, dict) and isinstance(node.get("source_file"), str):
-                if isinstance(node.get("id"), str):
-                    refs[node["source_file"]].append(node["id"])
-        return proof, refs
-    except (OSError, ValueError, UnicodeError):
-        return {"state": "unavailable", "reason": "no readable safe Graphify graph"}, {}
-
-
 def align(
     repo_path: str | Path,
     *,
@@ -487,8 +468,8 @@ def align(
     unsupported = [name for name in names if Path(name).suffix not in _SUPPORTED]
     focused_unsupported = [name for name in unsupported if focus.matches(name)]
     manifest, units, facts, skipped = {}, [], [], []
-    # Unsupported source contents are never opened, hashed, parsed or graph-mapped
-    # by the source scanner. A selector limits the declared coverage, not reads.
+    # Unsupported source contents are never opened, hashed or parsed by the
+    # source scanner. A selector limits the declared coverage, not reads.
     skipped.extend(
         {"file": name, "reason": f"unsupported source language: {Path(name).suffix}"}
         for name in focused_unsupported
@@ -521,7 +502,6 @@ def align(
             skipped.extend(source_skipped)
         except (OSError, ValueError, UnicodeError, SyntaxError, RecursionError) as exc:
             skipped.append({"file": name, "reason": f"source unverified: {type(exc).__name__}"})
-    graph, refs = _graph(repo)
     findings: list[dict[str, Any]] = []
 
     def finding(kind: str, key: str, occurrences: list[dict], **extra: Any) -> None:
@@ -531,11 +511,7 @@ def align(
                 return
             # Always retain the focus anchor even when partner locations are bounded.
             occurrences = anchors + [o for o in occurrences if not focus.matches(o["file"])]
-        locations = []
-        for occurrence in occurrences[:30]:
-            locations.append(
-                {**occurrence, "graph_nodes": sorted(refs.get(occurrence["file"], []))[:5]}
-            )
+        locations = occurrences[:30]
         findings.append(
             {
                 "id": _hash(kind + ":" + key)[:24],
@@ -633,25 +609,6 @@ def align(
             changed |= _hash(_source(repo, name)) != digest
         except (OSError, ValueError):
             changed = True
-    graph_after, _ = _graph(repo)
-    graph_changed = any(
-        graph_after.get(key) != graph.get(key)
-        for key in (
-            "snapshot_hash",
-            "state",
-            "head_commit",
-            "head_commit_before",
-            "built_at_commit",
-        )
-    )
-    changed |= graph_changed
-    graph = graph_after
-    if graph_changed:
-        graph = {
-            **graph,
-            "state": "unknown",
-            "reason": "Graph or revision evidence changed during scan",
-        }
     findings.sort(key=lambda f: (f["severity"] != "error", f["type"], f["id"]))
     errors = sum(f["severity"] == "error" for f in findings)
     focused_files = sum(focus.matches(name) for name in manifest)
@@ -684,14 +641,12 @@ def align(
         "status": status,
         "complete": complete,
         "selector": focus.describe(),
-        "graph": graph,
         "source_snapshot": _hash(_encoded(manifest)),
         "sources": manifest,
         "coverage": {
             "files": len(manifest),
             "units": len(units),
             "facts": len(facts),
-            "graph_mapped_files": len(set(manifest) & refs.keys()),
             "focused_files": focused_files,
             "inventory_files": len(names),
             "supported_files": len(supported),
@@ -709,7 +664,7 @@ def align(
         "skipped": skipped[:100],
         "skipped_count": len(skipped),
         "inputs_changed_during_scan": changed,
-        "notes": "Source scan is separate from graph freshness. Candidates need agent review; "
+        "notes": "Candidates need agent review; "
         "unlinked prose and runtime behavior are not verified. Language inventory recognizes "
         "listed extensions only, not all possible source formats. Scope is not a privacy boundary. "
         "Rerun after edits.",
